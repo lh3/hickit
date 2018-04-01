@@ -45,7 +45,7 @@ function _hic_resolve_frag(opt, a)
 	if (a.length < 2) return;
 
 	// test single- or paired-end
-	var is_pe = false, is_se = false, qname = a[0][0];
+	var is_pe = false, is_se = false, qname = opt.no_qname? '.' : a[0][0];
 	for (var i = 0; i < a.length; ++i) {
 		if (a[i][1] & 0x1) is_pe = true;
 		else is_se = true;
@@ -147,12 +147,13 @@ function _hic_resolve_frag(opt, a)
 
 function hic_sam2seg(args)
 {
-	var c, opt = { min_mapq:20, min_dist:500, fmt_pairs:false, verbose:3 };
-	while ((c = getopt(args, "q:v:d:p")) != null) {
+	var c, opt = { min_mapq:20, min_dist:500, fmt_pairs:false, no_qname:false, verbose:3 };
+	while ((c = getopt(args, "q:v:d:pN")) != null) {
 		if (c == 'q') opt.min_mapq = parseInt(getopt.arg);
 		else if (c == 'v') opt.verbose = parseInt(getopt.arg);
 		else if (c == 'd') opt.min_dist = parseInt(getopt.arg);
 		else if (c == 'p') opt.fmt_pairs = true;
+		else if (c == 'N') opt.no_qname = true;
 	}
 
 	if (args.length - getopt.ind == 0) {
@@ -161,6 +162,7 @@ function hic_sam2seg(args)
 		print("  -q INT     min mapping quality [" + opt.min_mapq + "]");
 		print("  -d INT     min distance between segments [" + opt.min_dist + "]");
 		print("  -p         output .pairs format (segments by default)");
+		print("  -N         don't print fragment name");
 		return 1;
 	}
 
