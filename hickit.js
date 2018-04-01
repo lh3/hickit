@@ -53,7 +53,7 @@ function _hic_resolve_frag(opt, a)
 	if (is_pe && is_se)
 		throw Error(qname + " shouldn't be both PE and SE");
 
-	var b = [], read_nums = 0, qlen1 = 0;
+	var b = [], read_nums = 0;
 	for (var i = 0; i < a.length; ++i) {
 		var t = a[i];
 		var mapq = parseInt(t[4]);
@@ -82,36 +82,51 @@ function _hic_resolve_frag(opt, a)
 		if (read_num == 3)
 			throw Error(t[0] + ": incorrect read number flags");
 		read_nums |= 1 << read_num;
-		if (read_num == 1) {
-			qlen1 = y;
-		} else if (read_num == 2) { // NB: qlen1 could be zero here
+		if (read_num == 2) { // NB: qlen1 could be zero here
 			var qs1 = y - qe;
-			qe = qlen1 + (y - qs), qs = qlen1 + qs1;
+			qe = y - qs, qs = qs1;
 			rev = !rev;
 		}
 		b.push([read_num, rev, y, qs, qe, t[2], rs, re, mapq]);
 	}
 	if (b.length < 2) return;
 
-	b.sort(function(x,y) { return x[3] - y[3] });
+	b.sort(function(x,y) { return x[0] != y[0]? x[0] - y[0] : x[3] - y[3] });
 
 	// identify segments
-	var segs = [[b[0][5], b[0][6], b[0][7], b[0][1]]];
+	var segs = [[b[0][5], b[0][6], b[0][7], b[0][1]? '-' : '+', 0, b[0][8], 1]];
 	for (var i = 1; i < b.length; ++i) {
 		var p = b[i - 1], q = b[i];
 		var new_seg = true;
 		if (p[1] == q[1] && p[5] == q[5]) { // same strand and chr
 			var dist = !p[1]? q[6] - p[7] : q[7] - p[6];
-			if (dist < opt.min_dist) new_seg = false;
+			if (dist < opt.min_dist && dist >= -opt.min_dist) new_seg = false;
 		}
 		if (new_seg) {
-			segs.push([q[5], q[6], q[7], q[1]]);
+			segs.push([q[5], q[6], q[7], q[1]? '-' : '+', 0, q[8], 1]);
 		} else {
-			if (p[1]) segs[segs.length - 1][1] = q[6];
-			else segs[segs.length - 1][2] = q[7];
+			var last = segs[segs.length - 1];
+			if (p[1]) last[1] = q[6];
+			else last[2] = q[7];
+			last[5] = last[5] > q[8]? last[5] : q[8];
+			++last[6];
 		}
 	}
 	if (segs.length < 2) return;
+
+	function ovlp_ratio(s1, s2) {
+		var min_st = s1[1] < s2[1]? s1[1] : s2[1];
+		var max_st = s1[1] > s2[1]? s1[1] : s2[1];
+		var min_en = s1[2] < s2[2]? s1[2] : s2[2];
+		var max_en = s1[2] > s2[2]? s1[2] : s2[2];
+		return max_st >= min_en? 0 : (min_en - max_st) / (s1[2] - s1[1] < s2[2] - s2[1]? s1[2] - s1[1] : s2[2] - s2[1]);
+	}
+
+	// fixed unmerged mates, a corner case
+	if (segs.length == 4 && segs[0][0] == segs[2][0] && segs[1][0] == segs[3][0] && segs[0][3] == segs[2][3] && segs[1][3] == segs[3][3]) {
+		if (ovlp_ratio(segs[0], segs[2]) > 0.9 && ovlp_ratio(segs[1], segs[3]) > 0.9)
+			segs.length = 2;
+	}
 
 	// debugging
 	if (opt.verbose >= 4) {
@@ -121,13 +136,11 @@ function _hic_resolve_frag(opt, a)
 
 	if (opt.fmt_pairs) {
 		for (var i = 0; i < segs.length - 1; ++i)
-			print(qname, segs[i][0], segs[i][2], segs[i+1][0], segs[i+1][1], segs[i][3]? '-' : '+', segs[i+1][3]? '-' : '+');
+			print(qname, segs[i][0], segs[i][2], segs[i+1][0], segs[i+1][1], segs[i][3], segs[i+1][3]);
 	} else {
 		var out = [];
-		for (var i = 0; i < segs.length; ++i) {
-			var pos = (segs[i][1] + segs[i][2]) >> 1;
-			out.push(segs[i][0] + ':' + pos + ':' + (segs[i][3]? '-' : '+'));
-		}
+		for (var i = 0; i < segs.length; ++i)
+			out.push(segs[i].join(":"));
 		print(qname, out.join("\t"));
 	}
 }
