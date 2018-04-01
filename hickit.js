@@ -124,7 +124,7 @@ function _hic_resolve_frag(opt, a)
 
 	// fixed unmerged mates, a corner case
 	if (segs.length == 4 && segs[0][0] == segs[2][0] && segs[1][0] == segs[3][0] && segs[0][3] == segs[2][3] && segs[1][3] == segs[3][3]) {
-		if (ovlp_ratio(segs[0], segs[2]) > 0.9 && ovlp_ratio(segs[1], segs[3]) > 0.9)
+		if (ovlp_ratio(segs[0], segs[2]) > 0.5 && ovlp_ratio(segs[1], segs[3]) > 0.5)
 			segs.length = 2;
 	}
 
