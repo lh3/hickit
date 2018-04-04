@@ -74,7 +74,7 @@ function _hic_resolve_frag(opt, a)
 				y += len;
 			}
 		}
-		var rs = parseInt(t[3]), re = rs + x;
+		var rs = parseInt(t[3]) - 1, re = rs + x;
 		var qs, qe;
 		if (!rev) qs = clip[0], qe = y - clip[1];
 		else qs = clip[1], qe = y - clip[0];
