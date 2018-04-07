@@ -1,5 +1,13 @@
 #!/usr/bin/env k8
 
+/*****************************
+ ***** Library functions *****
+ *****************************/
+
+/*******************************
+ * Command line option parsing *
+ *******************************/
+
 var getopt = function(args, ostr) {
 	var oli; // option letter list index
 	if (typeof(getopt.place) == 'undefined')
@@ -38,7 +46,128 @@ var getopt = function(args, ostr) {
 	return optopt;
 }
 
+/***********************
+ * Interval operations *
+ ***********************/
+
+Interval = {};
+
+Interval.sort = function(a)
+{
+	if (typeof a[0] == 'number')
+		a.sort(function(x, y) { return x - y });
+	else a.sort(function(x, y) { return x[0] != y[0]? x[0] - y[0] : x[1] - y[1] });
+}
+
+Interval.merge = function(a, sorted)
+{
+	if (typeof sorted == 'undefined') sorted = true;
+	if (!sorted) Interval.sort(a);
+	var k = 0;
+	for (var i = 1; i < a.length; ++i) {
+		if (a[k][1] >= a[i][0])
+			a[k][1] = a[k][1] > a[i][1]? a[k][1] : a[i][1];
+		else a[++k] = a[i].slice(0);
+	}
+	a.length = k + 1;
+}
+
+Interval.index_end = function(a, sorted)
+{
+	if (a.length == 0) return;
+	if (typeof sorted == 'undefined') sorted = true;
+	if (!sorted) Interval.sort(a);
+	a[0].push(0);
+	var k = 0, k_en = a[0][1];
+	for (var i = 1; i < a.length; ++i) {
+		if (k_en <= a[i][0]) {
+			for (++k; k < i; ++k)
+				if (a[k][1] > a[i][0])
+					break;
+			k_en = a[k][1];
+		}
+		a[i].push(k);
+	}
+}
+
+Interval.find_intv = function(a, x)
+{
+	var left = -1, right = a.length;
+	if (typeof a[0] == 'number') {
+		while (right - left > 1) {
+			var mid = left + ((right - left) >> 1);
+			if (a[mid] > x) right = mid;
+			else if (a[mid] < x) left = mid;
+			else return mid;
+		}
+	} else {
+		while (right - left > 1) {
+			var mid = left + ((right - left) >> 1);
+			if (a[mid][0] > x) right = mid;
+			else if (a[mid][0] < x) left = mid;
+			else return mid;
+		}
+	}
+	return left;
+}
+
+Interval.find_ovlp = function(a, st, en)
+{
+	if (a.length == 0 || st >= en) return [];
+	var l = Interval.find_intv(a, st);
+	var k = l < 0? 0 : a[l][a[l].length - 1];
+	var b = [];
+	for (var i = k; i < a.length; ++i) {
+		if (a[i][0] >= en) break;
+		else if (st < a[i][1])
+			b.push(a[i]);
+	}
+	return b;
+}
+
+/************************
+ *** hickit functions ***
+ ************************/
+
 var _hic_re_cigar = /(\d+)([MIDSH])/g;
+
+function hic_vcf2tsv(args)
+{
+	var c, vcf_no_chr = false, inc_indel = false;
+	while ((c = getopt(args, 'cg')) != null) {
+		if (c == 'c') vcf_no_chr = true;
+		else if (c == 'g') inc_indel = true;
+	}
+	if (args.length - getopt.ind == 0) {
+		print("Usage: hickit.js vcf2tsv [options] <in.vcf>");
+		print("Options:");
+		print("  -c     convert 'chr1' in VCF to '1'");
+		print("  -g     include INDELs");
+		exit(1);
+	}
+	var file = new File(args[getopt.ind]);
+	var buf = new Bytes();
+	while (file.readline(buf) >= 0) {
+		var m, t = buf.toString().split("\t");
+		if (t[0][0] == '#') continue;
+		if (t[6] != '.' && t[6] != 'PASS') continue;
+		var s = t[4].split(",");
+		s.unshift(t[3]);
+		var max = 0;
+		for (var i = 0; i < s.length; ++i)
+			max = max > s[i].length? max : s[i].length;
+		if (!inc_indel && max > 1) continue;
+		if ((m = /^(\d+)\|(\d+)/.exec(t[9])) == null) continue;
+		var a1 = parseInt(m[1]), a2 = parseInt(m[2]);
+		if (a1 == a2) continue;
+		if (a1 >= s.length || a2 >= s.length) throw Error("incorrect VCF");
+		var chr = vcf_no_chr? t[0].replace(/^chr/, "") : t[0];
+		var pos = parseInt(t[1]) - 1;
+		print(chr, pos + 1, s[a1], s[a2]);
+	}
+	buf.destroy();
+	file.close();
+}
 
 function _hic_resolve_frag(opt, a)
 {
@@ -94,7 +223,7 @@ function _hic_resolve_frag(opt, a)
 	b.sort(function(x,y) { return x[0] != y[0]? x[0] - y[0] : x[3] - y[3] });
 
 	// identify segments
-	var segs = [[b[0][5], b[0][6], b[0][7], b[0][1]? '-' : '+', 0, b[0][8], 1]];
+	var segs = [[b[0][5], b[0][6], b[0][7], b[0][1]? '-' : '+', '.', b[0][8], 1]];
 	for (var i = 1; i < b.length; ++i) {
 		var p = b[i - 1], q = b[i];
 		var new_seg = true;
@@ -103,7 +232,7 @@ function _hic_resolve_frag(opt, a)
 			if (dist < opt.min_dist && dist >= -opt.min_dist) new_seg = false;
 		}
 		if (new_seg) {
-			segs.push([q[5], q[6], q[7], q[1]? '-' : '+', 0, q[8], 1]);
+			segs.push([q[5], q[6], q[7], q[1]? '-' : '+', '.', q[8], 1]);
 		} else {
 			var last = segs[segs.length - 1];
 			if (p[1]) last[1] = q[6];
@@ -134,6 +263,7 @@ function _hic_resolve_frag(opt, a)
 			print(qname, b[i].join("\t"));
 	}
 
+	// print out
 	if (opt.fmt_pairs) {
 		for (var i = 0; i < segs.length - 1; ++i)
 			print(qname, segs[i][0], segs[i][2], segs[i+1][0], segs[i+1][1], segs[i][3], segs[i+1][3]);
@@ -147,13 +277,14 @@ function _hic_resolve_frag(opt, a)
 
 function hic_sam2seg(args)
 {
-	var c, opt = { min_mapq:20, min_dist:500, fmt_pairs:false, no_qname:false, verbose:3 };
-	while ((c = getopt(args, "q:v:d:pN")) != null) {
+	var c, opt = { min_mapq:20, min_dist:500, fmt_pairs:false, no_qname:false, verbose:3, fn_var:null };
+	while ((c = getopt(args, "q:V:d:pNv:")) != null) {
 		if (c == 'q') opt.min_mapq = parseInt(getopt.arg);
-		else if (c == 'v') opt.verbose = parseInt(getopt.arg);
+		else if (c == 'V') opt.verbose = parseInt(getopt.arg);
 		else if (c == 'd') opt.min_dist = parseInt(getopt.arg);
 		else if (c == 'p') opt.fmt_pairs = true;
 		else if (c == 'N') opt.no_qname = true;
+		else if (c == 'v') opt.fn_var = getopt.arg;
 	}
 
 	if (args.length - getopt.ind == 0) {
@@ -167,6 +298,22 @@ function hic_sam2seg(args)
 	}
 
 	var buf = new Bytes();
+
+	if (opt.fn_var != null) {
+		opt.snp = {};
+		var file = new File(opt.fn_var);
+		while (file.readline(buf) >= 0) {
+			var t = buf.toString().split("\t");
+			if (t[2].length != 1 || t[3].length != 1) continue;
+			if (opt.snp[t[0]] == null) opt.snp[t[0]] = [];
+			var pos = parseInt(t[1]);
+			opt.snp[t[0]].push([pos - 1, pos, t[2], t[3]]);
+		}
+		file.close();
+		for (var c in opt.snp)
+			Interval.index_end(opt.snp[c], true);
+	}
+
 	var file = args[getopt.ind] == '-'? new File() : new File(args[getopt.ind]);
 	var a = [];
 	if (opt.fmt_pairs)
@@ -216,11 +363,13 @@ function main(args)
 		print("Usage: hickit.js <command> [arguments]");
 		print("Commands:");
 		print("  sam2seg        convert SAM to segmentations/pairs");
+		print("  vcf2tsv        convert phased VCF to simple TSV (chr, pos1, al1, al2)");
 		exit(1);
 	}
 
 	var cmd = args.shift();
 	if (cmd == 'sam2seg') hic_sam2seg(args);
+	else if (cmd == 'vcf2tsv') hic_vcf2tsv(args);
 	else throw Error("unrecognized command: " + cmd);
 }
 main(arguments);
