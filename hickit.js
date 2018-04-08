@@ -204,26 +204,65 @@ function _hic_resolve_frag(opt, a)
 			}
 		}
 		var rs = parseInt(t[3]) - 1, re = rs + x;
-		var qs, qe;
-		if (!rev) qs = clip[0], qe = y - clip[1];
-		else qs = clip[1], qe = y - clip[0];
+		var qs, qe, qlen = y;
+		if (!rev) qs = clip[0], qe = qlen - clip[1];
+		else qs = clip[1], qe = qlen - clip[0];
 		var read_num = flag >> 6 & 0x3;
 		if (read_num == 3)
 			throw Error(t[0] + ": incorrect read number flags");
 		read_nums |= 1 << read_num;
 		if (read_num == 2) { // NB: qlen1 could be zero here
-			var qs1 = y - qe;
-			qe = y - qs, qs = qs1;
+			var qs1 = qlen - qe;
+			qe = qlen - qs, qs = qs1;
 			rev = !rev;
 		}
-		b.push([read_num, rev, y, qs, qe, t[2], rs, re, mapq]);
+		var phase = '.';
+		if (opt.snp != null && opt.snp[t[2]] != null) { // phasing
+			var v = Interval.find_ovlp(opt.snp[t[2]], rs, re);
+			if (v.length > 0) {
+				var x = rs, y = 0;
+				var phases = [];
+				while ((m = _hic_re_cigar.exec(t[5])) != null) {
+					var op = m[2], len = parseInt(m[1]);
+					if (op == 'M') {
+						for (var j = 0; j < v.length; ++j) {
+							var p = v[j][0];
+							if (x <= p && p < x + len) {
+								p = p - x + y;
+								if (p < 0 || p >= t[9].length)
+									throw Error("CIGAR parsing error");
+								var c = t[9][p];
+								var q = t[10].length == t[9].length? t[10].charCodeAt(p) - 33 : opt.min_baseq;
+								if (q >= opt.min_baseq) {
+									if (c == v[j][2]) phases.push(0);
+									else if (c == v[j][3]) phases.push(1);
+									else if (opt.verbose >= 2)
+										warn('WARNING: a new allele ' + c + ' on read ' + qname + ' at position ' + t[2] + ':' + v[j][1] + ' (not ' + v[j][2] + '/' + v[j][3] + ')');
+								}
+							}
+						}
+						x += len, y += len;
+					} else if (op == 'I') y += len;
+					else if (op == 'D') x += len;
+					else if (op == 'S') y += len;
+				}
+				var n = [0, 0];
+				for (var k = 0; k < phases.length; ++k)
+					++n[phases[k]];
+				if (n[0] > 0 && n[1] == 0) phase = 0;
+				else if (n[0] == 0 && n[1] > 0) phase = 1;
+				else if (n[0] > 0 && n[1] > 0 && opt.verbose >= 2)
+					warn('WARNING: conflicting phase at a segment of read ' + qname);
+			}
+		}
+		b.push([read_num, rev, qlen, qs, qe, t[2], rs, re, mapq, phase]);
 	}
 	if (b.length < 2) return;
 
 	b.sort(function(x,y) { return x[0] != y[0]? x[0] - y[0] : x[3] - y[3] });
 
 	// identify segments
-	var segs = [[b[0][5], b[0][6], b[0][7], b[0][1]? '-' : '+', '.', b[0][8], 1]];
+	var segs = [[b[0][5], b[0][6], b[0][7], b[0][1]? '-' : '+', b[0][9], b[0][8], 1]];
 	for (var i = 1; i < b.length; ++i) {
 		var p = b[i - 1], q = b[i];
 		var new_seg = true;
@@ -232,7 +271,7 @@ function _hic_resolve_frag(opt, a)
 			if (dist < opt.min_dist && dist >= -opt.min_dist) new_seg = false;
 		}
 		if (new_seg) {
-			segs.push([q[5], q[6], q[7], q[1]? '-' : '+', '.', q[8], 1]);
+			segs.push([q[5], q[6], q[7], q[1]? '-' : '+', q[9], q[8], 1]);
 		} else {
 			var last = segs[segs.length - 1];
 			if (p[1]) last[1] = q[6];
@@ -277,7 +316,7 @@ function _hic_resolve_frag(opt, a)
 
 function hic_sam2seg(args)
 {
-	var c, opt = { min_mapq:20, min_dist:500, fmt_pairs:false, no_qname:false, verbose:3, fn_var:null };
+	var c, opt = { min_mapq:20, min_baseq:20, min_dist:500, fmt_pairs:false, no_qname:false, verbose:3, fn_var:null };
 	while ((c = getopt(args, "q:V:d:pNv:")) != null) {
 		if (c == 'q') opt.min_mapq = parseInt(getopt.arg);
 		else if (c == 'V') opt.verbose = parseInt(getopt.arg);
@@ -372,5 +411,5 @@ function main(args)
 	else if (cmd == 'vcf2tsv') hic_vcf2tsv(args);
 	else throw Error("unrecognized command: " + cmd);
 }
-main(arguments);
 
+main(arguments);
