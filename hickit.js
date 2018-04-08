@@ -309,7 +309,7 @@ function _hic_resolve_frag(opt, a)
 	} else {
 		var out = [];
 		for (var i = 0; i < segs.length; ++i)
-			out.push(segs[i].join(":"));
+			out.push(segs[i].join(" "));
 		print(qname, out.join("\t"));
 	}
 }
