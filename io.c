@@ -182,12 +182,18 @@ struct hk_map *hk_map_read(const char *fn)
 	return m;
 }
 
+void hk_print_chr(FILE *fp, const struct hk_map *m)
+{
+	int32_t i;
+	for (i = 0; i < m->d->n; ++i)
+		if (m->d->len[i] > 0)
+			fprintf(fp, "#chromosome: %s %d\n", m->d->name[i], m->d->len[i]);
+}
+
 void hk_map_print(FILE *fp, const struct hk_map *m)
 {
 	int32_t i, last_frag = -1;
-	for (i = 0; i < m->d->n; ++i)
-		if (m->d->len[i] > 0)
-			printf("#chromosome: %s %d\n", m->d->name[i], m->d->len[i]);
+	hk_print_chr(fp, m);
 	for (i = 0; i < m->n_seg; ++i) {
 		struct hk_seg *s = &m->seg[i];
 		if (s->frag_id != last_frag) {
@@ -204,10 +210,19 @@ void hk_map_print(FILE *fp, const struct hk_map *m)
 	fputc('\n', fp);
 }
 
+/*********
+ * Pairs *
+ *********/
+
+#include "ksort.h"
+#define pair_lt(a, b) ((a).pos[0] < (b).pos[0] || ((a).pos[0] == (b).pos[0] && (a).pos[1] < (b).pos[1]))
+KSORT_INIT(pair, struct hk_pair, pair_lt)
+
 struct hk_pair *hk_map2pairs(const struct hk_map *m, int32_t *_n_pairs, int min_dist, int max_seg, int min_mapq)
 {
 	int32_t m_pairs = 0, n_pairs = 0, i, j, st;
 	struct hk_pair *pairs = 0;
+	if (min_dist < 0) min_dist = 500;
 	if (max_seg <= 0) max_seg = 3;
 	if (min_mapq < 0) min_mapq = 20;
 	for (st = 0, i = 1; i <= m->n_seg; ++i) {
@@ -240,6 +255,37 @@ struct hk_pair *hk_map2pairs(const struct hk_map *m, int32_t *_n_pairs, int min_
 			st = i;
 		}
 	}
+	ks_introsort_pair(n_pairs, pairs);
 	*_n_pairs = n_pairs;
 	return pairs;
+}
+
+int32_t hk_pair_dedup(int n_pairs, struct hk_pair *pairs)
+{
+	int32_t i, n;
+	for (i = n = 1; i < n_pairs; ++i) {
+		struct hk_pair *p = &pairs[i-1], *q = &pairs[i];
+		if (!(p->pos[0] == q->pos[0] && p->pos[1] == q->pos[1] && p->rel_strand == q->rel_strand))
+			pairs[n++] = pairs[i];
+	}
+	return n;
+}
+
+void hk_map_print_pairs(FILE *fp, const struct hk_map *m, int min_dist, int max_seg, int min_mapq)
+{
+	int32_t n_pairs, i;
+	struct hk_pair *pairs;
+	pairs = hk_map2pairs(m, &n_pairs, min_dist, max_seg, min_mapq);
+	n_pairs = hk_pair_dedup(n_pairs, pairs);
+	fprintf(fp, "## pairs format v1.0\n");
+	fprintf(fp, "#sorted: chr1-pos1-chr2-pos2\n");
+	fprintf(fp, "#shape: upper triangle\n");
+	hk_print_chr(fp, m);
+	fprintf(fp, "#columns: readID chr1 pos1 chr2 pos2\n");
+	for (i = 0; i < n_pairs; ++i) {
+		struct hk_pair *p = &pairs[i];
+		fprintf(fp, ".\t%s\t%d\t%s\t%d\n", m->d->name[p->pos[0]>>32], (int32_t)p->pos[0],
+				m->d->name[p->pos[1]>>32], (int32_t)p->pos[1]);
+	}
+	free(pairs);
 }

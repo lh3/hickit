@@ -37,6 +37,7 @@ struct hk_pair {
 struct hk_map *hk_map_read(const char *fn);
 void hk_map_destroy(struct hk_map *m);
 void hk_map_print(FILE *fp, const struct hk_map *m);
+void hk_map_print_pairs(FILE *fp, const struct hk_map *m, int min_dist, int max_seg, int min_mapq);
 
 #ifdef __cplusplus
 }
