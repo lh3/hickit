@@ -5,6 +5,10 @@
 
 #define HK_SUB_DELIM ' '
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct hk_sdict {
 	int32_t n, m;
 	char **name;
@@ -28,5 +32,13 @@ struct hk_map {
 	int32_t n_frag, m_seg, n_seg;
 	struct hk_seg *seg;
 };
+
+struct hk_map *hk_map_read(const char *fn);
+void hk_map_destroy(struct hk_map *m);
+void hk_map_print(FILE *fp, const struct hk_map *m);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

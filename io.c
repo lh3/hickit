@@ -21,8 +21,9 @@ int64_t hk_parse_64(const char *s, char **t, int *has_digit)
 	if (*p == '-') is_neg = 1, ++p;
 	else if (*p == '+') ++p;
 	while (*p >= '0' && *p <= '9') {
-		x += x * 10 + (*p - '0');
+		x = x * 10 + (*p - '0');
 		*has_digit = 1;
+		++p;
 	}
 	if (is_neg) x = -x;
 	*t = (char*)p;
@@ -63,7 +64,7 @@ int32_t hk_sd_put(struct hk_sdict *d, const char *s)
 	if (absent) {
 		if (d->n == d->m)
 			EXPAND(d->name, d->m);
-		d->name[d->n] = strdup(s);
+		kh_key(h, k) = d->name[d->n] = strdup(s);
 		kh_val(h, k) = d->n++;
 	}
 	return kh_val(h, k);
@@ -97,7 +98,7 @@ void hk_parse_seg(struct hk_seg *s, struct hk_sdict *d, int32_t frag_id, char *s
 	s->strand = 0, s->phase = -1, s->mapq = 0;
 
 	for (i = 0, p = q = start;; ++q) {
-		if (*q == HK_SUB_DELIM || q == end) {
+		if (q == end || *q == HK_SUB_DELIM) {
 			if (i == 0) {
 				assert(q < end);
 				*q = 0;
@@ -159,4 +160,19 @@ struct hk_map *hk_map_read(const char *fn)
 	ks_destroy(ks);
 	gzclose(fp);
 	return m;
+}
+
+void hk_map_print(FILE *fp, const struct hk_map *m)
+{
+	int32_t i, last_frag = -1;
+	for (i = 0; i < m->n_seg; ++i) {
+		struct hk_seg *s = &m->seg[i];
+		if (s->frag_id != last_frag) {
+			if (last_frag >= 0) fputc('\n', fp);
+			fputc('.', fp);
+			last_frag = s->frag_id;
+		}
+		fprintf(fp, "\t%s%c%d", m->d->name[s->chr], HK_SUB_DELIM, s->st);
+	}
+	fputc('\n', fp);
 }
