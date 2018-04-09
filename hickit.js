@@ -129,6 +129,7 @@ Interval.find_ovlp = function(a, st, en)
  *** hickit functions ***
  ************************/
 
+var hic_sub_delim = '!';
 var _hic_re_cigar = /(\d+)([MIDSH])/g;
 
 function hic_vcf2tsv(args)
@@ -309,7 +310,7 @@ function _hic_resolve_frag(opt, a)
 	} else {
 		var out = [];
 		for (var i = 0; i < segs.length; ++i)
-			out.push(segs[i].join(" "));
+			out.push(segs[i].join(hic_sub_delim));
 		print(qname, out.join("\t"));
 	}
 }
@@ -333,6 +334,7 @@ function hic_sam2seg(args)
 		print("  -d INT     min distance between segments [" + opt.min_dist + "]");
 		print("  -p         output .pairs format (segments by default)");
 		print("  -N         don't print fragment name");
+		print("  -v FILE    phased SNPs (typically vcf2tsv output)");
 		return 1;
 	}
 

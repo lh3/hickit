@@ -23,3 +23,6 @@ depend:
 		(LC_ALL=C; export LC_ALL; makedepend -Y -- $(CFLAGS) $(CPPFLAGS) -- *.c)
 
 # DO NOT DELETE
+
+io.o: hickit.h hkpriv.h kseq.h khash.h
+main.o: hickit.h
