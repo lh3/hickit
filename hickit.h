@@ -12,6 +12,7 @@ extern "C" {
 struct hk_sdict {
 	int32_t n, m;
 	char **name;
+	int32_t *len;
 	void *h;
 };
 

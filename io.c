@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <ctype.h>
 #include <string.h>
 #include <assert.h>
 #include <zlib.h>
@@ -18,6 +19,7 @@ int64_t hk_parse_64(const char *s, char **t, int *has_digit)
 	int is_neg = 0;
 	int64_t x = 0;
 	*has_digit = 0;
+	while (isspace(*p)) ++p;
 	if (*p == '-') is_neg = 1, ++p;
 	else if (*p == '+') ++p;
 	while (*p >= '0' && *p <= '9') {
@@ -52,18 +54,22 @@ void hk_sd_destroy(struct hk_sdict *d)
 	for (i = 0; i < d->n; ++i)
 		free(d->name[i]);
 	free(d->name);
+	free(d->len);
 	kh_destroy(str, (sdict_t*)d->h);
 }
 
-int32_t hk_sd_put(struct hk_sdict *d, const char *s)
+int32_t hk_sd_put(struct hk_sdict *d, const char *s, int32_t len)
 {
 	sdict_t *h = (sdict_t*)d->h;
 	khint_t k;
 	int absent;
 	k = kh_put(str, h, s, &absent);
 	if (absent) {
-		if (d->n == d->m)
+		if (d->n == d->m) {
 			EXPAND(d->name, d->m);
+			REALLOC(d->len, d->m);
+		}
+		d->len[d->n] = len;
 		kh_key(h, k) = d->name[d->n] = strdup(s);
 		kh_val(h, k) = d->n++;
 	}
@@ -85,6 +91,7 @@ struct hk_map *hk_map_init(void)
 void hk_map_destroy(struct hk_map *m)
 {
 	hk_sd_destroy(m->d);
+	free(m->seg);
 	free(m);
 }
 
@@ -102,7 +109,7 @@ void hk_parse_seg(struct hk_seg *s, struct hk_sdict *d, int32_t frag_id, char *s
 			if (i == 0) {
 				assert(q < end);
 				*q = 0;
-				s->chr = hk_sd_put(d, p);
+				s->chr = hk_sd_put(d, p, 0);
 				*q = HK_SUB_DELIM;
 			} else if (i == 1) {
 				s->st = s->en = hk_parse_64(p, &p, &has_digit);
@@ -142,6 +149,19 @@ struct hk_map *hk_map_read(const char *fn)
 	while (ks_getuntil(ks, KS_SEP_LINE, &str, &dret) >= 0) {
 		char *p, *q;
 		int32_t k, n_seg = 0;
+		if (str.l >= 12 + 3 && strncmp(str.s, "#chromosome:", 12) == 0) {
+			char *chr;
+			int64_t len;
+			int has_digit;
+			for (p = str.s + 12; isspace(*p) && *p != 0; ++p) {}
+			assert(*p);
+			for (q = p; *q != 0 && !isspace(*q); ++q) {}
+			assert(*q);
+			*q = 0, chr = p, p = q + 1;
+			len = hk_parse_64(p, &p, &has_digit);
+			assert(has_digit && len > 0 && len <= INT32_MAX);
+			hk_sd_put(m->d, chr, len);
+		}
 		for (k = 0, p = q = str.s;; ++q) {
 			if (*q == '\t' || *q == 0) {
 				if (k > 0) {
@@ -165,6 +185,9 @@ struct hk_map *hk_map_read(const char *fn)
 void hk_map_print(FILE *fp, const struct hk_map *m)
 {
 	int32_t i, last_frag = -1;
+	for (i = 0; i < m->d->n; ++i)
+		if (m->d->len[i] > 0)
+			printf("#chromosome: %s %d\n", m->d->name[i], m->d->len[i]);
 	for (i = 0; i < m->n_seg; ++i) {
 		struct hk_seg *s = &m->seg[i];
 		if (s->frag_id != last_frag) {
@@ -172,7 +195,51 @@ void hk_map_print(FILE *fp, const struct hk_map *m)
 			fputc('.', fp);
 			last_frag = s->frag_id;
 		}
-		fprintf(fp, "\t%s%c%d", m->d->name[s->chr], HK_SUB_DELIM, s->st);
+		fprintf(fp, "\t%s%c%d%c", m->d->name[s->chr], HK_SUB_DELIM, s->st, HK_SUB_DELIM);
+		if (s->en > s->st) fprintf(fp, "%d", s->en);
+		fprintf(fp, "%c%c%c%c%c%d", HK_SUB_DELIM, s->strand > 0? '+' : s->strand < 0? '-' : '.',
+				HK_SUB_DELIM, s->phase == 0? '0' : s->phase == 1? '1' : '.',
+				HK_SUB_DELIM, s->mapq);
 	}
 	fputc('\n', fp);
+}
+
+struct hk_pair *hk_map2pairs(const struct hk_map *m, int32_t *_n_pairs, int min_dist, int max_seg, int min_mapq)
+{
+	int32_t m_pairs = 0, n_pairs = 0, i, j, st;
+	struct hk_pair *pairs = 0;
+	if (max_seg <= 0) max_seg = 3;
+	if (min_mapq < 0) min_mapq = 20;
+	for (st = 0, i = 1; i <= m->n_seg; ++i) {
+		if (i == m->n_seg || m->seg[i].frag_id != m->seg[i-1].frag_id) {
+			if (i - st <= max_seg) {
+				for (j = st - 1; j < i; ++j) {
+					struct hk_pair *p;
+					struct hk_seg *s = &m->seg[j], *t = &m->seg[j-1];
+					uint64_t tmp;
+					if (s->mapq < min_mapq || t->mapq < min_mapq)
+						continue; // mapping quality too low
+					if (n_pairs == m_pairs)
+						EXPAND(pairs, m_pairs);
+					p = &pairs[n_pairs++];
+					p->pos[0] = (uint64_t)t->chr<<32 | t->en;
+					p->pos[1] = (uint64_t)s->chr<<32 | s->st;
+					if (p->pos[0] > p->pos[1]) {
+						tmp = p->pos[0], p->pos[0] = p->pos[1], p->pos[1] = tmp;
+						p->phase[0] = s->phase, p->phase[1] = t->phase;
+					} else {
+						p->phase[0] = t->phase, p->phase[1] = s->phase;
+					}
+					p->rel_strand = t->strand * s->strand;
+					if (p->rel_strand >= 0 && p->pos[1] - p->pos[0] < min_dist) {
+						--n_pairs;
+						continue;
+					}
+				}
+			}
+			st = i;
+		}
+	}
+	*_n_pairs = n_pairs;
+	return pairs;
 }

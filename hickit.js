@@ -374,8 +374,7 @@ function hic_sam2seg(args)
 				}
 				if (sn == null || ln == null)
 					throw Error("missing SN or LN at an @SQ line");
-				if (opt.fmt_pairs)
-					print("#chromosome: " + sn + " " + ln);
+				print("#chromosome: " + sn + " " + ln);
 			}
 			continue;
 		}
