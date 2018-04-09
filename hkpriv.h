@@ -18,6 +18,7 @@ extern "C" {
 #endif
 
 struct hk_pair *hk_map2pairs(const struct hk_map *m, int32_t *_n_pairs, int min_dist, int max_seg, int min_mapq);
+int32_t hk_pair_dedup(int n_pairs, struct hk_pair *pairs);
 
 #ifdef __cplusplus
 }

@@ -34,15 +34,17 @@ struct hk_pair {
 	int8_t phase[2];
 	int8_t rel_strand;
 	int32_t n_nei;
+	int64_t offset;
 };
 
 struct hk_link {
-	int32_t p[2];
+	uint64_t x;
 	float w;
-};
+} __attribute__ ((__packed__));
 
 struct hk_graph {
-	int32_t n_pairs, n_links;
+	int32_t n_pairs;
+	int64_t n_links;
 	struct hk_pair *pairs;
 	struct hk_link *links;
 };
@@ -57,6 +59,7 @@ void hk_map_destroy(struct hk_map *m);
 
 void hk_gopt_init(struct hk_gopt *c);
 struct hk_graph *hk_graph_gen(const struct hk_map *m, const struct hk_gopt *c);
+void hk_graph_destroy(struct hk_graph *g);
 
 void hk_map_print(FILE *fp, const struct hk_map *m);
 void hk_map_print_pairs(FILE *fp, const struct hk_map *m, int min_dist, int max_seg, int min_mapq);

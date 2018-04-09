@@ -33,9 +33,14 @@ int main(int argc, char *argv[])
 	}
 
 	m = hk_map_read(argv[optind]);
-	if (is_graph) g = hk_graph_gen(m, &opt);
-	else if (is_pairs) hk_map_print_pairs(stdout, m, -1, 3, 20);
-	else hk_map_print(stdout, m);
+	if (is_graph) {
+		g = hk_graph_gen(m, &opt);
+	} else if (is_pairs) {
+		hk_map_print_pairs(stdout, m, -1, 3, 20);
+	} else {
+		hk_map_print(stdout, m);
+	}
+	if (g) hk_graph_destroy(g);
 	hk_map_destroy(m);
 	return 0;
 }

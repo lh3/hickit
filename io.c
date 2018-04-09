@@ -246,6 +246,7 @@ struct hk_pair *hk_map2pairs(const struct hk_map *m, int32_t *_n_pairs, int min_
 						p->phase[0] = t->phase, p->phase[1] = s->phase;
 					}
 					p->rel_strand = t->strand * s->strand;
+					p->n_nei = 0, p->offset = -1;
 					if (p->rel_strand >= 0 && p->pos[1] - p->pos[0] < min_dist) {
 						--n_pairs;
 						continue;
@@ -276,7 +277,7 @@ void hk_map_print_pairs(FILE *fp, const struct hk_map *m, int min_dist, int max_
 	int32_t n_pairs, i;
 	struct hk_pair *pairs;
 	pairs = hk_map2pairs(m, &n_pairs, min_dist, max_seg, min_mapq);
-	n_pairs = hk_pair_dedup(n_pairs, pairs);
+//	n_pairs = hk_pair_dedup(n_pairs, pairs);
 	fprintf(fp, "## pairs format v1.0\n");
 	fprintf(fp, "#sorted: chr1-pos1-chr2-pos2\n");
 	fprintf(fp, "#shape: upper triangle\n");
@@ -284,8 +285,10 @@ void hk_map_print_pairs(FILE *fp, const struct hk_map *m, int min_dist, int max_
 	fprintf(fp, "#columns: readID chr1 pos1 chr2 pos2\n");
 	for (i = 0; i < n_pairs; ++i) {
 		struct hk_pair *p = &pairs[i];
-		fprintf(fp, ".\t%s\t%d\t%s\t%d\n", m->d->name[p->pos[0]>>32], (int32_t)p->pos[0],
-				m->d->name[p->pos[1]>>32], (int32_t)p->pos[1]);
+		//fprintf(fp, ".\t%s\t%d\t%s\t%d\n", m->d->name[p->pos[0]>>32], (int32_t)p->pos[0],
+		//		m->d->name[p->pos[1]>>32], (int32_t)p->pos[1]);
+		fprintf(fp, ".\t%s\t%d\t%s\t%d\t%d\t%ld\n", m->d->name[p->pos[0]>>32], (int32_t)p->pos[0],
+				m->d->name[p->pos[1]>>32], (int32_t)p->pos[1], p->n_nei, (long)p->offset);
 	}
 	free(pairs);
 }
