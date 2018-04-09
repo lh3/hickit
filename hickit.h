@@ -2,6 +2,7 @@
 #define HICKIT_H
 
 #include <stdint.h>
+#include <stdio.h>
 
 #define HK_SUB_DELIM '!'
 
@@ -32,10 +33,31 @@ struct hk_pair {
 	uint64_t pos[2];
 	int8_t phase[2];
 	int8_t rel_strand;
+	int32_t n_nei;
+};
+
+struct hk_link {
+	int32_t p[2];
+	float w;
+};
+
+struct hk_graph {
+	int32_t n_pairs, n_links;
+	struct hk_pair *pairs;
+	struct hk_link *links;
+};
+
+struct hk_gopt {
+	int min_dist, max_seg, min_mapq, max_radius;
+	float alpha, beta;
 };
 
 struct hk_map *hk_map_read(const char *fn);
 void hk_map_destroy(struct hk_map *m);
+
+void hk_gopt_init(struct hk_gopt *c);
+struct hk_graph *hk_graph_gen(const struct hk_map *m, const struct hk_gopt *c);
+
 void hk_map_print(FILE *fp, const struct hk_map *m);
 void hk_map_print_pairs(FILE *fp, const struct hk_map *m, int min_dist, int max_seg, int min_mapq);
 

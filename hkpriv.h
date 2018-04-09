@@ -2,6 +2,7 @@
 #define HK_PRIV_H
 
 #include <stdlib.h>
+#include "hickit.h"
 
 #define MALLOC(type, len) ((type*)malloc((len) * sizeof(type)))
 #define CALLOC(type, len) ((type*)calloc((len), sizeof(type)))
@@ -11,5 +12,15 @@
 		(m) = (m)? (m) + ((m)>>1) : 16; \
 		REALLOC((a), (m)); \
 	} while (0)
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+struct hk_pair *hk_map2pairs(const struct hk_map *m, int32_t *_n_pairs, int min_dist, int max_seg, int min_mapq);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
