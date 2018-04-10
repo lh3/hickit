@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 	if (is_graph) {
 		g = hk_graph_gen(m, &opt);
 	} else if (is_pairs) {
-		hk_map_print_pairs(stdout, m, -1, 3, 20);
+		hk_map_print_pairs(stdout, m, opt.min_dist, opt.max_seg, opt.min_mapq);
 	} else {
 		hk_map_print(stdout, m);
 	}
