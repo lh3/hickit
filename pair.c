@@ -88,10 +88,15 @@ void hk_pair_print(FILE *fp, const struct hk_sdict *d, int32_t n_pairs, const st
 	}
 }
 
+/***************
+ * TAD calling *
+ ***************/
+
 struct hk_pair *hk_tad_call1(int32_t n_pairs, struct hk_pair *pairs, int max_radius, float alpha, int32_t *_n_tads)
 {
-	int32_t i, n_a;
+	int32_t i, n_a, min = INT32_MAX, max = INT32_MIN;
 	struct hk_pair *a;
+	float area_tot;
 
 	// generate a[]
 	for (i = n_a = 0; i < n_pairs; ++i) {
@@ -102,12 +107,16 @@ struct hk_pair *hk_tad_call1(int32_t n_pairs, struct hk_pair *pairs, int max_rad
 	a = MALLOC(struct hk_pair, n_a);
 	for (i = n_a = 0; i < n_pairs; ++i) {
 		struct hk_pair *p = &pairs[i];
-		if (hk_ppos2(p) - hk_ppos1(p) <= max_radius) {
+		int32_t p1 = hk_ppos1(p), p2 = hk_ppos2(p);
+		if (p2 - p1 <= max_radius) {
 			a[n_a] = *p;
 			a[n_a++].n = 0;
+			min = min < p1? min : p1;
+			max = max > p2? max : p2;
 		}
 	}
-	fprintf(stderr, "%d => %d\n", n_pairs, n_a);
+	area_tot = 1e-12 * (max - min + 0.5 * max_radius) * max_radius; // #pairs per square-million
+	fprintf(stderr, "%d => %d; [%d,%d]; %f\n", n_pairs, n_a, min, max, n_a / area_tot);
 
 	// count
 	for (i = 1; i < n_a; ++i) {
@@ -118,6 +127,19 @@ struct hk_pair *hk_tad_call1(int32_t n_pairs, struct hk_pair *pairs, int max_rad
 			int32_t p1 = hk_ppos1(p), p2 = hk_ppos2(p);
 			if (q2 - p1 > max_radius) break;
 			if (q1 != p1 && q2 < p2) ++p->n;
+		}
+	}
+
+	// DP
+	for (i = n_a - 1; i >= 0; --i) {
+		struct hk_pair *p = &a[i];
+		int32_t j, p1 = hk_ppos1(p), p2 = hk_ppos2(p);
+		for (j = i + 1; j < n_a; ++j) {
+			struct hk_pair *q = &a[j];
+			int32_t q1 = hk_ppos1(q), q2;
+			if (q1 - p1 > max_radius) break;
+			if (p2 >= q1) continue;
+			q2 = hk_ppos2(q);
 		}
 	}
 	free(a);
