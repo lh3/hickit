@@ -9,6 +9,8 @@
 #include "kseq.h"
 KSTREAM_INIT(gzFile, gzread, 0x10000)
 
+int hk_verbose = 3;
+
 /*************
  * Utilities *
  *************/
@@ -182,18 +184,18 @@ struct hk_map *hk_map_read(const char *fn)
 	return m;
 }
 
-void hk_print_chr(FILE *fp, const struct hk_map *m)
+void hk_print_chr(FILE *fp, const struct hk_sdict *d)
 {
 	int32_t i;
-	for (i = 0; i < m->d->n; ++i)
-		if (m->d->len[i] > 0)
-			fprintf(fp, "#chromosome: %s %d\n", m->d->name[i], m->d->len[i]);
+	for (i = 0; i < d->n; ++i)
+		if (d->len[i] > 0)
+			fprintf(fp, "#chromosome: %s %d\n", d->name[i], d->len[i]);
 }
 
 void hk_map_print(FILE *fp, const struct hk_map *m)
 {
 	int32_t i, last_frag = -1;
-	hk_print_chr(fp, m);
+	hk_print_chr(fp, m->d);
 	for (i = 0; i < m->n_seg; ++i) {
 		struct hk_seg *s = &m->seg[i];
 		if (s->frag_id != last_frag) {

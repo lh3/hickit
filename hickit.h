@@ -33,7 +33,7 @@ struct hk_pair {
 	uint64_t chr, pos;
 	int8_t phase[2];
 	int8_t rel_strand;
-	int32_t n_nei;
+	int32_t n;
 	int64_t offset;
 };
 
@@ -54,12 +54,15 @@ struct hk_opt {
 	float alpha, beta;
 };
 
+extern int hk_verbose;
+
 struct hk_map *hk_map_read(const char *fn);
 void hk_map_destroy(struct hk_map *m);
 
 struct hk_pair *hk_map2pairs(const struct hk_map *m, int32_t *_n_pairs, int min_dist, int max_seg, int min_mapq);
 int32_t hk_pair_dedup(int n_pairs, struct hk_pair *pairs, int min_dist);
-void hk_pair_print(FILE *fp, const struct hk_map *m, int32_t n_pairs, const struct hk_pair *pairs);
+struct hk_pair *hk_tad_call(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int max_radius, float alpha, int32_t *_n_tads);
+void hk_pair_print(FILE *fp, const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs);
 
 void hk_opt_init(struct hk_opt *opt);
 struct hk_graph *hk_graph_gen(const struct hk_map *m, const struct hk_opt *opt);

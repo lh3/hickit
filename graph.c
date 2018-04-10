@@ -65,19 +65,19 @@ struct hk_graph *hk_graph_gen(const struct hk_map *m, const struct hk_opt *c)
 	}
 	fprintf(stderr, "#links: %ld\n", (long)g->n_links);
 
-	// set hk_pair::{offset,n_nei} for pairs linked to others
+	// set hk_pair::{offset,n} for pairs linked to others
 	rs_insertsort_link(g->links, g->links + g->n_links);
 	fprintf(stderr, "sorted\n");
 	for (off = 0, k = 1; k <= g->n_links; ++k) {
 		if (k == g->n_links || g->links[k].x>>32 != g->links[k-1].x>>32) {
 			struct hk_pair *p = &g->pairs[g->links[off].x>>32];
 			p->offset = off;
-			p->n_nei = k - off;
+			p->n = k - off;
 			off = k;
 		}
 	}
 
-	// set hk_pair::{offset,n_nei} for orphan pairs
+	// set hk_pair::{offset,n} for orphan pairs
 	int32_t n_orphans = 0;
 	for (off = 0, i = 0; i < g->n_pairs; ++i) {
 		struct hk_pair *p = &g->pairs[i];
