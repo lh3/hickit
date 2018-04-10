@@ -13,9 +13,14 @@
 		REALLOC((a), (m)); \
 	} while (0)
 
+#define hk_ppos1(p) ((int32_t)((p)->pos>>32))
+#define hk_ppos2(p) ((int32_t)(p)->pos)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+void hk_print_chr(FILE *fp, const struct hk_map *m);
 
 #ifdef __cplusplus
 }

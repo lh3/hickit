@@ -1,7 +1,7 @@
 CFLAGS=		-g -Wall -O2 -Wc++-compat
 CPPFLAGS=
 INCLUDES=
-OBJS=		io.o graph.o
+OBJS=		io.o pair.o graph.o
 PROG=		hickit
 LIBS=		-lm -lz
 
@@ -24,6 +24,8 @@ depend:
 
 # DO NOT DELETE
 
-graph.o: hkpriv.h hickit.h
-io.o: hickit.h hkpriv.h kseq.h khash.h ksort.h
+graph.o: hkpriv.h hickit.h ksort.h
+io.o: hickit.h hkpriv.h kseq.h khash.h
 main.o: hickit.h
+pair.o: hkpriv.h hickit.h ksort.h
+tad.o: hkpriv.h hickit.h

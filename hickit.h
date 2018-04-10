@@ -49,7 +49,7 @@ struct hk_graph {
 	struct hk_link *links;
 };
 
-struct hk_gopt {
+struct hk_opt {
 	int min_dist, max_seg, min_mapq, max_radius;
 	float alpha, beta;
 };
@@ -59,13 +59,13 @@ void hk_map_destroy(struct hk_map *m);
 
 struct hk_pair *hk_map2pairs(const struct hk_map *m, int32_t *_n_pairs, int min_dist, int max_seg, int min_mapq);
 int32_t hk_pair_dedup(int n_pairs, struct hk_pair *pairs, int min_dist);
+void hk_pair_print(FILE *fp, const struct hk_map *m, int32_t n_pairs, const struct hk_pair *pairs);
 
-void hk_gopt_init(struct hk_gopt *c);
-struct hk_graph *hk_graph_gen(const struct hk_map *m, const struct hk_gopt *c);
+void hk_opt_init(struct hk_opt *opt);
+struct hk_graph *hk_graph_gen(const struct hk_map *m, const struct hk_opt *opt);
 void hk_graph_destroy(struct hk_graph *g);
 
 void hk_map_print(FILE *fp, const struct hk_map *m);
-void hk_map_print_pairs(FILE *fp, const struct hk_map *m, int min_dist, int max_seg, int min_mapq);
 
 #ifdef __cplusplus
 }

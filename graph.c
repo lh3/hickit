@@ -6,10 +6,7 @@
 #define link_key(a) ((a).x)
 KRADIX_SORT_INIT(link, struct hk_link, link_key, 64)
 
-#define ppos1(p) ((int32_t)((p)->pos>>32))
-#define ppos2(p) ((int32_t)(p)->pos)
-
-void hk_gopt_init(struct hk_gopt *c)
+void hk_opt_init(struct hk_opt *c)
 {
 	c->min_dist = 500;
 	c->max_seg = 3;
@@ -19,35 +16,13 @@ void hk_gopt_init(struct hk_gopt *c)
 	c->beta = 3.0f;
 }
 
-int32_t hk_pair_dedup(int n_pairs, struct hk_pair *pairs, int min_dist)
-{
-	int32_t i, j, n;
-	for (i = n = 1; i < n_pairs; ++i) {
-		struct hk_pair *q = &pairs[i];
-		int32_t to_skip = 0;
-		for (j = i - 1; j >= 0; --j) {
-			struct hk_pair *p = &pairs[j];
-			int32_t d;
-			if (p->chr != q->chr || ppos1(q) - ppos1(p) >= min_dist)
-				break;
-			d = ppos2(q) - ppos2(p);
-			if (d < min_dist && d > -min_dist) {
-				to_skip = 1;
-				break;
-			}
-		}
-		if (!to_skip) pairs[n++] = pairs[i];
-	}
-	return n;
-}
-
 float hk_pair_weight(const struct hk_pair *a, const struct hk_pair *b, int32_t max, float alpha, float beta)
 {
 	int32_t y, z;
 	float yf, zf, d;
 	if (a->chr != b->chr) return 0.0f;
-	y = ppos1(b) > ppos1(a)? ppos1(b) - ppos1(a) : ppos1(a) - ppos1(b);
-	z = ppos2(b) > ppos2(a)? ppos2(b) - ppos2(a) : ppos2(a) - ppos2(b);
+	y = hk_ppos1(b) > hk_ppos1(a)? hk_ppos1(b) - hk_ppos1(a) : hk_ppos1(a) - hk_ppos1(b);
+	z = hk_ppos2(b) > hk_ppos2(a)? hk_ppos2(b) - hk_ppos2(a) : hk_ppos2(a) - hk_ppos2(b);
 	if (y > max || z > max)
 		return 0.0f;
 	yf = y / (float)max;
@@ -56,7 +31,7 @@ float hk_pair_weight(const struct hk_pair *a, const struct hk_pair *b, int32_t m
 	return d >= 1.0f? 0.0f : expf(-beta * d);
 }
 
-struct hk_graph *hk_graph_gen(const struct hk_map *m, const struct hk_gopt *c)
+struct hk_graph *hk_graph_gen(const struct hk_map *m, const struct hk_opt *c)
 {
 	struct hk_graph *g;
 	int32_t i, j;
@@ -72,7 +47,7 @@ struct hk_graph *hk_graph_gen(const struct hk_map *m, const struct hk_gopt *c)
 		for (j = i - 1; j >= 0; --j) {
 			struct hk_pair *p = &g->pairs[j];
 			float w;
-			if (p->chr != q->chr || ppos1(q) - ppos1(p) > c->max_radius)
+			if (p->chr != q->chr || hk_ppos1(q) - hk_ppos1(p) > c->max_radius)
 				break;
 			w = hk_pair_weight(p, q, c->max_radius, c->alpha, c->beta);
 			if (w > 0.0f) {
@@ -92,6 +67,7 @@ struct hk_graph *hk_graph_gen(const struct hk_map *m, const struct hk_gopt *c)
 
 	// set hk_pair::{offset,n_nei} for pairs linked to others
 	rs_insertsort_link(g->links, g->links + g->n_links);
+	fprintf(stderr, "sorted\n");
 	for (off = 0, k = 1; k <= g->n_links; ++k) {
 		if (k == g->n_links || g->links[k].x>>32 != g->links[k-1].x>>32) {
 			struct hk_pair *p = &g->pairs[g->links[off].x>>32];
