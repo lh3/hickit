@@ -142,6 +142,7 @@ struct hk_map *hk_map_read(const char *fn)
 	kstring_t str = {0,0,0};
 	kstream_t *ks;
 	int dret;
+	int32_t m_seg = 0;
 	struct hk_map *m;
 
 	fp = fn && strcmp(fn, "-")? gzopen(fn, "rb") : gzdopen(fileno(stdin), "rb");
@@ -151,6 +152,7 @@ struct hk_map *hk_map_read(const char *fn)
 	while (ks_getuntil(ks, KS_SEP_LINE, &str, &dret) >= 0) {
 		char *p, *q;
 		int32_t k, n_seg = 0;
+		// read chromsomes
 		if (str.l >= 12 + 3 && strncmp(str.s, "#chromosome:", 12) == 0) {
 			char *chr;
 			int64_t len;
@@ -167,8 +169,8 @@ struct hk_map *hk_map_read(const char *fn)
 		for (k = 0, p = q = str.s;; ++q) {
 			if (*q == '\t' || *q == 0) {
 				if (k > 0) {
-					if (m->n_seg == m->m_seg)
-						EXPAND(m->seg, m->m_seg);
+					if (m->n_seg == m_seg)
+						EXPAND(m->seg, m_seg);
 					hk_parse_seg(&m->seg[m->n_seg++], m->d, m->n_frag, p, q);
 					++n_seg;
 				}

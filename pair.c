@@ -27,15 +27,16 @@ struct hk_pair *hk_map2pairs(const struct hk_map *m, int32_t *_n_pairs, int min_
 					if (t->chr < s->chr || (t->chr == s->chr && t->en < s->st)) {
 						p->chr = (uint64_t)t->chr << 32 | s->chr;
 						p->pos = (uint64_t)t->en  << 32 | s->st;
-						p->phase[0] = t->phase, p->phase[1] = s->phase;
+						p->phase[0]  = t->phase,  p->phase[1]  = s->phase;
+						p->strand[0] = t->strand, p->strand[1] = s->strand;
 					} else {
 						p->chr = (uint64_t)s->chr << 32 | t->chr;
 						p->pos = (uint64_t)s->st  << 32 | t->en;
-						p->phase[0] = s->phase, p->phase[1] = t->phase;
+						p->phase[0]  = s->phase,  p->phase[1]  = t->phase;
+						p->strand[0] = s->strand, p->strand[1] = t->strand;
 					}
-					p->rel_strand = t->strand * s->strand;
 					p->n = 0, p->offset = -1;
-					if (p->rel_strand >= 0 && t->chr == s->chr && (int32_t)p->pos - (int32_t)(p->pos>>32) < min_dist) {
+					if (p->strand[0] * p->strand[1] >= 0 && t->chr == s->chr && (int32_t)p->pos - (int32_t)(p->pos>>32) < min_dist) {
 						--n_pairs;
 						continue;
 					}
@@ -81,11 +82,13 @@ void hk_pair_print(FILE *fp, const struct hk_sdict *d, int32_t n_pairs, const st
 	fprintf(fp, "#sorted: chr1-chr2-pos1-pos2\n");
 	fprintf(fp, "#shape: upper triangle\n");
 	hk_print_chr(fp, d);
-	fprintf(fp, "#columns: readID chr1 pos1 chr2 pos2\n");
+	fprintf(fp, "#columns: readID chr1 pos1 chr2 pos2 strand1 strand2\n");
 	for (i = 0; i < n_pairs; ++i) {
 		const struct hk_pair *p = &pairs[i];
-		fprintf(fp, ".\t%s\t%d\t%s\t%d\n", d->name[p->chr>>32], (int32_t)(p->pos>>32),
-				d->name[(int32_t)p->chr], (int32_t)p->pos);
+		fprintf(fp, ".\t%s\t%d\t%s\t%d\t%c\t%c\n", d->name[p->chr>>32], (int32_t)(p->pos>>32),
+				d->name[(int32_t)p->chr], (int32_t)p->pos,
+				p->strand[0] > 0? '+' : p->strand[0] < 0? '-' : '.',
+				p->strand[1] > 0? '+' : p->strand[1] < 0? '-' : '.');
 	}
 }
 

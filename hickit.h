@@ -23,18 +23,18 @@ struct hk_seg {
 	int16_t mapq;
 };
 
-struct hk_map {
-	struct hk_sdict *d;
-	int32_t n_frag, m_seg, n_seg;
-	struct hk_seg *seg;
-};
-
 struct hk_pair {
 	uint64_t chr, pos;
-	int8_t phase[2];
-	int8_t rel_strand;
+	int8_t phase[2], strand[2];
 	int32_t n;
 	int64_t offset;
+};
+
+struct hk_map {
+	struct hk_sdict *d;
+	int32_t n_frag, n_seg, n_pairs;
+	struct hk_seg *seg;
+	struct hk_pair *pairs;
 };
 
 struct hk_link {
