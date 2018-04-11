@@ -51,7 +51,7 @@ struct hk_graph {
 
 struct hk_opt {
 	int min_dist, max_seg, min_mapq, max_radius;
-	float alpha, beta;
+	float alpha, beta, area_weight;
 };
 
 extern int hk_verbose;

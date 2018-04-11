@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
 		if (is_dedup)
 			n_pairs = hk_pair_dedup(n_pairs, pairs, opt.min_dist);
 		if (is_tad) {
-			hk_tad_call(m->d, n_pairs, pairs, opt.max_radius, 0.0f, NULL);
+			hk_tad_call(m->d, n_pairs, pairs, opt.max_radius, opt.area_weight, NULL);
 		} else hk_pair_print(stdout, m->d, n_pairs, pairs);
 		free(pairs);
 	} else {

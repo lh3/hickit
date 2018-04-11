@@ -12,6 +12,7 @@ void hk_opt_init(struct hk_opt *c)
 	c->max_seg = 3;
 	c->min_mapq = 20;
 	c->max_radius = 10000000;
+	c->area_weight = 1.0f;
 	c->alpha = 3.0f;
 	c->beta = 3.0f;
 }
