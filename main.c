@@ -15,12 +15,17 @@ static inline int64_t hk_parse_num(const char *str)
 	return (int64_t)(x + .499);
 }
 
-static void print_usage(FILE *fp)
+static void print_usage(FILE *fp, const struct hk_opt *opt)
 {
-	fprintf(fp, "Usage: hickit [options] <in.seg>\n");
+	fprintf(fp, "Usage: hickit [options] <in.seg>|<in.pairs>\n");
 	fprintf(fp, "Options:\n");
-	fprintf(fp, "  -D       retain dup pairs\n");
-	fprintf(fp, "  -r NUM   max radius [10m]\n");
+	fprintf(fp, "  -s INT     ignore fragments with >INT segments [%d]\n", opt->max_seg);
+	fprintf(fp, "  -q INT     min mapping quality [%d]\n", opt->min_mapq);
+	fprintf(fp, "  -d NUM     min distance [%d]\n", opt->min_dist);
+	fprintf(fp, "  -D         don't perform duplicate removal\n");
+	fprintf(fp, "  -r NUM     max radius [10m]\n");
+	fprintf(fp, "  -t         call TADs\n");
+	fprintf(fp, "  -a FLOAT   area weight [%.2f]\n", opt->area_weight);
 }
 
 int main(int argc, char *argv[])
@@ -31,17 +36,19 @@ int main(int argc, char *argv[])
 	int c, is_pairs = 1, is_graph = 0, is_dedup = 1, is_tad = 0;
 
 	hk_opt_init(&opt);
-	while ((c = getopt(argc, argv, "SgtDr:v:d:")) >= 0) {
+	while ((c = getopt(argc, argv, "SgtDr:v:d:s:a:")) >= 0) {
 		if (c == 'S') is_pairs = 0;
+		else if (c == 's') opt.max_seg = atoi(optarg);
+		else if (c == 'a') opt.area_weight = atof(optarg);
+		else if (c == 'r') opt.max_radius = hk_parse_num(optarg);
+		else if (c == 'd') opt.min_dist = hk_parse_num(optarg);
 		else if (c == 't') is_tad = 1;
 		else if (c == 'g') is_graph = 1;
 		else if (c == 'D') is_dedup = 0;
-		else if (c == 'r') opt.max_radius = hk_parse_num(optarg);
-		else if (c == 'd') opt.min_dist = hk_parse_num(optarg);
 		else if (c == 'v') hk_verbose = atoi(optarg);
 	}
 	if (argc - optind == 0) {
-		print_usage(stderr);
+		print_usage(stderr, &opt);
 		return 1;
 	}
 

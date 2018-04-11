@@ -6,17 +6,6 @@
 #define link_key(a) ((a).x)
 KRADIX_SORT_INIT(link, struct hk_link, link_key, 64)
 
-void hk_opt_init(struct hk_opt *c)
-{
-	c->min_dist = 500;
-	c->max_seg = 3;
-	c->min_mapq = 20;
-	c->max_radius = 10000000;
-	c->area_weight = 1.0f;
-	c->alpha = 3.0f;
-	c->beta = 3.0f;
-}
-
 float hk_pair_weight(const struct hk_pair *a, const struct hk_pair *b, int32_t max, float alpha, float beta)
 {
 	int32_t y, z;

@@ -10,22 +10,24 @@
 extern "C" {
 #endif
 
-struct hk_sdict {
+struct hk_sdict {     // sequence dictionary
 	int32_t n, m;
 	char **name;
 	int32_t *len;
 	void *h;
 };
 
-struct hk_seg {
+struct hk_seg {       // a segment
 	int32_t frag_id, chr, st, en;
 	int8_t strand, phase;
 	int16_t mapq;
 };
 
-struct hk_pair {
-	uint64_t chr, pos;
-	int8_t phase[2], strand[2];
+struct hk_pair {      // a contact pair
+	uint64_t chr;     // chr1<<32 | chr2
+	uint64_t pos;     // pos1<<32 | pos2
+	int8_t strand[2]; // strand
+	int8_t phase[2];  // phase
 	int32_t n;
 	int64_t offset;
 };

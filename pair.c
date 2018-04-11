@@ -1,6 +1,17 @@
 #include <assert.h>
 #include "hkpriv.h"
 
+void hk_opt_init(struct hk_opt *c)
+{
+	c->min_dist = 500;
+	c->max_seg = 3;
+	c->min_mapq = 20;
+	c->max_radius = 10000000;
+	c->area_weight = 1.0f;
+	c->alpha = 3.0f;
+	c->beta = 3.0f;
+}
+
 /*********
  * Pairs *
  *********/
@@ -62,7 +73,7 @@ int32_t hk_pair_dedup(int n_pairs, struct hk_pair *pairs, int min_dist)
 			if (p->chr != q->chr || hk_ppos1(q) - hk_ppos1(p) >= min_dist)
 				break;
 			d = hk_ppos2(q) - hk_ppos2(p);
-			if (d < min_dist && d > -min_dist) {
+			if (d < min_dist && d > -min_dist && q->strand[0] == p->strand[0] && q->strand[1] == p->strand[1]) {
 				to_skip = 1;
 				break;
 			}
@@ -127,7 +138,6 @@ struct hk_pair *hk_tad_call1(const struct hk_sdict *d, int32_t n_pairs, struct h
 	}
 	area_tot = 1e-12 * (max - min + 0.5 * max_radius) * max_radius; // #pairs per square-million
 	aa = area_weight * n_a / area_tot;
-	//fprintf(stderr, "%d => %d; [%d,%d]; %f; %f\n", n_pairs, n_a, min, max, n_a / area_tot, aa);
 
 	// count
 	for (i = 1; i < n_a; ++i) {
@@ -171,8 +181,6 @@ struct hk_pair *hk_tad_call1(const struct hk_sdict *d, int32_t n_pairs, struct h
 	tads = CALLOC(struct hk_pair, n_tads);
 	for (i = max_max_i, n_tads = 0; i < n_a; i = u[i].j)
 		tads[n_tads++] = a[i];
-	//fprintf(stderr, "[%d] %g (%d,%d) %d\n", max_max_i, max_max_f, hk_ppos1(&a[max_max_i]), hk_ppos2(&a[max_max_i]), n_tads);
-	//hk_pair_print(stdout, d, n_tads, tads);
 
 	free(u);
 	free(a);
