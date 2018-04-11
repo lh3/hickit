@@ -94,10 +94,11 @@ void hk_map_destroy(struct hk_map *m)
 {
 	hk_sd_destroy(m->d);
 	free(m->seg);
+	free(m->pairs);
 	free(m);
 }
 
-void hk_parse_seg(struct hk_seg *s, struct hk_sdict *d, int32_t frag_id, char *start, char *end)
+static void hk_parse_seg(struct hk_seg *s, struct hk_sdict *d, int32_t frag_id, char *str)
 {
 	char *p, *q;
 	int i, has_digit;
@@ -106,10 +107,11 @@ void hk_parse_seg(struct hk_seg *s, struct hk_sdict *d, int32_t frag_id, char *s
 	s->chr = s->st = s->en = -1;
 	s->strand = 0, s->phase = -1, s->mapq = 0;
 
-	for (i = 0, p = q = start;; ++q) {
-		if (q == end || *q == HK_SUB_DELIM) {
+	for (i = 0, p = q = str;; ++q) {
+		if (*q == HK_SUB_DELIM || *q == 0) {
+			int c = *q;
 			if (i == 0) {
-				assert(q < end);
+				assert(c != 0);
 				*q = 0;
 				s->chr = hk_sd_put(d, p, 0);
 				*q = HK_SUB_DELIM;
@@ -130,10 +132,39 @@ void hk_parse_seg(struct hk_seg *s, struct hk_sdict *d, int32_t frag_id, char *s
 				if (!has_digit || s->mapq < 0 || s->mapq >= 255) s->mapq = 0;
 			}
 			++i;
-			if (q == end) break;
+			if (c == 0) break;
 			p = q + 1;
 		}
 	}
+}
+
+static void hk_parse_pair(struct hk_pair *p, struct hk_sdict *d, int n_fields, char **fields)
+{
+	int32_t c1, c2;
+	int64_t p1, p2;
+	char *q;
+	int has_digit;
+	c1 = hk_sd_put(d, fields[1], 0);
+	p1 = hk_parse_64(fields[2], &q, &has_digit);
+	assert(p1 >= 0 && has_digit);
+	c2 = hk_sd_put(d, fields[3], 0);
+	p2 = hk_parse_64(fields[4], &q, &has_digit);
+	assert(p2 >= 0 && has_digit);
+	memset(p, 0, sizeof(struct hk_pair));
+	p->chr = (uint64_t)c1 << 32 | c2;
+	p->pos = (uint64_t)p1 << 32 | p2;
+	if (n_fields >= 7) {
+		p->strand[0] = *fields[5] == '+'? 1 : *fields[5] == '-'? -1 : 0;
+		p->strand[1] = *fields[6] == '+'? 1 : *fields[6] == '-'? -1 : 0;
+	}
+	p->phase[0] = p->phase[1] = -1;
+}
+
+static inline int is_pos_int(const char *s)
+{
+	for (; *s; ++s)
+		if (*s < '0' || *s > '9') return 0;
+	return 1;
 }
 
 struct hk_map *hk_map_read(const char *fn)
@@ -142,7 +173,8 @@ struct hk_map *hk_map_read(const char *fn)
 	kstring_t str = {0,0,0};
 	kstream_t *ks;
 	int dret;
-	int32_t m_seg = 0;
+	int32_t m_seg = 0, m_pairs = 0, n_fields = 0, m_fields = 0;
+	char **fields = 0;
 	struct hk_map *m;
 
 	fp = fn && strcmp(fn, "-")? gzopen(fn, "rb") : gzdopen(fileno(stdin), "rb");
@@ -165,18 +197,33 @@ struct hk_map *hk_map_read(const char *fn)
 			len = hk_parse_64(p, &p, &has_digit);
 			assert(has_digit && len > 0 && len <= INT32_MAX);
 			hk_sd_put(m->d, chr, len);
+			continue;
 		}
-		for (k = 0, p = q = str.s;; ++q) {
+		// split into fields
+		for (n_fields = 0, p = q = str.s;; ++q) {
 			if (*q == '\t' || *q == 0) {
-				if (k > 0) {
-					if (m->n_seg == m_seg)
-						EXPAND(m->seg, m_seg);
-					hk_parse_seg(&m->seg[m->n_seg++], m->d, m->n_frag, p, q);
-					++n_seg;
-				}
-				++k, p = q + 1;
-				if (*q == 0) break;
+				int c = *q;
+				if (n_fields == m_fields)
+					EXPAND(fields, m_fields);
+				fields[n_fields++] = p;
+				*q = 0, p = q + 1;
+				if (c == 0) break;
 			}
+		}
+		if (n_fields < 5) goto parse_seg;
+		if (!is_pos_int(fields[2]) || !is_pos_int(fields[4])) goto parse_seg;
+		if (n_fields >= 7 && (strlen(fields[5]) != 1 || strlen(fields[6]) != 1))
+			goto parse_seg;
+		if (m->n_pairs == m_pairs)
+			EXPAND(m->pairs, m_pairs);
+		hk_parse_pair(&m->pairs[m->n_pairs++], m->d, n_fields, fields);
+		continue;
+parse_seg:
+		for (k = 1; k < n_fields; ++k) {
+			if (m->n_seg == m_seg)
+				EXPAND(m->seg, m_seg);
+			hk_parse_seg(&m->seg[m->n_seg++], m->d, m->n_frag, fields[k]);
+			++n_seg;
 		}
 		if (n_seg > 0) ++m->n_frag;
 	}
