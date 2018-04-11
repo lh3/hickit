@@ -98,7 +98,7 @@ struct dp_aux {
 	int32_t j;
 };
 
-struct hk_pair *hk_tad_call1(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int max_radius, float gamma, int min_back, int32_t *n_tads_)
+struct hk_pair *hk_tad_call1(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int max_radius, float area_weight, int min_back, int32_t *n_tads_)
 {
 	int32_t i, n_a, max_max_i, n_tads, min = INT32_MAX, max = INT32_MIN;
 	struct hk_pair *a, *tads;
@@ -123,8 +123,8 @@ struct hk_pair *hk_tad_call1(const struct hk_sdict *d, int32_t n_pairs, struct h
 		}
 	}
 	area_tot = 1e-12 * (max - min + 0.5 * max_radius) * max_radius; // #pairs per square-million
-	aa = gamma * n_a / area_tot;
-	fprintf(stderr, "%d => %d; [%d,%d]; %f; %f\n", n_pairs, n_a, min, max, n_a / area_tot, aa);
+	aa = area_weight * n_a / area_tot;
+	//fprintf(stderr, "%d => %d; [%d,%d]; %f; %f\n", n_pairs, n_a, min, max, n_a / area_tot, aa);
 
 	// count
 	for (i = 1; i < n_a; ++i) {
@@ -176,18 +176,32 @@ struct hk_pair *hk_tad_call1(const struct hk_sdict *d, int32_t n_pairs, struct h
 	return tads;
 }
 
-struct hk_pair *hk_tad_call(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int max_radius, float area_weight, int32_t *_n_tads)
+struct hk_pair *hk_tad_call(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int max_radius, float area_weight, int32_t *n_tads_)
 {
-	int32_t i, st, n;
-	struct hk_pair *tads = 0;
+	int32_t i, st, *n_tadss, n_tads = 0;
+	struct hk_pair *tads = 0, **tadss;
+	tadss = CALLOC(struct hk_pair*, d->n);
+	n_tadss = CALLOC(int32_t, d->n);
 	for (st = 0, i = 1; i <= n_pairs; ++i) {
 		if (i == n_pairs || pairs[i].chr != pairs[i-1].chr) {
 			if (pairs[st].chr>>32 == (int32_t)pairs[st].chr) {
-				fprintf(stderr, "===> chr: %s <===\n", d->name[(int32_t)pairs[st].chr]);
-				hk_tad_call1(d, i - st, &pairs[st], max_radius, area_weight, 64, &n);
+				int32_t chr = (int32_t)pairs[st].chr;
+				tadss[chr] = hk_tad_call1(d, i - st, &pairs[st], max_radius, area_weight, 64, &n_tadss[chr]);
+				n_tads += n_tadss[chr];
 			}
 			st = i;
 		}
 	}
+	tads = MALLOC(struct hk_pair, n_tads);
+	for (i = 0, n_tads = 0; i < d->n; ++i) {
+		if (n_tadss[i] > 0) {
+			memcpy(&tads[n_tads], tadss[i], n_tadss[i] * sizeof(struct hk_pair));
+			n_tads += n_tadss[i];
+			free(tadss[i]);
+		}
+	}
+	free(tadss);
+	free(n_tadss);
+	*n_tads_ = n_tads;
 	return tads;
 }
