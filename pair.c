@@ -216,3 +216,26 @@ struct hk_pair *hk_tad_call(const struct hk_sdict *d, int32_t n_pairs, struct hk
 	*n_tads_ = n_tads;
 	return tads;
 }
+
+int32_t hk_tad_mask(int32_t n_tads, const struct hk_pair *tads, int32_t n_pairs, struct hk_pair *pairs)
+{
+	int32_t i, j, k;
+	for (i = j = k = 0; i < n_pairs; ++i) {
+		struct hk_pair *p = &pairs[i];
+		int kept = 1;
+		if (p->chr>>32 == (int32_t)p->chr) { // intra-chromosomal pairs
+			const struct hk_pair *t;
+			int32_t p1 = hk_ppos1(p);
+			while (j < n_tads && (tads[j].chr < p->chr || (tads[j].chr == p->chr && hk_ppos2(&tads[j]) <= p1)))
+				++j;
+			if (j == n_tads) break;
+			t = &tads[j];
+			if (p->chr == t->chr && hk_ppos1(t) <= p1 && hk_ppos2(p) <= hk_ppos2(t)) // contained in TAD
+				kept = 0;
+		}
+		if (kept) pairs[k++] = pairs[i];
+	}
+	for (; i < n_pairs; ++i) // copy the rest over
+		pairs[k++] = pairs[i];
+	return k;
+}
