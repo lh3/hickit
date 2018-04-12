@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 	if (mask_tad && is_tad_out && hk_verbose >= 2)
-		fprintf(stderr, "WARNING: option -M is ignored\n");
+		fprintf(stderr, "[W::%s] option -M is ignored\n", __func__);
 
 	m = hk_map_read(argv[optind]);
 
@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
 			hk_print_seg(stdout, m->d, m->n_segs, m->segs);
 		} else {
 			if (hk_verbose >= 1)
-				fprintf(stderr, "ERROR: the input is not in the seg format\n");
+				fprintf(stderr, "[E::%s] the input is not in the seg format\n", __func__);
 			ret = 1;
 		}
 		goto main_return;
@@ -85,10 +85,12 @@ int main(int argc, char *argv[])
 			goto main_return;
 	}
 
-	if (is_graph) // for testing only
+	if (is_graph) { // for testing only
+		m->n_pairs = hk_pair_filter(m->n_pairs, m->pairs, opt.min_pre_link_dist);
 		m->links = hk_pair2link(m->n_pairs, m->pairs, opt.max_radius, opt.alpha, opt.beta, &m->n_links);
-	else
+	} else {
 		hk_print_pair(stdout, m->d, m->n_pairs, m->pairs);
+	}
 
 main_return:
 	hk_map_destroy(m);

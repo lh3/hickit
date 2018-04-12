@@ -11,7 +11,7 @@ extern "C" {
 #endif
 
 struct hk_opt {
-	int min_dist, max_seg, min_mapq, max_radius;
+	int min_dist, max_seg, min_mapq, max_radius, min_pre_link_dist;
 	float alpha, beta, area_weight;
 };
 
@@ -59,6 +59,7 @@ void hk_map_destroy(struct hk_map *m);
 
 struct hk_pair *hk_seg2pair(int32_t n_segs, const struct hk_seg *segs, int min_dist, int max_seg, int min_mapq, int32_t *n_pairs_);
 int32_t hk_pair_dedup(int n_pairs, struct hk_pair *pairs, int min_dist);
+int32_t hk_pair_filter(int n_pairs, struct hk_pair *pairs, int min_dist);
 struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int max_radius, float area_weight, int32_t *n_tads_);
 int32_t hk_mask_by_tad(int32_t n_tads, const struct hk_pair *tads, int32_t n_pairs, struct hk_pair *pairs);
 struct hk_link *hk_pair2link(int32_t n_pairs, struct hk_pair *pairs, int max_radius, float alpha, float beta, int32_t *n_links_);

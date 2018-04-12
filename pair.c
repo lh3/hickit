@@ -75,6 +75,45 @@ int32_t hk_pair_dedup(int n_pairs, struct hk_pair *pairs, int min_dist)
 	return n;
 }
 
+int32_t hk_pair_filter(int n_pairs, struct hk_pair *pairs, int min_dist)
+{
+	int32_t i, n;
+	for (i = n = 0; i < n_pairs; ++i) {
+		struct hk_pair *p = &pairs[i];
+		if (hk_intra(p) && hk_ppos2(p) - hk_ppos1(p) < min_dist)
+			continue;
+		pairs[n++] = pairs[i];
+	}
+	if (hk_verbose >= 3)
+		fprintf(stderr, "[M::%s] filtered %d out of %d pairs\n", __func__, n_pairs - n, n_pairs);
+	return n;
+}
+
+int32_t hk_mask_by_tad(int32_t n_tads, const struct hk_pair *tads, int32_t n_pairs, struct hk_pair *pairs)
+{
+	int32_t i, j, k;
+	for (i = j = k = 0; i < n_pairs; ++i) {
+		struct hk_pair *p = &pairs[i];
+		int kept = 1;
+		if (p->chr>>32 == (int32_t)p->chr) { // intra-chromosomal pairs
+			const struct hk_pair *t;
+			int32_t p1 = hk_ppos1(p);
+			while (j < n_tads && (tads[j].chr < p->chr || (tads[j].chr == p->chr && hk_ppos2(&tads[j]) <= p1)))
+				++j;
+			if (j == n_tads) break;
+			t = &tads[j];
+			if (p->chr == t->chr && hk_ppos1(t) <= p1 && hk_ppos2(p) <= hk_ppos2(t)) // contained in TAD
+				kept = 0;
+		}
+		if (kept) pairs[k++] = pairs[i];
+	}
+	for (; i < n_pairs; ++i) // copy the rest over
+		pairs[k++] = pairs[i];
+	if (hk_verbose >= 3)
+		fprintf(stderr, "[M::%s] masked %d out of %d pairs\n", __func__, n_pairs - k, n_pairs);
+	return k;
+}
+
 /********************
  * Print segs/pairs *
  ********************/
@@ -133,12 +172,14 @@ struct dp_aux {
 	int32_t j;
 };
 
-static struct hk_pair *hk_tad_call1(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int max_radius, float area_weight, int min_back, int32_t *n_tads_)
+static struct hk_pair *hk_tad_call1(int32_t n_pairs, struct hk_pair *pairs, int max_radius, float area_weight, int min_back, int32_t *n_tads_, int *in_band, int *in_tads)
 {
 	int32_t i, n_a, max_max_i, n_tads, min = INT32_MAX, max = INT32_MIN;
 	struct hk_pair *a, *tads;
 	float area_tot, aa, max_max_f;
 	struct dp_aux *u;
+
+	*in_band = *in_tads = 0;
 
 	// generate a[]
 	for (i = n_a = 0; i < n_pairs; ++i) {
@@ -200,8 +241,11 @@ static struct hk_pair *hk_tad_call1(const struct hk_sdict *d, int32_t n_pairs, s
 		++n_tads;
 	*n_tads_ = n_tads;
 	tads = CALLOC(struct hk_pair, n_tads);
-	for (i = max_max_i, n_tads = 0; i < n_a; i = u[i].j)
+	for (i = max_max_i, n_tads = 0; i < n_a; i = u[i].j) {
+		*in_tads += a[i].n;
 		tads[n_tads++] = a[i];
+	}
+	*in_band = n_a;
 
 	free(u);
 	free(a);
@@ -210,16 +254,18 @@ static struct hk_pair *hk_tad_call1(const struct hk_sdict *d, int32_t n_pairs, s
 
 struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int max_radius, float area_weight, int32_t *n_tads_)
 {
-	int32_t i, st, *n_tadss, n_tads = 0;
+	int32_t i, st, *n_tadss, n_tads = 0, tot_in_band = 0, tot_in_tads = 0;
 	struct hk_pair *tads = 0, **tadss;
 	tadss = CALLOC(struct hk_pair*, d->n);
 	n_tadss = CALLOC(int32_t, d->n);
 	for (st = 0, i = 1; i <= n_pairs; ++i) {
 		if (i == n_pairs || pairs[i].chr != pairs[i-1].chr) {
 			if (pairs[st].chr>>32 == (int32_t)pairs[st].chr) {
-				int32_t chr = (int32_t)pairs[st].chr;
-				tadss[chr] = hk_tad_call1(d, i - st, &pairs[st], max_radius, area_weight, 64, &n_tadss[chr]);
+				int32_t chr = (int32_t)pairs[st].chr, in_band, in_tads;
+				tadss[chr] = hk_tad_call1(i - st, &pairs[st], max_radius, area_weight, 64, &n_tadss[chr], &in_band, &in_tads);
 				n_tads += n_tadss[chr];
+				tot_in_band += in_band;
+				tot_in_tads += in_tads;
 			}
 			st = i;
 		}
@@ -235,28 +281,8 @@ struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk
 	free(tadss);
 	free(n_tadss);
 	*n_tads_ = n_tads;
+	if (hk_verbose >= 3)
+		fprintf(stderr, "[M::%s] %d pairs in band, of which %d in TADs (%.2f%%)\n", __func__,
+				tot_in_band, tot_in_tads, 100.0 * tot_in_tads / tot_in_band);
 	return tads;
-}
-
-int32_t hk_mask_by_tad(int32_t n_tads, const struct hk_pair *tads, int32_t n_pairs, struct hk_pair *pairs)
-{
-	int32_t i, j, k;
-	for (i = j = k = 0; i < n_pairs; ++i) {
-		struct hk_pair *p = &pairs[i];
-		int kept = 1;
-		if (p->chr>>32 == (int32_t)p->chr) { // intra-chromosomal pairs
-			const struct hk_pair *t;
-			int32_t p1 = hk_ppos1(p);
-			while (j < n_tads && (tads[j].chr < p->chr || (tads[j].chr == p->chr && hk_ppos2(&tads[j]) <= p1)))
-				++j;
-			if (j == n_tads) break;
-			t = &tads[j];
-			if (p->chr == t->chr && hk_ppos1(t) <= p1 && hk_ppos2(p) <= hk_ppos2(t)) // contained in TAD
-				kept = 0;
-		}
-		if (kept) pairs[k++] = pairs[i];
-	}
-	for (; i < n_pairs; ++i) // copy the rest over
-		pairs[k++] = pairs[i];
-	return k;
 }
