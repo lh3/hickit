@@ -1,17 +1,6 @@
 #include <assert.h>
 #include "hkpriv.h"
 
-void hk_opt_init(struct hk_opt *c)
-{
-	c->min_dist = 500;
-	c->max_seg = 3;
-	c->min_mapq = 20;
-	c->max_radius = 10000000;
-	c->area_weight = 1.0f;
-	c->alpha = 3.0f;
-	c->beta = 3.0f;
-}
-
 /*********
  * Pairs *
  *********/
@@ -20,16 +9,16 @@ void hk_opt_init(struct hk_opt *c)
 #define pair_lt(a, b) ((a).chr < (b).chr || ((a).chr == (b).chr && (a).pos < (b).pos))
 KSORT_INIT(pair, struct hk_pair, pair_lt)
 
-struct hk_pair *hk_map2pairs(const struct hk_map *m, int32_t *_n_pairs, int min_dist, int max_seg, int min_mapq)
+struct hk_pair *hk_seg2pair(int32_t n_segs, const struct hk_seg *segs, int min_dist, int max_seg, int min_mapq, int32_t *n_pairs_)
 {
 	int32_t m_pairs = 0, n_pairs = 0, i, j, st;
 	struct hk_pair *pairs = 0;
-	for (st = 0, i = 1; i <= m->n_seg; ++i) {
-		if (i == m->n_seg || m->seg[i].frag_id != m->seg[i-1].frag_id) {
+	for (st = 0, i = 1; i <= n_segs; ++i) {
+		if (i == n_segs || segs[i].frag_id != segs[i-1].frag_id) {
 			if (i - st <= max_seg) {
 				for (j = st + 1; j < i; ++j) {
+					const struct hk_seg *s = &segs[j], *t = &segs[j-1];
 					struct hk_pair *p;
-					struct hk_seg *s = &m->seg[j], *t = &m->seg[j-1];
 					if (s->mapq < min_mapq || t->mapq < min_mapq)
 						continue; // mapping quality too low
 					if (n_pairs == m_pairs)
@@ -57,7 +46,7 @@ struct hk_pair *hk_map2pairs(const struct hk_map *m, int32_t *_n_pairs, int min_
 		}
 	}
 	ks_introsort_pair(n_pairs, pairs);
-	*_n_pairs = n_pairs;
+	*n_pairs_ = n_pairs;
 	return pairs;
 }
 
@@ -86,7 +75,39 @@ int32_t hk_pair_dedup(int n_pairs, struct hk_pair *pairs, int min_dist)
 	return n;
 }
 
-void hk_pair_print(FILE *fp, const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs)
+/********************
+ * Print segs/pairs *
+ ********************/
+
+static void hk_print_chr(FILE *fp, const struct hk_sdict *d)
+{
+	int32_t i;
+	for (i = 0; i < d->n; ++i)
+		if (d->len[i] > 0)
+			fprintf(fp, "#chromosome: %s %d\n", d->name[i], d->len[i]);
+}
+
+void hk_print_seg(FILE *fp, const struct hk_sdict *d, int32_t n_segs, const struct hk_seg *segs)
+{
+	int32_t i, last_frag = -1;
+	hk_print_chr(fp, d);
+	for (i = 0; i < n_segs; ++i) {
+		const struct hk_seg *s = &segs[i];
+		if (s->frag_id != last_frag) {
+			if (last_frag >= 0) fputc('\n', fp);
+			fputc('.', fp);
+			last_frag = s->frag_id;
+		}
+		fprintf(fp, "\t%s%c%d%c", d->name[s->chr], HK_SUB_DELIM, s->st, HK_SUB_DELIM);
+		if (s->en > s->st) fprintf(fp, "%d", s->en);
+		fprintf(fp, "%c%c%c%c%c%d", HK_SUB_DELIM, s->strand > 0? '+' : s->strand < 0? '-' : '.',
+				HK_SUB_DELIM, s->phase == 0? '0' : s->phase == 1? '1' : '.',
+				HK_SUB_DELIM, s->mapq);
+	}
+	fputc('\n', fp);
+}
+
+void hk_print_pair(FILE *fp, const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs)
 {
 	int32_t i;
 	fprintf(fp, "## pairs format v1.0\n");
@@ -112,7 +133,7 @@ struct dp_aux {
 	int32_t j;
 };
 
-struct hk_pair *hk_tad_call1(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int max_radius, float area_weight, int min_back, int32_t *n_tads_)
+static struct hk_pair *hk_tad_call1(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int max_radius, float area_weight, int min_back, int32_t *n_tads_)
 {
 	int32_t i, n_a, max_max_i, n_tads, min = INT32_MAX, max = INT32_MIN;
 	struct hk_pair *a, *tads;
@@ -187,7 +208,7 @@ struct hk_pair *hk_tad_call1(const struct hk_sdict *d, int32_t n_pairs, struct h
 	return tads;
 }
 
-struct hk_pair *hk_tad_call(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int max_radius, float area_weight, int32_t *n_tads_)
+struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int max_radius, float area_weight, int32_t *n_tads_)
 {
 	int32_t i, st, *n_tadss, n_tads = 0;
 	struct hk_pair *tads = 0, **tadss;
@@ -217,7 +238,7 @@ struct hk_pair *hk_tad_call(const struct hk_sdict *d, int32_t n_pairs, struct hk
 	return tads;
 }
 
-int32_t hk_tad_mask(int32_t n_tads, const struct hk_pair *tads, int32_t n_pairs, struct hk_pair *pairs)
+int32_t hk_mask_by_tad(int32_t n_tads, const struct hk_pair *tads, int32_t n_pairs, struct hk_pair *pairs)
 {
 	int32_t i, j, k;
 	for (i = j = k = 0; i < n_pairs; ++i) {

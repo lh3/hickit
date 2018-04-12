@@ -20,8 +20,6 @@
 extern "C" {
 #endif
 
-void hk_print_chr(FILE *fp, const struct hk_sdict *d);
-
 #ifdef __cplusplus
 }
 #endif

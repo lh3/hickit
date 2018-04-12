@@ -6,32 +6,21 @@
 #include "hickit.h"
 #include "hkpriv.h"
 
-#include "kseq.h"
-KSTREAM_INIT(gzFile, gzread, 0x10000)
+/**********************
+ * Default parameters *
+ **********************/
 
 int hk_verbose = 3;
 
-/*************
- * Utilities *
- *************/
-
-int64_t hk_parse_64(const char *s, char **t, int *has_digit)
+void hk_opt_init(struct hk_opt *c)
 {
-	const char *p = s;
-	int is_neg = 0;
-	int64_t x = 0;
-	*has_digit = 0;
-	while (isspace(*p)) ++p;
-	if (*p == '-') is_neg = 1, ++p;
-	else if (*p == '+') ++p;
-	while (*p >= '0' && *p <= '9') {
-		x = x * 10 + (*p - '0');
-		*has_digit = 1;
-		++p;
-	}
-	if (is_neg) x = -x;
-	*t = (char*)p;
-	return x;
+	c->min_dist = 500;
+	c->max_seg = 3;
+	c->min_mapq = 20;
+	c->max_radius = 10000000;
+	c->area_weight = 1.0f;
+	c->alpha = 3.0f;
+	c->beta = 3.0f;
 }
 
 /*********************
@@ -78,9 +67,9 @@ int32_t hk_sd_put(struct hk_sdict *d, const char *s, int32_t len)
 	return kh_val(h, k);
 }
 
-/***************
- * Segment I/O *
- ***************/
+/*************************
+ * Contact alloc/dealloc *
+ *************************/
 
 struct hk_map *hk_map_init(void)
 {
@@ -92,10 +81,37 @@ struct hk_map *hk_map_init(void)
 
 void hk_map_destroy(struct hk_map *m)
 {
-	hk_sd_destroy(m->d);
-	free(m->seg);
+	free(m->links);
 	free(m->pairs);
+	free(m->segs);
+	hk_sd_destroy(m->d);
 	free(m);
+}
+
+/*************************
+ * Seg/pairs file parser *
+ *************************/
+
+#include "kseq.h"
+KSTREAM_INIT(gzFile, gzread, 0x10000)
+
+static int64_t hk_parse_64(const char *s, char **t, int *has_digit)
+{
+	const char *p = s;
+	int is_neg = 0;
+	int64_t x = 0;
+	*has_digit = 0;
+	while (isspace(*p)) ++p;
+	if (*p == '-') is_neg = 1, ++p;
+	else if (*p == '+') ++p;
+	while (*p >= '0' && *p <= '9') {
+		x = x * 10 + (*p - '0');
+		*has_digit = 1;
+		++p;
+	}
+	if (is_neg) x = -x;
+	*t = (char*)p;
+	return x;
 }
 
 static void hk_parse_seg(struct hk_seg *s, struct hk_sdict *d, int32_t frag_id, char *str)
@@ -173,7 +189,7 @@ struct hk_map *hk_map_read(const char *fn)
 	kstring_t str = {0,0,0};
 	kstream_t *ks;
 	int dret;
-	int32_t m_seg = 0, m_pairs = 0, n_fields = 0, m_fields = 0;
+	int32_t m_segs = 0, m_pairs = 0, n_fields = 0, m_fields = 0;
 	char **fields = 0;
 	struct hk_map *m;
 
@@ -183,7 +199,7 @@ struct hk_map *hk_map_read(const char *fn)
 	ks = ks_init(fp);
 	while (ks_getuntil(ks, KS_SEP_LINE, &str, &dret) >= 0) {
 		char *p, *q;
-		int32_t k, n_seg = 0;
+		int32_t k, n_segs = 0;
 		// read chromsomes
 		if (str.l >= 12 + 3 && strncmp(str.s, "#chromosome:", 12) == 0) {
 			char *chr;
@@ -220,43 +236,15 @@ struct hk_map *hk_map_read(const char *fn)
 		continue;
 parse_seg:
 		for (k = 1; k < n_fields; ++k) {
-			if (m->n_seg == m_seg)
-				EXPAND(m->seg, m_seg);
-			hk_parse_seg(&m->seg[m->n_seg++], m->d, m->n_frag, fields[k]);
-			++n_seg;
+			if (m->n_segs == m_segs)
+				EXPAND(m->segs, m_segs);
+			hk_parse_seg(&m->segs[m->n_segs++], m->d, m->n_frags, fields[k]);
+			++n_segs;
 		}
-		if (n_seg > 0) ++m->n_frag;
+		if (n_segs > 0) ++m->n_frags;
 	}
 	free(str.s);
 	ks_destroy(ks);
 	gzclose(fp);
 	return m;
-}
-
-void hk_print_chr(FILE *fp, const struct hk_sdict *d)
-{
-	int32_t i;
-	for (i = 0; i < d->n; ++i)
-		if (d->len[i] > 0)
-			fprintf(fp, "#chromosome: %s %d\n", d->name[i], d->len[i]);
-}
-
-void hk_map_print(FILE *fp, const struct hk_map *m)
-{
-	int32_t i, last_frag = -1;
-	hk_print_chr(fp, m->d);
-	for (i = 0; i < m->n_seg; ++i) {
-		struct hk_seg *s = &m->seg[i];
-		if (s->frag_id != last_frag) {
-			if (last_frag >= 0) fputc('\n', fp);
-			fputc('.', fp);
-			last_frag = s->frag_id;
-		}
-		fprintf(fp, "\t%s%c%d%c", m->d->name[s->chr], HK_SUB_DELIM, s->st, HK_SUB_DELIM);
-		if (s->en > s->st) fprintf(fp, "%d", s->en);
-		fprintf(fp, "%c%c%c%c%c%d", HK_SUB_DELIM, s->strand > 0? '+' : s->strand < 0? '-' : '.',
-				HK_SUB_DELIM, s->phase == 0? '0' : s->phase == 1? '1' : '.',
-				HK_SUB_DELIM, s->mapq);
-	}
-	fputc('\n', fp);
 }
