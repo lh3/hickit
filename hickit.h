@@ -61,7 +61,7 @@ struct hk_pair *hk_seg2pair(int32_t n_segs, const struct hk_seg *segs, int min_d
 int32_t hk_pair_dedup(int n_pairs, struct hk_pair *pairs, int min_dist);
 struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int max_radius, float area_weight, int32_t *n_tads_);
 int32_t hk_mask_by_tad(int32_t n_tads, const struct hk_pair *tads, int32_t n_pairs, struct hk_pair *pairs);
-struct hk_link *hk_pair2link(const struct hk_opt *opt, int32_t n_pairs, struct hk_pair *pairs, int32_t *n_links_);
+struct hk_link *hk_pair2link(int32_t n_pairs, struct hk_pair *pairs, int max_radius, float alpha, float beta, int32_t *n_links_);
 
 void hk_print_seg(FILE *fp, const struct hk_sdict *d, int32_t n_segs, const struct hk_seg *segs);
 void hk_print_pair(FILE *fp, const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs);

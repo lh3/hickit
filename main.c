@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (is_graph) // for testing only
-		m->links = hk_pair2link(&opt, m->n_pairs, m->pairs, &m->n_links);
+		m->links = hk_pair2link(m->n_pairs, m->pairs, opt.max_radius, opt.alpha, opt.beta, &m->n_links);
 	else
 		hk_print_pair(stdout, m->d, m->n_pairs, m->pairs);
 

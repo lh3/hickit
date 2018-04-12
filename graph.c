@@ -21,7 +21,7 @@ float hk_pair_weight(const struct hk_pair *a, const struct hk_pair *b, int32_t m
 	return d >= 1.0f? 0.0f : expf(-beta * d);
 }
 
-struct hk_link *hk_pair2link(const struct hk_opt *opt, int32_t n_pairs, struct hk_pair *pairs, int32_t *n_links_)
+struct hk_link *hk_pair2link(int32_t n_pairs, struct hk_pair *pairs, int max_radius, float alpha, float beta, int32_t *n_links_)
 {
 	int32_t i, j, m_links = 0, n_links = 0, k, off;
 	struct hk_link *links = 0;
@@ -36,9 +36,9 @@ struct hk_link *hk_pair2link(const struct hk_opt *opt, int32_t n_pairs, struct h
 		for (j = i - 1; j >= 0; --j) {
 			struct hk_pair *p = &pairs[j];
 			float w;
-			if (p->chr != q->chr || hk_ppos1(q) - hk_ppos1(p) > opt->max_radius)
+			if (p->chr != q->chr || hk_ppos1(q) - hk_ppos1(p) > max_radius)
 				break;
-			w = hk_pair_weight(p, q, opt->max_radius, opt->alpha, opt->beta);
+			w = hk_pair_weight(p, q, max_radius, alpha, beta);
 			if (w > 0.0f) {
 				struct hk_link *t;
 				if (n_links == m_links)
