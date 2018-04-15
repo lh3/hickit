@@ -1,5 +1,6 @@
 #include <assert.h>
 #include "hkpriv.h"
+#include "klist.h"
 #include "kavl.h"
 
 struct cnt_aux {
@@ -12,10 +13,15 @@ struct cnt_aux {
 #define cnt_cmp(a, b) (((a)->end_i > (b)->end_i) - ((a)->end_i < (b)->end_i))
 KAVL_INIT(cnt, struct cnt_aux, head, cnt_cmp)
 
+#define cnt_free(a)
+KMEMPOOL_INIT(cnt, struct cnt_aux, cnt_free)
+
 void hk_pair_count_1chr(int32_t n_pairs, struct hk_pair *pairs)
 {
 	int32_t i, n_ends = 0;
 	struct cnt_aux *root = 0;
+	kmempool_t(cnt) *mp;
+	mp = kmp_init(cnt);
 	for (i = 0; i < n_pairs; ++i) {
 		struct hk_pair *p = &pairs[i];
 		int32_t p1 = hk_ppos1(p), p2 = hk_ppos2(p);
@@ -31,10 +37,10 @@ void hk_pair_count_1chr(int32_t n_pairs, struct hk_pair *pairs)
 				q->n = n_ends - t->n_ends - (int32_t)t->n_bridges;
 				assert(q->n >= 0);
 				++n_ends;
-				free(t);
+				kmp_free(cnt, mp, t);
 			}
 		}
-		s = CALLOC(struct cnt_aux, 1);
+		s = (struct cnt_aux*)kmp_alloc(cnt, mp);
 		s->end_i = (uint64_t)p2 << 32 | i;
 		s->n_ends = n_ends;
 		kavl_insert(cnt, &root, s, &s->n_bridges);
@@ -46,8 +52,9 @@ void hk_pair_count_1chr(int32_t n_pairs, struct hk_pair *pairs)
 		q = &pairs[(int32_t)t->end_i];
 		q->n = n_ends - t->n_ends - (int32_t)t->n_bridges;
 		++n_ends;
-		free(t);
+		kmp_free(cnt, mp, t);
 	}
+	kmp_destroy(cnt, mp);
 }
 
 void hk_pair_count(int32_t n_pairs, struct hk_pair *pairs)
