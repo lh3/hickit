@@ -62,7 +62,8 @@ int32_t hk_pair_dedup(int n_pairs, struct hk_pair *pairs, int min_dist);
 int32_t hk_pair_filter(int n_pairs, struct hk_pair *pairs, int min_dist);
 void hk_pair_count(int32_t n_pairs, struct hk_pair *pairs);
 
-struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int max_radius, float area_weight, int32_t *n_tads_);
+struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, float area_weight, int32_t *n_tads_);
+struct hk_pair *hk_pair2tad_slow(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int max_radius, float area_weight, int32_t *n_tads_);
 int32_t hk_mask_by_tad(int32_t n_tads, const struct hk_pair *tads, int32_t n_pairs, struct hk_pair *pairs);
 struct hk_link *hk_pair2link(int32_t n_pairs, struct hk_pair *pairs, int max_radius, float alpha, float beta, int32_t *n_links_);
 

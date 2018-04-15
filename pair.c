@@ -220,7 +220,8 @@ static struct hk_pair *hk_tad_call1(int32_t n_pairs, struct hk_pair *pairs, int 
 		struct hk_pair *p = &a[i];
 		int32_t j, max_j = n_a, p1 = hk_ppos1(p), p2 = hk_ppos2(p);
 		float area = 0.5e-12f * (p2 - p1) * (p2 - p1);
-		float max_f = p->n - aa * (area + 0.5e-12f * (max - p2) * (max - p2));
+		//float max_f = p->n - aa * (area + 0.5e-12f * (max - p2) * (max - p2));
+		float max_f = p->n - aa * area;
 		for (j = i + 1; j < n_a; ++j) {
 			struct hk_pair *q = &a[j];
 			int32_t q1 = hk_ppos1(q), q2;
@@ -252,7 +253,7 @@ static struct hk_pair *hk_tad_call1(int32_t n_pairs, struct hk_pair *pairs, int 
 	return tads;
 }
 
-struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int max_radius, float area_weight, int32_t *n_tads_)
+struct hk_pair *hk_pair2tad_slow(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int max_radius, float area_weight, int32_t *n_tads_)
 {
 	int32_t i, st, *n_tadss, n_tads = 0, tot_in_band = 0, tot_in_tads = 0;
 	struct hk_pair *tads = 0, **tadss;
@@ -282,7 +283,7 @@ struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk
 	free(n_tadss);
 	*n_tads_ = n_tads;
 	if (hk_verbose >= 3)
-		fprintf(stderr, "[M::%s] %d pairs in band, of which %d in TADs (%.2f%%)\n", __func__,
-				tot_in_band, tot_in_tads, 100.0 * tot_in_tads / tot_in_band);
+		fprintf(stderr, "[M::%s] %d pairs in band, of which %d in %d TADs (%.2f%%)\n", __func__,
+				tot_in_band, tot_in_tads, n_tads, 100.0 * tot_in_tads / tot_in_band);
 	return tads;
 }
