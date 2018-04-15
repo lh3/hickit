@@ -1,7 +1,7 @@
 CFLAGS=		-g -Wall -O2 -Wc++-compat
 CPPFLAGS=
 INCLUDES=
-OBJS=		map.o pair.o graph.o
+OBJS=		map.o pair.o tad.o graph.o
 PROG=		hickit
 LIBS=		-lm -lz
 
@@ -28,3 +28,4 @@ graph.o: hkpriv.h hickit.h ksort.h
 main.o: hickit.h
 map.o: hickit.h hkpriv.h khash.h kseq.h
 pair.o: hkpriv.h hickit.h ksort.h
+tad.o: hkpriv.h hickit.h kavl.h
