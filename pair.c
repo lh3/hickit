@@ -229,7 +229,8 @@ static struct hk_pair *hk_tad_call1(int32_t n_pairs, struct hk_pair *pairs, int 
 			if (q1 - p1 > max_radius && j - i >= min_back) break;
 			if (p2 >= q1) continue;
 			q2 = hk_ppos2(q);
-			f = u[j].f + p->n - aa * (area + 0.5e-12f * (q1 - p2) * (q1 - p2));
+			//f = u[j].f + p->n - aa * (area + 0.5e-12f * (q1 - p2) * (q1 - p2));
+			f = u[j].f + p->n - aa * area;
 			if (f > max_f)
 				max_f = f, max_j = j;
 		}
