@@ -36,12 +36,13 @@ int main(int argc, char *argv[])
 	int c, ret = 0, is_seg_out = 0, is_graph = 0, is_dedup = 1, is_tad_out = 0, mask_tad = 0;
 
 	hk_opt_init(&opt);
-	while ((c = getopt(argc, argv, "SgtDMr:v:d:s:a:")) >= 0) {
+	while ((c = getopt(argc, argv, "SgtDMr:v:d:s:a:n:")) >= 0) {
 		if (c == 'S') is_seg_out = 1;
 		else if (c == 's') opt.max_seg = atoi(optarg);
 		else if (c == 'a') opt.area_weight = atof(optarg);
 		else if (c == 'r') opt.max_radius = hk_parse_num(optarg);
 		else if (c == 'd') opt.min_dist = hk_parse_num(optarg);
+		else if (c == 'n') opt.min_tad_size = atoi(optarg);
 		else if (c == 'M') mask_tad = 1;
 		else if (c == 't') is_tad_out = 1;
 		else if (c == 'g') is_graph = 1;
@@ -76,8 +77,8 @@ int main(int argc, char *argv[])
 	if (is_tad_out || mask_tad) {
 		int32_t n_tads;
 		struct hk_pair *tads;
-		//tads = hk_pair2tad(m->d, m->n_pairs, m->pairs, opt.area_weight, &n_tads);
-		tads = hk_pair2tad_slow(m->d, m->n_pairs, m->pairs, opt.max_radius, opt.area_weight, &n_tads);
+		tads = hk_pair2tad(m->d, m->n_pairs, m->pairs, opt.min_tad_size, opt.area_weight, &n_tads);
+		//tads = hk_pair2tad_slow(m->d, m->n_pairs, m->pairs, opt.max_radius, opt.area_weight, &n_tads);
 		if (is_tad_out)
 			hk_print_pair(stdout, m->d, n_tads, tads);
 		else if (mask_tad)
