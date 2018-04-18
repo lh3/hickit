@@ -91,17 +91,31 @@ int32_t hk_pair_filter(int n_pairs, struct hk_pair *pairs, int min_dist)
 
 int32_t hk_mask_by_tad(int32_t n_tads, const struct hk_pair *tads, int32_t n_pairs, struct hk_pair *pairs)
 {
-	int32_t i, j, k;
+	int32_t i, j, k, n_a;
+	struct hk_pair *a;
+	// populate _a_
+	a = MALLOC(struct hk_pair, n_tads * 3);
+	for (i = 0i, n_a = 0; i < n_tads; ++i) {
+		const struct hk_pair *t = &tads[i];
+		struct hk_pair *p;
+		int32_t t1 = hk_ppos1(t), t2 = hk_ppos2(t);
+		int32_t last_t2 = i > 0 && t->chr == (t-1)->chr? hk_ppos2(t-1) : 0;
+		p = &a[n_a++], p->chr = t->chr, p->pos = (uint64_t)last_t2 << 32 | t1;
+		p = &a[n_a++], p->chr = t->chr, p->pos = (uint64_t)t1 << 32 | t2;
+		if (i == n_tads - 1 || t->chr != (t+1)->chr)
+			p = &a[n_a++], p->chr = t->chr, p->pos = (uint64_t)t2 << 32 | INT32_MAX;
+	}
+	// filter
 	for (i = j = k = 0; i < n_pairs; ++i) {
 		struct hk_pair *p = &pairs[i];
 		int kept = 1;
 		if (p->chr>>32 == (int32_t)p->chr) { // intra-chromosomal pairs
 			const struct hk_pair *t;
 			int32_t p1 = hk_ppos1(p);
-			while (j < n_tads && (tads[j].chr < p->chr || (tads[j].chr == p->chr && hk_ppos2(&tads[j]) <= p1)))
+			while (j < n_a && (a[j].chr < p->chr || (a[j].chr == p->chr && hk_ppos2(&a[j]) <= p1)))
 				++j;
-			if (j == n_tads) break;
-			t = &tads[j];
+			if (j == n_a) break;
+			t = &a[j];
 			if (p->chr == t->chr && hk_ppos1(t) <= p1 && hk_ppos2(p) <= hk_ppos2(t)) // contained in TAD
 				kept = 0;
 		}
@@ -109,6 +123,7 @@ int32_t hk_mask_by_tad(int32_t n_tads, const struct hk_pair *tads, int32_t n_pai
 	}
 	for (; i < n_pairs; ++i) // copy the rest over
 		pairs[k++] = pairs[i];
+	free(a);
 	if (hk_verbose >= 3)
 		fprintf(stderr, "[M::%s] masked %d out of %d pairs\n", __func__, n_pairs - k, n_pairs);
 	return k;

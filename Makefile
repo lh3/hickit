@@ -1,7 +1,7 @@
 CFLAGS=		-g -Wall -O2 -Wc++-compat #-fsanitize=address
 CPPFLAGS=
 INCLUDES=
-OBJS=		map.o pair.o tad.o graph.o
+OBJS=		map.o pair.o tad.o neighbor.o graph.o
 PROG=		hickit
 LIBS=		-lm -lz
 
@@ -27,5 +27,6 @@ depend:
 graph.o: hkpriv.h hickit.h ksort.h
 main.o: hickit.h
 map.o: hickit.h hkpriv.h khash.h kseq.h
+neighbor.o: hkpriv.h hickit.h ksort.h
 pair.o: hkpriv.h hickit.h ksort.h
 tad.o: hkpriv.h hickit.h klist.h kavl.h
