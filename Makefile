@@ -1,25 +1,25 @@
-CFLAGS=		-g -Wall -O2 -Wc++-compat $(ASAN_FLAG)
+CFLAGS=		-g -Wall -O2 -Wc++-compat
 CPPFLAGS=
 INCLUDES=
 OBJS=		map.o pair.o tad.o neighbor.o graph.o
 PROG=		hickit
-LIBS=		$(ASAN_FLAG) -lm -lz
+LIBS=		-lm -lz
+ASAN_FLAG=
 
 ifneq ($(asan),)
-	CFLAGS += -fsanitize=address
-	LIBS += -fsanitize=address
+	ASAN_FLAG = -fsanitize=address
 endif
 
 .PHONY:all clean depend
 .SUFFIXES:.c .o
 
 .c.o:
-		$(CC) -c $(CFLAGS) $(CPPFLAGS) $(INCLUDES) $< -o $@
+		$(CC) -c $(CFLAGS) $(ASAN_FLAG) $(CPPFLAGS) $(INCLUDES) $< -o $@
 
 all:$(PROG)
 
 hickit:$(OBJS) main.o
-		$(CC) -o $@ $^ $(LIBS)
+		$(CC) -o $@ $^ $(ASAN_FLAG) $(LIBS)
 
 clean:
 		rm -fr gmon.out *.o a.out $(PROG) *.a *.dSYM hickit.aux hickit.log hickit.pdf
