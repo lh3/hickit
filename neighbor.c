@@ -5,6 +5,13 @@
 #define nei_lt(a, b) ((a).d < (b).d)
 KSORT_INIT(nei, struct hk_nei1, nei_lt)
 
+void hk_nei_destroy(struct hk_nei *n)
+{
+	free(n->nei);
+	free(n->offcnt);
+	free(n);
+}
+
 static inline void nei_add(struct hk_nei *n, int max_nei, int i, int j, int d)
 {
 	struct hk_nei1 *n1 = &n->nei[n->offcnt[i] >> 16];
@@ -37,6 +44,7 @@ struct hk_nei *hk_pair2nei(int n_pairs, const struct hk_pair *pairs, int max_rad
 		for (j = i - 1; j >= 0; --j) {
 			const struct hk_pair *p = &pairs[j];
 			int32_t p1 = hk_ppos1(p), p2 = hk_ppos2(p), y, z;
+			if (q->chr != p->chr) break;
 			y = q1 - p1;
 			z = q2 > p2? q2 - p2 : p2 - q2;
 			if (y > max_radius) break;
@@ -59,6 +67,7 @@ struct hk_nei *hk_pair2nei(int n_pairs, const struct hk_pair *pairs, int max_rad
 		for (j = i - 1; j >= 0; --j) {
 			const struct hk_pair *p = &pairs[j];
 			int32_t p1 = hk_ppos1(p), p2 = hk_ppos2(p), y, z, d;
+			if (q->chr != p->chr) break;
 			y = q1 - p1;
 			z = q2 > p2? q2 - p2 : p2 - q2;
 			if (y > max_radius) break;
@@ -71,6 +80,7 @@ struct hk_nei *hk_pair2nei(int n_pairs, const struct hk_pair *pairs, int max_rad
 		}
 	}
 	for (i = 0; i < n_pairs; ++i)
-		ks_heapsort_nei(n->offcnt[i]&0xffff, &n->nei[n->offcnt[i]>>16]);
+		if (n->offcnt[i]&0xffff)
+			ks_heapsort_nei(n->offcnt[i]&0xffff, &n->nei[n->offcnt[i]>>16]);
 	return n;
 }
