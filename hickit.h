@@ -52,17 +52,11 @@ struct hk_nei {
 	struct hk_nei1 *nei;
 };
 
-struct hk_link {
-	uint64_t x;
-	float w;
-} __attribute__ ((__packed__));
-
 struct hk_map {
 	struct hk_sdict *d;
-	int32_t n_frags, n_segs, n_pairs, n_links;
+	int32_t n_frags, n_segs, n_pairs;
 	struct hk_seg  *segs;
 	struct hk_pair *pairs;
-	struct hk_link *links;
 };
 
 extern int hk_verbose;

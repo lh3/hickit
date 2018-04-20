@@ -34,7 +34,7 @@ struct my_node {
   char key;
   KAVL_HEAD(struct my_node) head;
 };
-#define my_cmp(p, q) ((p)->key - (q)->key)
+#define my_cmp(p, q) (((q)->key < (p)->key) - ((p)->key < (q)->key))
 KAVL_INIT(my, struct my_node, head, my_cmp)
 
 int main(void) {
@@ -136,7 +136,7 @@ int main(void) {
 		__type *path[KAVL_MAX_DEPTH]; \
 		__type *bp, *bq; \
 		__type *p, *q, *r = 0; /* _r_ is potentially the new root */ \
-		int i, which, top, b1, path_len; \
+		int i, which = 0, top, b1, path_len; \
 		unsigned cnt = 0; \
 		bp = *root_, bq = 0; \
 		/* find the insertion location */ \

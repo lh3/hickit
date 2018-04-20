@@ -42,7 +42,7 @@
 		kmptype_t **buf;												\
 	} kmp_##name##_t;													\
 	SCOPE kmp_##name##_t *kmp_init_##name(void) {						\
-		return calloc(1, sizeof(kmp_##name##_t));						\
+		return (kmp_##name##_t*)calloc(1, sizeof(kmp_##name##_t));		\
 	}																	\
 	SCOPE void kmp_destroy_##name(kmp_##name##_t *mp) {					\
 		size_t k;														\
@@ -53,14 +53,14 @@
 	}																	\
 	SCOPE kmptype_t *kmp_alloc_##name(kmp_##name##_t *mp) {				\
 		++mp->cnt;														\
-		if (mp->n == 0) return calloc(1, sizeof(kmptype_t));			\
+		if (mp->n == 0) return (kmptype_t*)calloc(1, sizeof(kmptype_t)); \
 		return mp->buf[--mp->n];										\
 	}																	\
 	SCOPE void kmp_free_##name(kmp_##name##_t *mp, kmptype_t *p) {		\
 		--mp->cnt;														\
 		if (mp->n == mp->max) {											\
 			mp->max = mp->max? mp->max<<1 : 16;							\
-			mp->buf = realloc(mp->buf, sizeof(kmptype_t *) * mp->max);	\
+			mp->buf = (kmptype_t**)realloc(mp->buf, sizeof(kmptype_t *) * mp->max); \
 		}																\
 		mp->buf[mp->n++] = p;											\
 	}

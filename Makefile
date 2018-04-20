@@ -1,7 +1,7 @@
 CFLAGS=		-g -Wall -O2 -Wc++-compat
 CPPFLAGS=
 INCLUDES=
-OBJS=		map.o pair.o tad.o neighbor.o graph.o
+OBJS=		map.o pair.o tad.o neighbor.o
 PROG=		hickit
 LIBS=		-lm -lz
 ASAN_FLAG=
@@ -29,7 +29,6 @@ depend:
 
 # DO NOT DELETE
 
-graph.o: hkpriv.h hickit.h ksort.h
 main.o: hickit.h
 map.o: hickit.h hkpriv.h khash.h kseq.h
 neighbor.o: hkpriv.h hickit.h ksort.h

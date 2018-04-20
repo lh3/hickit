@@ -79,7 +79,6 @@ int main(int argc, char *argv[])
 		int32_t n_tads;
 		struct hk_pair *tads;
 		tads = hk_pair2tad(m->d, m->n_pairs, m->pairs, opt.min_tad_size, opt.area_weight, &n_tads);
-		//tads = hk_pair2tad_slow(m->d, m->n_pairs, m->pairs, opt.max_radius, opt.area_weight, &n_tads);
 		if (is_tad_out)
 			hk_print_pair(stdout, m->d, n_tads, tads);
 		else if (mask_tad)

@@ -84,7 +84,6 @@ struct hk_map *hk_map_init(void)
 
 void hk_map_destroy(struct hk_map *m)
 {
-	free(m->links);
 	free(m->pairs);
 	free(m->segs);
 	hk_sd_destroy(m->d);
