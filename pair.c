@@ -161,20 +161,28 @@ void hk_print_seg(FILE *fp, const struct hk_sdict *d, int32_t n_segs, const stru
 	fputc('\n', fp);
 }
 
-void hk_print_pair(FILE *fp, const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs)
+void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs)
 {
 	int32_t i;
 	fprintf(fp, "## pairs format v1.0\n");
 	fprintf(fp, "#sorted: chr1-chr2-pos1-pos2\n");
 	fprintf(fp, "#shape: upper triangle\n");
 	hk_print_chr(fp, d);
-	fprintf(fp, "#columns: readID chr1 pos1 chr2 pos2 strand1 strand2\n");
+	fprintf(fp, "#columns: readID chr1 pos1 chr2 pos2 strand1 strand2");
+	if (flag & HK_OUT_PHASE) fprintf(fp, " phase1 phase2");
+	fputc('\n', fp);
 	for (i = 0; i < n_pairs; ++i) {
 		const struct hk_pair *p = &pairs[i];
-		fprintf(fp, ".\t%s\t%d\t%s\t%d\t%c\t%c\t%d\n", d->name[p->chr>>32], (int32_t)(p->pos>>32),
+		fprintf(fp, ".\t%s\t%d\t%s\t%d\t%c\t%c\t%d", d->name[p->chr>>32], (int32_t)(p->pos>>32),
 				d->name[(int32_t)p->chr], (int32_t)p->pos,
 				p->strand[0] > 0? '+' : p->strand[0] < 0? '-' : '.',
 				p->strand[1] > 0? '+' : p->strand[1] < 0? '-' : '.', p->n);
+		if (flag & HK_OUT_PHASE) {
+			if (flag & HK_OUT_PHASE_REAL) {
+				fprintf(fp, "\t%.2f\t%.2f", p->phase[0] * .01f, p->phase[1] * .01f);
+			} else fprintf(fp, "\t%c\t%c", p->phase[0] < 0? '.' : '0' + p->phase[0], p->phase[1] < 0? '.' : '0' + p->phase[1]);
+		}
+		fputc('\n', fp);
 	}
 }
 

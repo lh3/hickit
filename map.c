@@ -14,6 +14,7 @@ int hk_verbose = 3;
 
 void hk_opt_init(struct hk_opt *c)
 {
+	memset(c, 0, sizeof(struct hk_opt));
 	c->min_dist = 500;
 	c->max_seg = 3;
 	c->min_mapq = 20;
@@ -22,7 +23,6 @@ void hk_opt_init(struct hk_opt *c)
 	c->max_radius = 10000000;
 	c->max_nei = 50;
 	c->min_pre_link_dist = 1000000;
-	c->alpha = 3.0f;
 	c->beta = 3.0f;
 }
 

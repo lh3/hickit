@@ -2,7 +2,7 @@
 #include "hkpriv.h"
 #include "ksort.h"
 
-#define nei_lt(a, b) ((a).d < (b).d)
+#define nei_lt(a, b) ((a)._.d < (b)._.d)
 KSORT_INIT(nei, struct hk_nei1, nei_lt)
 
 void hk_nei_destroy(struct hk_nei *n)
@@ -17,12 +17,12 @@ static inline void nei_add(struct hk_nei *n, int max_nei, int i, int j, int d)
 	struct hk_nei1 *n1 = &n->nei[n->offcnt[i] >> 16];
 	int32_t c0 = n->offcnt[i]&0xffff;
 	if (c0 < max_nei) {
-		n1[c0].d = d;
+		n1[c0]._.d = d;
 		n1[c0].i = j;
 		++n->offcnt[i];
 		ks_heapup_nei(c0 + 1, n1);
-	} else if (n1->d > d) {
-		n1->d = d, n1->i = j;
+	} else if (n1->_.d > d) {
+		n1->_.d = d, n1->i = j;
 		ks_heapdown_nei(0, c0, n1);
 	}
 }
@@ -71,7 +71,7 @@ struct hk_nei *hk_pair2nei(int n_pairs, const struct hk_pair *pairs, int max_rad
 			y = q1 - p1;
 			z = q2 > p2? q2 - p2 : p2 - q2;
 			if (y > max_radius) break;
-			if ((n->offcnt[i]&0xffff) == max_nei && y > n->nei[n->offcnt[i]>>16].d)
+			if ((n->offcnt[i]&0xffff) == max_nei && y > n->nei[n->offcnt[i]>>16]._.d)
 				break;
 			if (z > max_radius) continue;
 			d = y > z? y : z;

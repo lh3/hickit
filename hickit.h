@@ -6,17 +6,21 @@
 
 #define HK_SUB_DELIM '!'
 
+#define HK_OUT_PHASE        0x1
+#define HK_OUT_PHASE_REAL   0x2
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 struct hk_opt {
+	int flag;
 	int min_dist, max_seg, min_mapq;
 	int min_tad_size;
 	float area_weight;
 	int max_radius, max_nei;
 	int min_pre_link_dist;
-	float alpha, beta;
+	float beta;
 };
 
 struct hk_sdict {     // sequence dictionary
@@ -41,7 +45,10 @@ struct hk_pair {      // a contact pair
 };
 
 struct hk_nei1 {
-	int32_t d;
+	union {
+		int32_t d;
+		float w;
+	} _;
 	int32_t i;
 };
 
@@ -74,13 +81,14 @@ struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk
 int32_t hk_mask_by_tad(int32_t n_tads, const struct hk_pair *tads, int32_t n_pairs, struct hk_pair *pairs);
 
 struct hk_nei *hk_pair2nei(int n_pairs, const struct hk_pair *pairs, int max_radius, int max_nei);
+void hk_nei_weight(struct hk_nei *n, int32_t max_radius, float beta);
 void hk_nei_destroy(struct hk_nei *n);
 
 struct hk_pair *hk_pair2tad_slow(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int max_radius, float area_weight, int32_t *n_tads_);
 struct hk_link *hk_pair2link(int32_t n_pairs, struct hk_pair *pairs, int max_radius, float alpha, float beta, int32_t *n_links_);
 
 void hk_print_seg(FILE *fp, const struct hk_sdict *d, int32_t n_segs, const struct hk_seg *segs);
-void hk_print_pair(FILE *fp, const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs);
+void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs);
 
 #ifdef __cplusplus
 }
