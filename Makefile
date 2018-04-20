@@ -1,10 +1,14 @@
-ASAN_FLAG=	-fsanitize=address
 CFLAGS=		-g -Wall -O2 -Wc++-compat $(ASAN_FLAG)
 CPPFLAGS=
 INCLUDES=
 OBJS=		map.o pair.o tad.o neighbor.o graph.o
 PROG=		hickit
 LIBS=		$(ASAN_FLAG) -lm -lz
+
+ifneq ($(asan),)
+	CFLAGS += -fsanitize=address
+	LIBS += -fsanitize=address
+endif
 
 .PHONY:all clean depend
 .SUFFIXES:.c .o
