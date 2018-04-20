@@ -35,7 +35,7 @@ struct hk_pair *hk_seg2pair(int32_t n_segs, const struct hk_seg *segs, int min_d
 						p->phase[0]  = s->phase,  p->phase[1]  = t->phase;
 						p->strand[0] = s->strand, p->strand[1] = t->strand;
 					}
-					p->n = 0, p->offset = -1;
+					p->n = 0;
 					if (p->strand[0] * p->strand[1] >= 0 && t->chr == s->chr && (int32_t)p->pos - (int32_t)(p->pos>>32) < min_dist) {
 						--n_pairs;
 						continue;

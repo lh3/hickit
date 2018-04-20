@@ -79,6 +79,7 @@ int main(int argc, char *argv[])
 		int32_t n_tads;
 		struct hk_pair *tads;
 		tads = hk_pair2tad(m->d, m->n_pairs, m->pairs, opt.min_tad_size, opt.area_weight, &n_tads);
+		//tads = hk_pair2tad_slow(m->d, m->n_pairs, m->pairs, opt.max_radius, opt.area_weight, &n_tads);
 		if (is_tad_out)
 			hk_print_pair(stdout, m->d, n_tads, tads);
 		else if (mask_tad)
@@ -91,7 +92,6 @@ int main(int argc, char *argv[])
 	if (is_graph) { // for testing only
 		struct hk_nei *n;
 		m->n_pairs = hk_pair_filter(m->n_pairs, m->pairs, opt.min_pre_link_dist);
-		//m->links = hk_pair2link(m->n_pairs, m->pairs, opt.max_radius, opt.alpha, opt.beta, &m->n_links);
 		n = hk_pair2nei(m->n_pairs, m->pairs, opt.max_radius, opt.max_nei);
 		hk_nei_destroy(n);
 	} else {
