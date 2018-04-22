@@ -173,14 +173,15 @@ void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs
 	fputc('\n', fp);
 	for (i = 0; i < n_pairs; ++i) {
 		const struct hk_pair *p = &pairs[i];
-		fprintf(fp, ".\t%s\t%d\t%s\t%d\t%c\t%c\t%d", d->name[p->chr>>32], (int32_t)(p->pos>>32),
+		fprintf(fp, ".\t%s\t%d\t%s\t%d\t%c\t%c", d->name[p->chr>>32], (int32_t)(p->pos>>32),
 				d->name[(int32_t)p->chr], (int32_t)p->pos,
 				p->strand[0] > 0? '+' : p->strand[0] < 0? '-' : '.',
-				p->strand[1] > 0? '+' : p->strand[1] < 0? '-' : '.', p->n);
+				p->strand[1] > 0? '+' : p->strand[1] < 0? '-' : '.');
 		if (flag & HK_OUT_PHASE) {
-			if (flag & HK_OUT_PHASE_REAL) {
+			if (flag & HK_OUT_PHASE_REAL)
 				fprintf(fp, "\t%.2f\t%.2f", p->phase[0] * .01f, p->phase[1] * .01f);
-			} else fprintf(fp, "\t%c\t%c", p->phase[0] < 0? '.' : '0' + p->phase[0], p->phase[1] < 0? '.' : '0' + p->phase[1]);
+			else
+				fprintf(fp, "\t%c\t%c", p->phase[0] < 0? '.' : '0' + p->phase[0], p->phase[1] < 0? '.' : '0' + p->phase[1]);
 		}
 		fputc('\n', fp);
 	}

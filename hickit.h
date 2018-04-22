@@ -21,6 +21,7 @@ struct hk_opt {
 	int max_radius, max_nei;
 	int min_pre_link_dist;
 	float beta;
+	int n_burnin, n_iter;
 };
 
 struct hk_sdict {     // sequence dictionary
@@ -82,7 +83,10 @@ int32_t hk_mask_by_tad(int32_t n_tads, const struct hk_pair *tads, int32_t n_pai
 
 struct hk_nei *hk_pair2nei(int n_pairs, const struct hk_pair *pairs, int max_radius, int max_nei);
 void hk_nei_weight(struct hk_nei *n, int32_t max_radius, float beta);
+void hk_nei_phase(struct hk_nei *n, struct hk_pair *pairs, int n_iter);
+void hk_nei_gibbs(struct hk_nei *n, struct hk_pair *pairs, int n_burbin, int n_iter);
 void hk_nei_destroy(struct hk_nei *n);
+void kad_srand(void *d, uint64_t seed);
 
 struct hk_pair *hk_pair2tad_slow(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int max_radius, float area_weight, int32_t *n_tads_);
 struct hk_link *hk_pair2link(int32_t n_pairs, struct hk_pair *pairs, int max_radius, float alpha, float beta, int32_t *n_links_);
