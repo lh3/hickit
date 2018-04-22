@@ -75,17 +75,16 @@ int32_t hk_pair_dedup(int n_pairs, struct hk_pair *pairs, int min_dist)
 	return n;
 }
 
-int32_t hk_pair_filter(int n_pairs, struct hk_pair *pairs, int min_dist)
+int32_t hk_pair_select_phased(int n_pairs, struct hk_pair *pairs)
 {
 	int32_t i, n;
 	for (i = n = 0; i < n_pairs; ++i) {
 		struct hk_pair *p = &pairs[i];
-		if (hk_intra(p) && hk_ppos2(p) - hk_ppos1(p) < min_dist)
-			continue;
+		if (p->phase[0] < 0 && p->phase[1] < 0) continue;
 		pairs[n++] = pairs[i];
 	}
 	if (hk_verbose >= 3)
-		fprintf(stderr, "[M::%s] filtered %d out of %d pairs\n", __func__, n_pairs - n, n_pairs);
+		fprintf(stderr, "[M::%s] %d pairs remain\n", __func__, n);
 	return n;
 }
 

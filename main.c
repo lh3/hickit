@@ -42,10 +42,10 @@ int main(int argc, char *argv[])
 {
 	struct hk_opt opt;
 	struct hk_map *m = 0;
-	int c, ret = 0, is_seg_out = 0, is_graph = 0, is_dedup = 1, is_tad_out = 0, is_em = 0, mask_tad = 0;
+	int c, ret = 0, is_seg_out = 0, is_graph = 0, is_dedup = 1, is_tad_out = 0, is_em = 0, sel_phased = 0, mask_tad = 0;
 
 	hk_opt_init(&opt);
-	while ((c = getopt(argc, argv, "R:SgtDMr:v:d:s:a:m:n:fer:b:i:")) >= 0) {
+	while ((c = getopt(argc, argv, "R:SgtDMPr:v:d:s:a:m:n:fer:b:i:")) >= 0) {
 		if (c == 'S') is_seg_out = 1;
 		else if (c == 's') opt.max_seg = atoi(optarg);
 		else if (c == 'a') opt.area_weight = atof(optarg);
@@ -62,6 +62,7 @@ int main(int argc, char *argv[])
 		else if (c == 't') is_tad_out = 1;
 		else if (c == 'g') is_graph = 1;
 		else if (c == 'D') is_dedup = 0;
+		else if (c == 'P') sel_phased = 1;
 		else if (c == 'v') hk_verbose = atoi(optarg);
 	}
 	if (argc - optind == 0) {
@@ -105,7 +106,8 @@ int main(int argc, char *argv[])
 
 	if (is_graph) { // for testing only
 		struct hk_nei *n;
-		//m->n_pairs = hk_pair_filter(m->n_pairs, m->pairs, opt.min_pre_link_dist);
+		if (sel_phased)
+			m->n_pairs = hk_pair_select_phased(m->n_pairs, m->pairs);
 		n = hk_pair2nei(m->n_pairs, m->pairs, opt.max_radius, opt.max_nei);
 		hk_nei_weight(n, opt.max_radius, opt.beta);
 		if (is_em) hk_nei_phase(n, m->pairs, opt.n_iter, opt.pseudo_cnt);
