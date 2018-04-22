@@ -41,7 +41,7 @@ struct phase_aux {
 	float phase[2];
 };
 
-void hk_nei_phase(struct hk_nei *n, struct hk_pair *pairs, int n_iter)
+void hk_nei_phase(struct hk_nei *n, struct hk_pair *pairs, int n_iter, float pseudo_cnt)
 {
 	struct phase_aux *a[2], *cur, *pre, *tmp;
 	int32_t i, iter;
@@ -64,8 +64,8 @@ void hk_nei_phase(struct hk_nei *n, struct hk_pair *pairs, int n_iter)
 			struct hk_pair *p = &pairs[i];
 			int64_t off = n->offcnt[i] >> 16;
 			int32_t cnt = n->offcnt[i] & 0xffff, j;
-			double c[2], s = 0.0;
-			c[0] = c[1] = 0.0;
+			double c[2], s;
+			c[0] = c[1] = 0.5 * pseudo_cnt, s = pseudo_cnt;
 			for (j = 0; j < cnt; ++j) {
 				struct hk_nei1 *n1 = &n->nei[off + j];
 				c[0] += n1->_.w * pre[n1->i].phase[0];
@@ -166,7 +166,7 @@ struct gibbs_aux {
 	struct { uint32_t c1:30, x:1, obs:1; } p[2];
 };
 
-static void hk_nei_gibbs1(struct hk_nei *n, struct gibbs_aux *a)
+static void hk_nei_gibbs1(struct hk_nei *n, struct gibbs_aux *a, float pseudo_cnt)
 {
 	int32_t i;
 	for (i = 0; i < n->n_pairs; ++i) {
@@ -174,7 +174,7 @@ static void hk_nei_gibbs1(struct hk_nei *n, struct gibbs_aux *a)
 		int32_t cnt = n->offcnt[i] & 0xffff, j;
 		struct gibbs_aux *q = &a[i];
 		double s, c[2];
-		c[0] = c[1] = s = 0.0;
+		c[0] = c[1] = 0.5 * pseudo_cnt, s = pseudo_cnt;
 		for (j = 0; j < cnt; ++j) {
 			struct hk_nei1 *n1 = &n->nei[off + j];
 			c[0] += a[n1->i].p[0].x? n1->_.w : 0.0;
@@ -190,7 +190,7 @@ static void hk_nei_gibbs1(struct hk_nei *n, struct gibbs_aux *a)
 	}
 }
 
-void hk_nei_gibbs(struct hk_nei *n, struct hk_pair *pairs, int n_burnin, int n_iter)
+void hk_nei_gibbs(struct hk_nei *n, struct hk_pair *pairs, int n_burnin, int n_iter, float pseudo_cnt)
 {
 	struct gibbs_aux *a;
 	int32_t i, iter, tot = 0;
@@ -214,7 +214,7 @@ void hk_nei_gibbs(struct hk_nei *n, struct hk_pair *pairs, int n_burnin, int n_i
 			for (i = 0; i < n->n_pairs; ++i)
 				a[i].p[0].c1 = a[i].p[1].c1 = 0;
 		}
-		hk_nei_gibbs1(n, a);
+		hk_nei_gibbs1(n, a, pseudo_cnt);
 		++tot;
 		fprintf(stderr, "%d\n", iter);
 	}

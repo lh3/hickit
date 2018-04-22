@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
 	int c, ret = 0, is_seg_out = 0, is_graph = 0, is_dedup = 1, is_tad_out = 0, is_em = 0, mask_tad = 0;
 
 	hk_opt_init(&opt);
-	while ((c = getopt(argc, argv, "RSgtDMr:v:d:s:a:m:n:fer:b:i:")) >= 0) {
+	while ((c = getopt(argc, argv, "R:SgtDMr:v:d:s:a:m:n:fer:b:i:")) >= 0) {
 		if (c == 'S') is_seg_out = 1;
 		else if (c == 's') opt.max_seg = atoi(optarg);
 		else if (c == 'a') opt.area_weight = atof(optarg);
@@ -108,8 +108,8 @@ int main(int argc, char *argv[])
 		//m->n_pairs = hk_pair_filter(m->n_pairs, m->pairs, opt.min_pre_link_dist);
 		n = hk_pair2nei(m->n_pairs, m->pairs, opt.max_radius, opt.max_nei);
 		hk_nei_weight(n, opt.max_radius, opt.beta);
-		if (is_em) hk_nei_phase(n, m->pairs, opt.n_iter);
-		else hk_nei_gibbs(n, m->pairs, opt.n_burnin, opt.n_iter);
+		if (is_em) hk_nei_phase(n, m->pairs, opt.n_iter, opt.pseudo_cnt);
+		else hk_nei_gibbs(n, m->pairs, opt.n_burnin, opt.n_iter, opt.pseudo_cnt);
 		hk_nei_destroy(n);
 		hk_print_pair(stdout, HK_OUT_PHASE | HK_OUT_PHASE_REAL, m->d, m->n_pairs, m->pairs);
 	} else {
