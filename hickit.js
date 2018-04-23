@@ -397,19 +397,60 @@ function hic_sam2seg(args)
 	return 0;
 }
 
+function hic_chronly(args)
+{
+	var c, re = new RegExp("^(chr)?([0-9]+|[XY])$");
+	while ((c = getopt(args, "r:y")) != null) {
+		if (c == 'r') re = new RegExp(getopt.arg);
+		else if (c == 'y') re = new RegExp("^(chr)?([0-9]+|X)$");
+	}
+	if (getopt.ind == args.length) {
+		print("Usage: hicket.js chronly [options] <in.pairs>|<in.seg>");
+		print("Options:");
+		print("  -r STR     regexp to keep [^(chr)?([0-9]+|[XY])]");
+		print("  -y         filter out Y chromosome");
+		exit(1);
+	}
+	var buf = new Bytes();
+	var file = args[getopt.ind] == '-'? new File() : new File(args[getopt.ind]);
+	while (file.readline(buf) >= 0) {
+		var m, line = buf.toString();
+		if ((m = /^#chromosome:\s+(\S+)/.exec(line)) != null) {
+			if (re.test(m[1]))
+				print(line);
+		} else if (line[0] == '#') {
+			print(line);
+		} else if ((m = /^\S+\t(\S+)\t\d+\t(\S+)\t\d+/.exec(line)) != null) { // .pairs
+			if (re.test(m[1]) && re.test(m[2]))
+				print(line);
+		} else { // .seg
+			var t = line.split("\t"), n = 0;
+			for (var i = 1; i < t.length; ++i)
+				if ((m = /^([^\s!]+)/.exec(t[i])) != null && re.test(m[1]))
+					++n;
+			if (n == t.length - 1)
+				print(line);
+		}
+	}
+	file.close();
+	buf.destroy();
+}
+
 function main(args)
 {
 	if (args.length == 0) {
 		print("Usage: hickit.js <command> [arguments]");
 		print("Commands:");
-		print("  sam2seg        convert SAM to segmentations/pairs");
+		print("  sam2seg        convert SAM to segments/pairs");
 		print("  vcf2tsv        convert phased VCF to simple TSV (chr, pos1, al1, al2)");
+		print("  chronly        filter out non-chromosomal segments/pairs");
 		exit(1);
 	}
 
 	var cmd = args.shift();
 	if (cmd == 'sam2seg') hic_sam2seg(args);
 	else if (cmd == 'vcf2tsv') hic_vcf2tsv(args);
+	else if (cmd == 'chronly') hic_chronly(args);
 	else throw Error("unrecognized command: " + cmd);
 }
 

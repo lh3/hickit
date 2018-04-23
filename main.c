@@ -32,8 +32,8 @@ static void print_usage(FILE *fp, const struct hk_opt *opt)
 	fprintf(fp, "  Phasing:\n");
 	fprintf(fp, "    -r NUM     max radius [10m]\n");
 	fprintf(fp, "    -n INT     max neighbors [%d]\n", opt->max_nei);
-	fprintf(fp, "    -e         use EM instead of Gibbs sampling\n");
 	fprintf(fp, "    -i INT     number of iterations [%d]\n", opt->n_iter);
+	fprintf(fp, "    -G         use Gibbs sampling instead of EM-like\n");
 	fprintf(fp, "    -b INT     number of burn-in iterations (Gibbs only) [%d]\n", opt->n_burnin);
 	fprintf(fp, "    -R INT     random seed (Gibbs only) []\n");
 }
@@ -42,12 +42,12 @@ int main(int argc, char *argv[])
 {
 	struct hk_opt opt;
 	struct hk_map *m = 0;
-	int c, ret = 0, is_seg_out = 0, is_graph = 0, is_dedup = 1, is_tad_out = 0, is_em = 0, sel_phased = 0, mask_tad = 0;
+	int c, ret = 0, is_seg_out = 0, is_graph = 0, is_dedup = 1, is_tad_out = 0, is_gibbs = 0, sel_phased = 0, mask_tad = 0;
 	int png_width = 800;
 	char *fn_png = 0;
 
 	hk_opt_init(&opt);
-	while ((c = getopt(argc, argv, "o:R:SgtDMPr:v:d:s:a:m:n:fer:b:i:w:")) >= 0) {
+	while ((c = getopt(argc, argv, "o:R:SgtDMGPr:v:d:s:a:m:n:fr:b:i:w:")) >= 0) {
 		if (c == 'S') is_seg_out = 1;
 		else if (c == 's') opt.max_seg = atoi(optarg);
 		else if (c == 'a') opt.area_weight = atof(optarg);
@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
 		else if (c == 'i') opt.n_iter = atoi(optarg);
 		else if (c == 'f') opt.flag |= HK_OUT_PHASE;
 		else if (c == 'R') kad_srand(0, atoi(optarg));
-		else if (c == 'e') is_em = 1;
+		else if (c == 'G') is_gibbs = 1;
 		else if (c == 'M') mask_tad = 1;
 		else if (c == 't') is_tad_out = 1;
 		else if (c == 'g') is_graph = 1;
@@ -114,7 +114,7 @@ int main(int argc, char *argv[])
 			m->n_pairs = hk_pair_select_phased(m->n_pairs, m->pairs);
 		n = hk_pair2nei(m->n_pairs, m->pairs, opt.max_radius, opt.max_nei);
 		hk_nei_weight(n, opt.max_radius, opt.beta);
-		if (is_em) hk_nei_phase(n, m->pairs, opt.n_iter, opt.pseudo_cnt);
+		if (!is_gibbs) hk_nei_phase(n, m->pairs, opt.n_iter, opt.pseudo_cnt);
 		else hk_nei_gibbs(n, m->pairs, opt.n_burnin, opt.n_iter, opt.pseudo_cnt);
 		hk_nei_destroy(n);
 		hk_print_pair(stdout, HK_OUT_PHASE | HK_OUT_PHASE_REAL, m->d, m->n_pairs, m->pairs);
