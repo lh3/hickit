@@ -16,17 +16,22 @@ struct cnt_aux {
 void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int w, float phase_thres, const char *fn)
 {
 	int64_t tot_len, *off;
-	int32_t i, j, n1, *tmp, ww = w * w, c_max;
+	int32_t i, j, n1, *tmp, ww = w * w, c_max, pixel_bp;
 	uint8_t *p, *buf;
-	double s;
+	double s, t;
 	struct cnt_aux *cnt;
+
+	for (tot_len = 0, i = 0; i < d->n; ++i)
+		tot_len += d->len[i];
+	s = (double)(w - d->n + 1) / tot_len;
+	pixel_bp = tot_len / (w - d->n + 1) + 1;
 
 	off = CALLOC(int64_t, d->n);
 	for (tot_len = 0, i = 0; i < d->n; ++i) {
 		off[i] = tot_len;
-		tot_len += d->len[i];
+		tot_len += d->len[i] + pixel_bp;
 	}
-	s = (double)w / tot_len;
+
 	cnt = CALLOC(struct cnt_aux, w * w);
 	for (i = 0, n1 = 0; i < n_pairs; ++i) {
 		const struct hk_pair *p = &pairs[i];
@@ -50,13 +55,15 @@ void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pa
 		}
 		if (c->tot == 1) ++n1;
 	}
+
 	tmp = CALLOC(int32_t, n1);
 	for (i = j = 0; i < ww; ++i)
 		if (cnt[i].tot) tmp[j++] = cnt[i].tot;
 	assert(j == n1);
 	c_max = ks_ksmall_int(n1, tmp, (int)(n1 * .99 + .499));
 	free(tmp);
-	s = 255.0 / c_max;
+
+	t = 255.0 / c_max;
 	buf = CALLOC(uint8_t, ww * 3);
 	for (i = 0, p = buf; i < w; ++i) {
 		for (j = 0; j < w; ++j) {
@@ -69,8 +76,8 @@ void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pa
 				for (k = 0; k < 4; ++k)
 					if (c->cnt[k] > max)
 						max_k = k, max = c->cnt[k];
-				if (max == 0 || max < c->tot/2) x = (int)(c->tot * s);
-				else x = (int)(max * s);
+				if (max == 0 || max < c->tot/2) x = (int)(c->tot * t);
+				else x = (int)(max * t);
 				if (x > 255) x = 255;
 				if (max == 0 || max < c->tot/2) *p++ = x/2, *p++ = x/2, *p++ = x/2;
 				else if (max_k == 0) *p++ = x, *p++ = 0, *p++ = 0;
@@ -80,7 +87,18 @@ void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pa
 			}
 		}
 	}
+
+	// write lines
+	for (i = 0; i < d->n - 1; ++i) {
+		int x = (int)(off[i+1] * s + .499);
+		for (j = 0, p = &buf[x * w * 3]; j < w; ++j, p += 3)
+			p[0] = 32, p[1] = 32, p[2] = 32;
+		for (j = 0, p = &buf[x * 3]; j < w; ++j, p += w * 3)
+			p[0] = 32, p[1] = 32, p[2] = 32;
+	}
+
 	stbi_write_png(fn, w, w, 3, buf, w * 3);
+
 	free(buf);
 	free(cnt);
 	free(off);
