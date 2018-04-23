@@ -72,8 +72,8 @@ void hk_nei_phase(struct hk_nei *n, struct hk_pair *pairs, int n_iter, float pse
 				c[1] += n1->_.w * pre[n1->i].phase[1];
 				s += n1->_.w;
 			}
-			cur[i].phase[0] = p->phase[0] >= 0? p->phase[0] : c[0] / s;
-			cur[i].phase[1] = p->phase[1] >= 0? p->phase[1] : c[1] / s;
+			cur[i].phase[0] = p->phase[0] >= 0? !!p->phase[0] : c[0] / s;
+			cur[i].phase[1] = p->phase[1] >= 0? !!p->phase[1] : c[1] / s;
 		}
 		tmp = cur, cur = pre, pre = tmp;
 		fprintf(stderr, "%d\n", iter);
@@ -82,8 +82,8 @@ void hk_nei_phase(struct hk_nei *n, struct hk_pair *pairs, int n_iter, float pse
 	// write back
 	for (i = 0; i < n->n_pairs; ++i) {
 		struct hk_pair *p = &pairs[i];
-		p->phase[0] = (int)(pre[i].phase[0] * 100.0f + .499f);
-		p->phase[1] = (int)(pre[i].phase[1] * 100.0f + .499f);
+		p->_.phase_prob[0] = pre[i].phase[0];
+		p->_.phase_prob[1] = pre[i].phase[1];
 	}
 	free(a[0]);
 }
@@ -193,38 +193,26 @@ static void hk_nei_gibbs1(struct hk_nei *n, struct gibbs_aux *a, float pseudo_cn
 void hk_nei_gibbs(struct hk_nei *n, struct hk_pair *pairs, int n_burnin, int n_iter, float pseudo_cnt)
 {
 	struct gibbs_aux *a;
-	int32_t i, iter, tot = 0;
+	int32_t i, iter, tot;
 
-	// initialize
 	a = CALLOC(struct gibbs_aux, n->n_pairs);
 	for (i = 0; i < n->n_pairs; ++i) {
-		a[i].p[0].x = (kad_drand(0) >= 0.5);
-		a[i].p[1].x = (kad_drand(0) >= 0.5);
-	}
-	for (i = 0; i < n->n_pairs; ++i) {
 		struct hk_pair *p = &pairs[i];
-		if (p->phase[0] >= 0) a[i].p[0].x = !!p->phase[0], a[i].p[0].obs = 1;
-		if (p->phase[1] >= 0) a[i].p[1].x = !!p->phase[1], a[i].p[1].obs = 1;
+		a[i].p[0].obs = (p->phase[0] >= 0), a[i].p[0].x = p->phase[0] >= 0? !!p->phase[0] : (kad_drand(0) >= 0.5);
+		a[i].p[1].obs = (p->phase[1] >= 0), a[i].p[1].x = p->phase[1] >= 0? !!p->phase[1] : (kad_drand(0) >= 0.5);
 	}
-
-	// sampling, I think
-	for (iter = 0; iter < n_burnin + n_iter; ++iter) {
-		if (iter == n_burnin) {
-			tot = 0;
-			for (i = 0; i < n->n_pairs; ++i)
+	for (iter = 0, tot = 0; iter < n_burnin + n_iter; ++iter) {
+		if (iter == n_burnin)
+			for (tot = 0, i = 0; i < n->n_pairs; ++i)
 				a[i].p[0].c1 = a[i].p[1].c1 = 0;
-		}
 		hk_nei_gibbs1(n, a, pseudo_cnt);
 		++tot;
 		fprintf(stderr, "%d\n", iter);
 	}
-
-	// write back
 	for (i = 0; i < n->n_pairs; ++i) {
 		struct hk_pair *p = &pairs[i];
-		p->phase[0] = (int)(100.0f * a[i].p[0].c1 / tot + .499f);
-		p->phase[1] = (int)(100.0f * a[i].p[1].c1 / tot + .499f);
+		p->_.phase_prob[0] = (float)a[i].p[0].c1 / tot;
+		p->_.phase_prob[1] = (float)a[i].p[1].c1 / tot;
 	}
 	free(a);
 }
-

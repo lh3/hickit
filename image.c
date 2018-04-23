@@ -45,15 +45,6 @@ void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pa
 	for (i = 0, p = buf; i < w; ++i) {
 		for (j = 0; j < w; ++j) {
 			int32_t z = i * w + j;
-			/*
-			if (cnt[z] == 0) {
-				*p++ = 255, *p++ = 255, *p++ = 255;
-			} else {
-				int x = (int)(s * cnt[z]);
-				if (x > 255) x = 255;
-				*p++ = 255, *p++ = 255 - x, *p++ = 255 - x;
-			}
-			*/
 			if (cnt[z] == 0) {
 				*p++ = 0, *p++ = 0, *p++ = 0;
 			} else {

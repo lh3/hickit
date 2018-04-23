@@ -178,7 +178,7 @@ void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs
 				p->strand[1] > 0? '+' : p->strand[1] < 0? '-' : '.');
 		if (flag & HK_OUT_PHASE) {
 			if (flag & HK_OUT_PHASE_REAL)
-				fprintf(fp, "\t%.2f\t%.2f", p->phase[0] * .01f, p->phase[1] * .01f);
+				fprintf(fp, "\t%.3f\t%.3f", p->_.phase_prob[0], p->_.phase_prob[1]);
 			else
 				fprintf(fp, "\t%c\t%c", p->phase[0] < 0? '.' : '0' + p->phase[0], p->phase[1] < 0? '.' : '0' + p->phase[1]);
 		}

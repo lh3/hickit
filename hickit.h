@@ -42,6 +42,9 @@ struct hk_pair {      // a contact pair
 	int8_t strand[2]; // strand
 	int8_t phase[2];  // phase
 	int32_t n;
+	union {
+		float phase_prob[2];
+	} _;
 };
 
 struct hk_nei1 {
