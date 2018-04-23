@@ -90,9 +90,6 @@ void hk_nei_gibbs(struct hk_nei *n, struct hk_pair *pairs, int n_burbin, int n_i
 void hk_nei_destroy(struct hk_nei *n);
 void kad_srand(void *d, uint64_t seed);
 
-struct hk_pair *hk_pair2tad_slow(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int max_radius, float area_weight, int32_t *n_tads_);
-struct hk_link *hk_pair2link(int32_t n_pairs, struct hk_pair *pairs, int max_radius, float alpha, float beta, int32_t *n_links_);
-
 void hk_print_seg(FILE *fp, const struct hk_sdict *d, int32_t n_segs, const struct hk_seg *segs);
 void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs);
 void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int w, float phase_thres, const char *fn);

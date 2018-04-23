@@ -30,6 +30,7 @@ static void print_usage(FILE *fp, const struct hk_opt *opt)
 	fprintf(fp, "    -m INT     min TAD size [%d]\n", opt->min_tad_size);
 	fprintf(fp, "    -M         ignore pairs contained in TADs\n");
 	fprintf(fp, "  Phasing:\n");
+	fprintf(fp, "    -p         perform phasing\n");
 	fprintf(fp, "    -r NUM     max radius [10m]\n");
 	fprintf(fp, "    -n INT     max neighbors [%d]\n", opt->max_nei);
 	fprintf(fp, "    -i INT     number of iterations [%d]\n", opt->n_iter);
@@ -42,12 +43,12 @@ int main(int argc, char *argv[])
 {
 	struct hk_opt opt;
 	struct hk_map *m = 0;
-	int c, ret = 0, is_seg_out = 0, is_graph = 0, is_dedup = 1, is_tad_out = 0, is_gibbs = 0, sel_phased = 0, mask_tad = 0;
+	int c, ret = 0, is_seg_out = 0, is_phase = 0, is_dedup = 1, is_tad_out = 0, is_gibbs = 0, sel_phased = 0, mask_tad = 0;
 	int png_width = 800;
 	char *fn_png = 0;
 
 	hk_opt_init(&opt);
-	while ((c = getopt(argc, argv, "o:R:SgtDMGPr:v:d:s:a:m:n:fr:b:i:w:")) >= 0) {
+	while ((c = getopt(argc, argv, "o:R:SptDMGPr:v:d:s:a:m:n:fr:b:i:w:")) >= 0) {
 		if (c == 'S') is_seg_out = 1;
 		else if (c == 's') opt.max_seg = atoi(optarg);
 		else if (c == 'a') opt.area_weight = atof(optarg);
@@ -62,7 +63,7 @@ int main(int argc, char *argv[])
 		else if (c == 'G') is_gibbs = 1;
 		else if (c == 'M') mask_tad = 1;
 		else if (c == 't') is_tad_out = 1;
-		else if (c == 'g') is_graph = 1;
+		else if (c == 'p') is_phase = 1;
 		else if (c == 'D') is_dedup = 0;
 		else if (c == 'P') sel_phased = 1;
 		else if (c == 'v') hk_verbose = atoi(optarg);
@@ -98,7 +99,6 @@ int main(int argc, char *argv[])
 		int32_t n_tads;
 		struct hk_pair *tads;
 		tads = hk_pair2tad(m->d, m->n_pairs, m->pairs, opt.min_tad_size, opt.area_weight, &n_tads);
-		//tads = hk_pair2tad_slow(m->d, m->n_pairs, m->pairs, opt.max_radius, opt.area_weight, &n_tads);
 		if (is_tad_out)
 			hk_print_pair(stdout, opt.flag, m->d, n_tads, tads);
 		else if (mask_tad)
@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
 			goto main_return;
 	}
 
-	if (is_graph) { // for testing only
+	if (is_phase) { // phasing
 		struct hk_nei *n;
 		if (sel_phased)
 			m->n_pairs = hk_pair_select_phased(m->n_pairs, m->pairs);
