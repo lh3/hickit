@@ -4,6 +4,8 @@
 #include <string.h>
 #include "hickit.h"
 
+#define HICKIT_VERSION "r50"
+
 static inline int64_t hk_parse_num(const char *str)
 {
 	double x;
@@ -48,7 +50,7 @@ int main(int argc, char *argv[])
 	char *fn_png = 0;
 
 	hk_opt_init(&opt);
-	while ((c = getopt(argc, argv, "o:R:SptDMGPr:v:d:s:a:m:n:fr:b:i:w:")) >= 0) {
+	while ((c = getopt(argc, argv, "o:R:SptDMGPr:v:d:s:a:m:n:fr:b:i:w:V")) >= 0) {
 		if (c == 'S') is_seg_out = 1;
 		else if (c == 's') opt.max_seg = atoi(optarg);
 		else if (c == 'a') opt.area_weight = atof(optarg);
@@ -69,7 +71,12 @@ int main(int argc, char *argv[])
 		else if (c == 'v') hk_verbose = atoi(optarg);
 		else if (c == 'o') fn_png = optarg;
 		else if (c == 'w') png_width = atoi(optarg);
+		else if (c == 'V') {
+			puts(HICKIT_VERSION);
+			return 0;
+		}
 	}
+	if (is_phase) mask_tad = 1;
 	if (argc - optind == 0) {
 		print_usage(stderr, &opt);
 		return 1;
@@ -125,5 +132,13 @@ int main(int argc, char *argv[])
 
 main_return:
 	hk_map_destroy(m);
+	if (hk_verbose >= 3) {
+		int i;
+		fprintf(stderr, "[M::%s] Version: %s\n", __func__, HICKIT_VERSION);
+		fprintf(stderr, "[M::%s] CMD:", __func__);
+		for (i = 0; i < argc; ++i)
+			fprintf(stderr, " %s", argv[i]);
+		fputc('\n', stderr);
+	}
 	return ret;
 }
