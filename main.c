@@ -43,9 +43,11 @@ int main(int argc, char *argv[])
 	struct hk_opt opt;
 	struct hk_map *m = 0;
 	int c, ret = 0, is_seg_out = 0, is_graph = 0, is_dedup = 1, is_tad_out = 0, is_em = 0, sel_phased = 0, mask_tad = 0;
+	int png_width = 800;
+	char *fn_png = 0;
 
 	hk_opt_init(&opt);
-	while ((c = getopt(argc, argv, "R:SgtDMPr:v:d:s:a:m:n:fer:b:i:")) >= 0) {
+	while ((c = getopt(argc, argv, "o:R:SgtDMPr:v:d:s:a:m:n:fer:b:i:w:")) >= 0) {
 		if (c == 'S') is_seg_out = 1;
 		else if (c == 's') opt.max_seg = atoi(optarg);
 		else if (c == 'a') opt.area_weight = atof(optarg);
@@ -64,6 +66,8 @@ int main(int argc, char *argv[])
 		else if (c == 'D') is_dedup = 0;
 		else if (c == 'P') sel_phased = 1;
 		else if (c == 'v') hk_verbose = atoi(optarg);
+		else if (c == 'o') fn_png = optarg;
+		else if (c == 'w') png_width = atoi(optarg);
 	}
 	if (argc - optind == 0) {
 		print_usage(stderr, &opt);
@@ -115,7 +119,8 @@ int main(int argc, char *argv[])
 		hk_nei_destroy(n);
 		hk_print_pair(stdout, HK_OUT_PHASE | HK_OUT_PHASE_REAL, m->d, m->n_pairs, m->pairs);
 	} else {
-		hk_print_pair(stdout, opt.flag, m->d, m->n_pairs, m->pairs);
+		if (fn_png) hk_pair_image(m->d, m->n_pairs, m->pairs, png_width, fn_png);
+		else hk_print_pair(stdout, opt.flag, m->d, m->n_pairs, m->pairs);
 	}
 
 main_return:
