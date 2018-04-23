@@ -173,11 +173,19 @@ static void hk_parse_pair(struct hk_pair *p, struct hk_sdict *d, int n_fields, c
 	memset(p, 0, sizeof(struct hk_pair));
 	p->chr = (uint64_t)c1 << 32 | c2;
 	p->pos = (uint64_t)p1 << 32 | p2;
+	p->phase[0] = p->phase[1] = -1;
 	if (n_fields >= 7) {
 		p->strand[0] = *fields[5] == '+'? 1 : *fields[5] == '-'? -1 : 0;
 		p->strand[1] = *fields[6] == '+'? 1 : *fields[6] == '-'? -1 : 0;
+		if (n_fields >= 9) { // FIXME: make this more general
+			if (fields[7][2] == 0)
+				p->phase[0] = *fields[7] == '.'? -1 : (int)*fields[7] - '0';
+			else p->_.phase_prob[0] = atof(fields[7]);
+			if (fields[8][2] == 0)
+				p->phase[1] = *fields[8] == '.'? -1 : (int)*fields[8] - '0';
+			else p->_.phase_prob[1] = atof(fields[8]);
+		}
 	}
-	p->phase[0] = p->phase[1] = -1;
 }
 
 static inline int is_pos_int(const char *s)

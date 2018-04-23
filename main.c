@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
 		hk_nei_destroy(n);
 		hk_print_pair(stdout, HK_OUT_PHASE | HK_OUT_PHASE_REAL, m->d, m->n_pairs, m->pairs);
 	} else {
-		if (fn_png) hk_pair_image(m->d, m->n_pairs, m->pairs, png_width, fn_png);
+		if (fn_png) hk_pair_image(m->d, m->n_pairs, m->pairs, png_width, 0.1f, fn_png);
 		else hk_print_pair(stdout, opt.flag, m->d, m->n_pairs, m->pairs);
 	}
 
