@@ -1,23 +1,6 @@
 #include <math.h>
 #include "hkpriv.h"
 
-/*
-float hk_pair_weight(const struct hk_pair *a, const struct hk_pair *b, int32_t max, float alpha, float beta)
-{
-	int32_t y, z;
-	float yf, zf, d;
-	if (a->chr != b->chr) return 0.0f;
-	y = hk_ppos1(b) > hk_ppos1(a)? hk_ppos1(b) - hk_ppos1(a) : hk_ppos1(a) - hk_ppos1(b);
-	z = hk_ppos2(b) > hk_ppos2(a)? hk_ppos2(b) - hk_ppos2(a) : hk_ppos2(a) - hk_ppos2(b);
-	if (y > max || z > max)
-		return 0.0f;
-	yf = y / (float)max;
-	zf = z / (float)max;
-	d = 0.5f * (yf * yf + zf * zf + (alpha + alpha - 1.0f) * (yf - zf) * (yf - zf));
-	return d >= 1.0f? 0.0f : expf(-beta * d);
-}
-*/
-
 static float dist2weight(int32_t d, int32_t max, float beta)
 {
 	float x = (float)d / max;
