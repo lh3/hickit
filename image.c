@@ -16,7 +16,7 @@ struct cnt_aux {
 void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int w, float phase_thres, const char *fn)
 {
 	int64_t tot_len, *off;
-	int32_t i, j, n1, *tmp, ww = w * w, c_max, pixel_bp;
+	int32_t i, j, *tmp, ww = w * w, c_max, pixel_bp, m_tmp, n_tmp;
 	uint8_t *buf;
 	double s, t;
 	struct cnt_aux *cnt;
@@ -33,7 +33,7 @@ void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pa
 	}
 
 	cnt = CALLOC(struct cnt_aux, w * w);
-	for (i = 0, n1 = 0; i < n_pairs; ++i) {
+	for (i = 0; i < n_pairs; ++i) {
 		const struct hk_pair *p = &pairs[i];
 		int64_t x[2], z;
 		int32_t y[2];
@@ -53,14 +53,24 @@ void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pa
 			if (q[0] >= 0 && q[1] >= 0)
 				++c->cnt[q[0]<<1|q[1]];
 		}
-		if (c->tot == 1) ++n1;
 	}
 
-	tmp = CALLOC(int32_t, n1);
-	for (i = j = 0; i < ww; ++i)
-		if (cnt[i].tot) tmp[j++] = cnt[i].tot;
-	assert(j == n1);
-	c_max = ks_ksmall_int(n1, tmp, (int)(n1 * .99 + .499));
+	// figure out the max depth
+	m_tmp = n_tmp = 0, tmp = 0;
+	for (i = 0; i < w; ++i) {
+		for (j = i; j < w; ++j) {
+			int32_t k, max = 0, z = i * w + j;
+			struct cnt_aux *c = &cnt[z];
+			for (k = 0; k < 4; ++k)
+				max = max > c->cnt[k]? max : c->cnt[k];
+			if (max > 0 && max >= c->tot / 2) {
+				if (n_tmp == m_tmp)
+					EXPAND(tmp, m_tmp);
+				tmp[n_tmp++] = max;
+			}
+		}
+	}
+	c_max = ks_ksmall_int(n_tmp, tmp, (int)(n_tmp * .95 + .499));
 	free(tmp);
 
 	t = 255.0 / c_max;
