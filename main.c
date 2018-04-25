@@ -4,7 +4,7 @@
 #include <string.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r54"
+#define HICKIT_VERSION "r55"
 
 static inline int64_t hk_parse_num(const char *str)
 {
@@ -76,7 +76,6 @@ int main(int argc, char *argv[])
 			return 0;
 		}
 	}
-	if (is_phase) mask_tad = 1;
 	if (argc - optind == 0) {
 		print_usage(stderr, &opt);
 		return 1;

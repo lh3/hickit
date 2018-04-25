@@ -85,6 +85,7 @@ int32_t hk_mask_by_tad(int32_t n_tads, const struct hk_pair *tads, int32_t n_pai
 
 struct hk_nei *hk_pair2nei(int n_pairs, const struct hk_pair *pairs, int max_radius, int max_nei);
 void hk_nei_weight(struct hk_nei *n, int32_t max_radius, float beta);
+void hk_nei_phase2(struct hk_nei *n, struct hk_pair *pairs, int n_iter, float pseudo_cnt);
 void hk_nei_phase(struct hk_nei *n, struct hk_pair *pairs, int n_iter, float pseudo_cnt);
 void hk_nei_gibbs(struct hk_nei *n, struct hk_pair *pairs, int n_burbin, int n_iter, float pseudo_cnt);
 void hk_nei_destroy(struct hk_nei *n);
