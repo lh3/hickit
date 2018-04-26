@@ -1,5 +1,7 @@
 #include <math.h>
+#include <string.h>
 #include "hkpriv.h"
+#include "krng.h"
 
 static float dist2weight(int32_t d, int32_t max, float beta)
 {
@@ -20,23 +22,33 @@ void hk_nei_weight(struct hk_nei *n, int32_t max_radius, float beta)
 	}
 }
 
-struct phase_aux2 {
+float hk_pseudo_cnt(int32_t max_radius, float beta)
+{
+	const int n = 1000;
+	int i, step = max_radius / n, x;
+	double sum, d;
+	for (i = 0, d = 0, sum = 0.0; i < n; ++i, d += step) // naive integral on [0,max_radius)
+		sum += dist2weight(d, max_radius, beta);
+	return sum / n;
+}
+
+struct phase_aux {
 	float p[4];
 };
 
-void hk_nei_phase2(struct hk_nei *n, struct hk_pair *pairs, int n_iter, float pseudo_cnt)
+void hk_nei_phase(struct hk_nei *n, struct hk_pair *pairs, int n_iter, float pseudo_cnt)
 {
-	struct phase_aux2 *a[2], *cur, *pre, *tmp;
+	struct phase_aux *a[2], *cur, *pre, *tmp;
 	int32_t i, iter;
 
-	a[0] = CALLOC(struct phase_aux2, n->n_pairs * 2);
+	a[0] = CALLOC(struct phase_aux, n->n_pairs * 2);
 	a[1] = a[0] + n->n_pairs;
 	cur = a[0], pre = a[1];
 
 	// initialize
 	for (i = 0; i < n->n_pairs; ++i) {
 		struct hk_pair *p = &pairs[i];
-		struct phase_aux2 *q = &cur[i];
+		struct phase_aux *q = &cur[i];
 		if (p->phase[0] >= 0 && p->phase[1] >= 0) { // both phase known
 			q->p[p->phase[0]<<1|p->phase[1]] = 1.0f;
 		} else if (p->phase[0] < 0 && p->phase[1] < 0) { // both phase unknown
@@ -53,7 +65,7 @@ void hk_nei_phase2(struct hk_nei *n, struct hk_pair *pairs, int n_iter, float ps
 	for (iter = 0; iter < n_iter; ++iter) {
 		for (i = 0; i < n->n_pairs; ++i) {
 			struct hk_pair *p = &pairs[i];
-			struct phase_aux2 *q = &cur[i];
+			struct phase_aux *q = &cur[i];
 			int64_t off = n->offcnt[i] >> 16;
 			int32_t cnt = n->offcnt[i] & 0xffff, j;
 			double c[4], s;
@@ -86,190 +98,86 @@ void hk_nei_phase2(struct hk_nei *n, struct hk_pair *pairs, int n_iter, float ps
 	}
 
 	// write back
-	for (i = 0; i < n->n_pairs; ++i) {
-		struct hk_pair *p = &pairs[i];
-		p->_.phase_prob[0] = pre[i].p[0<<1|0] + pre[i].p[0<<1|1];
-		p->_.phase_prob[1] = pre[i].p[0<<1|0] + pre[i].p[1<<1|0];
-	}
+	for (i = 0; i < n->n_pairs; ++i)
+		memcpy(pairs[i]._.p4, pre[i].p, 4 * sizeof(float));
 	free(a[0]);
 }
-
-struct phase_aux {
-	float phase[2];
-};
-
-void hk_nei_phase(struct hk_nei *n, struct hk_pair *pairs, int n_iter, float pseudo_cnt)
-{
-	struct phase_aux *a[2], *cur, *pre, *tmp;
-	int32_t i, iter;
-
-	a[0] = CALLOC(struct phase_aux, n->n_pairs * 2);
-	a[1] = a[0] + n->n_pairs;
-	cur = a[0], pre = a[1];
-
-	// initialize
-	for (i = 0; i < n->n_pairs; ++i) {
-		struct hk_pair *p = &pairs[i];
-		cur[i].phase[0] = p->phase[0] < 0? 0.5f : p->phase[0];
-		cur[i].phase[1] = p->phase[1] < 0? 0.5f : p->phase[1];
-	}
-	tmp = cur, cur = pre, pre = tmp;
-
-	// EM, I think
-	for (iter = 0; iter < n_iter; ++iter) {
-		for (i = 0; i < n->n_pairs; ++i) {
-			struct hk_pair *p = &pairs[i];
-			int64_t off = n->offcnt[i] >> 16;
-			int32_t cnt = n->offcnt[i] & 0xffff, j;
-			double c[2], s;
-			c[0] = c[1] = 0.5 * pseudo_cnt, s = pseudo_cnt;
-			for (j = 0; j < cnt; ++j) {
-				struct hk_nei1 *n1 = &n->nei[off + j];
-				c[0] += n1->_.w * pre[n1->i].phase[0];
-				c[1] += n1->_.w * pre[n1->i].phase[1];
-				s += n1->_.w;
-			}
-			cur[i].phase[0] = p->phase[0] >= 0? !!p->phase[0] : c[0] / s;
-			cur[i].phase[1] = p->phase[1] >= 0? !!p->phase[1] : c[1] / s;
-		}
-		tmp = cur, cur = pre, pre = tmp;
-		fprintf(stderr, "%d\n", iter);
-	}
-
-	// write back
-	for (i = 0; i < n->n_pairs; ++i) {
-		struct hk_pair *p = &pairs[i];
-		p->_.phase_prob[0] = pre[i].phase[0];
-		p->_.phase_prob[1] = pre[i].phase[1];
-	}
-	free(a[0]);
-}
-
-/***************************
- * Random number generator *
- ***************************/
-
-typedef struct {
-	uint64_t s[2];
-	double n_gset;
-	int n_iset;
-	volatile int lock;
-} kad_rng_t;
-
-static kad_rng_t kad_rng_dat = { {0x50f5647d2380309dULL, 0x91ffa96fc4c62cceULL}, 0.0, 0, 0 };
-
-static inline uint64_t kad_splitmix64(uint64_t x)
-{
-	uint64_t z = (x += 0x9E3779B97F4A7C15ULL);
-	z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ULL;
-	z = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
-	return z ^ (z >> 31);
-}
-
-static inline uint64_t kad_xoroshiro128plus_next(kad_rng_t *r)
-{
-	const uint64_t s0 = r->s[0];
-	uint64_t s1 = r->s[1];
-	const uint64_t result = s0 + s1;
-	s1 ^= s0;
-	r->s[0] = (s0 << 55 | s0 >> 9) ^ s1 ^ (s1 << 14);
-	r->s[1] = s0 << 36 | s0 >> 28;
-	return result;
-}
-
-static inline void kad_xoroshiro128plus_jump(kad_rng_t *r)
-{
-	static const uint64_t JUMP[] = { 0xbeac0467eba5facbULL, 0xd86b048b86aa9922ULL };
-	uint64_t s0 = 0, s1 = 0;
-	int i, b;
-	for (i = 0; i < 2; ++i)
-		for (b = 0; b < 64; b++) {
-			if (JUMP[i] & 1ULL << b)
-				s0 ^= r->s[0], s1 ^= r->s[1];
-			kad_xoroshiro128plus_next(r);
-		}
-	r->s[0] = s0, r->s[1] = s1;
-}
-
-void kad_srand(void *d, uint64_t seed)
-{
-	kad_rng_t *r = d? (kad_rng_t*)d : &kad_rng_dat;
-	r->n_gset = 0.0, r->n_iset = 0;
-	r->s[0] = kad_splitmix64(seed);
-	r->s[1] = kad_splitmix64(r->s[0]);
-}
-
-void *kad_rng(void)
-{
-	kad_rng_t *r;
-	r = (kad_rng_t*)calloc(1, sizeof(kad_rng_t));
-	kad_xoroshiro128plus_jump(&kad_rng_dat);
-	r->s[0] = kad_rng_dat.s[0], r->s[1] = kad_rng_dat.s[1];
-	return r;
-}
-
-uint64_t kad_rand(void *d) { return kad_xoroshiro128plus_next(d? (kad_rng_t*)d : &kad_rng_dat); }
-
-double kad_drand(void *d)
-{
-	union { uint64_t i; double d; } u;
-	u.i = 0x3FFULL << 52 | kad_xoroshiro128plus_next(d? (kad_rng_t*)d : &kad_rng_dat) >> 12;
-	return u.d - 1.0;
-}
-
-// Gibbs sampling
 
 struct gibbs_aux {
-	struct { uint32_t c1:30, x:1, obs:1; } p[2];
+	struct { uint32_t c1:31, x:1; } p[4];
 };
 
-static void hk_nei_gibbs1(struct hk_nei *n, struct gibbs_aux *a, float pseudo_cnt)
+static void hk_nei_gibbs1(krng_t *r, struct hk_nei *n, struct hk_pair *pairs, struct gibbs_aux *a, float pseudo_cnt)
 {
 	int32_t i;
 	for (i = 0; i < n->n_pairs; ++i) {
 		int64_t off = n->offcnt[i] >> 16;
-		int32_t cnt = n->offcnt[i] & 0xffff, j;
+		int32_t cnt = n->offcnt[i] & 0xffff, which, j;
 		struct gibbs_aux *q = &a[i];
-		double s, c[2];
-		c[0] = c[1] = 0.5 * pseudo_cnt, s = pseudo_cnt;
+		struct hk_pair *p = &pairs[i];
+		double s, t, c[5];
+		c[0] = c[1] = c[2] = c[3] = 0.25 * pseudo_cnt, s = pseudo_cnt;
 		for (j = 0; j < cnt; ++j) {
 			struct hk_nei1 *n1 = &n->nei[off + j];
 			c[0] += a[n1->i].p[0].x? n1->_.w : 0.0;
 			c[1] += a[n1->i].p[1].x? n1->_.w : 0.0;
-			s += n1->_.w;
+			c[2] += a[n1->i].p[2].x? n1->_.w : 0.0;
+			c[3] += a[n1->i].p[3].x? n1->_.w : 0.0;
+			s += n1->_.w; // TODO: we can precompute this if we really care about efficiency
 		}
-		s = 1.0 / s;
-		c[0] *= s, c[1] *= s;
-		if (!q->p[0].obs) q->p[0].x = (kad_drand(0) < c[0]);
-		if (!q->p[1].obs) q->p[1].x = (kad_drand(0) < c[1]);
-		q->p[0].c1 += q->p[0].x;
-		q->p[1].c1 += q->p[1].x;
+		if (p->phase[0] >= 0 && p->phase[1] >= 0) {
+			which = p->phase[0]<<1|p->phase[1];
+		} else if (p->phase[0] < 0 && p->phase[1] < 0) {
+			for (j = 0, s = 1.0 / s; j < 4; ++j) c[j] *= s;
+			s = kr_drand_r(r);
+			for (j = 0, t = 0.0; j < 3; ++j) {
+				t += c[j];
+				if (s < t) break;
+			}
+			which = j;
+		} else if (p->phase[0] >= 0) {
+			s = kr_drand_r(r) * (c[p->phase[0]<<1|0] + c[p->phase[0]<<1|1]);
+			which = p->phase[0] << 1 | (s >= c[p->phase[0]<<1|0]);
+		} else {
+			s = kr_drand_r(r) * (c[0<<1|p->phase[1]] + c[1<<1|p->phase[1]]);
+			which = (s >= c[0<<1|p->phase[1]]) << 1 | p->phase[1];
+		}
+		q->p[0].x = q->p[1].x = q->p[2].x = q->p[3].x = 0;
+		q->p[which].x = 1;
+		++q->p[which].c1;
 	}
 }
 
-void hk_nei_gibbs(struct hk_nei *n, struct hk_pair *pairs, int n_burnin, int n_iter, float pseudo_cnt)
+void hk_nei_gibbs(krng_t *r, struct hk_nei *n, struct hk_pair *pairs, int n_burnin, int n_iter, float pseudo_cnt)
 {
 	struct gibbs_aux *a;
-	int32_t i, iter, tot;
+	int32_t i, j, iter, tot;
 
 	a = CALLOC(struct gibbs_aux, n->n_pairs);
 	for (i = 0; i < n->n_pairs; ++i) {
 		struct hk_pair *p = &pairs[i];
-		a[i].p[0].obs = (p->phase[0] >= 0), a[i].p[0].x = p->phase[0] >= 0? !!p->phase[0] : (kad_drand(0) >= 0.5);
-		a[i].p[1].obs = (p->phase[1] >= 0), a[i].p[1].x = p->phase[1] >= 0? !!p->phase[1] : (kad_drand(0) >= 0.5);
+		int which;
+		if (p->phase[0] >= 0 && p->phase[1] >= 0) {
+			which = p->phase[0] << 1 | p->phase[1];
+		} else if (p->phase[0] < 0 && p->phase[1] < 0) {
+			which = (int)(kr_drand_r(r) * 4.0);
+		} else if (p->phase[0] >= 0) {
+			which = p->phase[0] << 1 | (int)(kr_drand_r(r) * 2.0);
+		} else {
+			which = (int)(kr_drand_r(r) * 2.0) << 1 | p->phase[1];
+		}
+		a[i].p[which].x = 1;
 	}
 	for (iter = 0, tot = 0; iter < n_burnin + n_iter; ++iter) {
 		if (iter == n_burnin)
 			for (tot = 0, i = 0; i < n->n_pairs; ++i)
-				a[i].p[0].c1 = a[i].p[1].c1 = 0;
-		hk_nei_gibbs1(n, a, pseudo_cnt);
+				a[i].p[0].c1 = a[i].p[1].c1 = a[i].p[2].c1 = a[i].p[3].c1 = 0;
+		hk_nei_gibbs1(r, n, pairs, a, pseudo_cnt);
 		++tot;
 		fprintf(stderr, "%d\n", iter);
 	}
-	for (i = 0; i < n->n_pairs; ++i) {
-		struct hk_pair *p = &pairs[i];
-		p->_.phase_prob[0] = (float)a[i].p[0].c1 / tot;
-		p->_.phase_prob[1] = (float)a[i].p[1].c1 / tot;
-	}
+	for (i = 0; i < n->n_pairs; ++i)
+		for (j = 0; j < 4; ++j)
+			pairs[i]._.p4[j] = (float)a[i].p[j].c1 / tot;
 	free(a);
 }

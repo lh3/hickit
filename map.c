@@ -177,13 +177,14 @@ static void hk_parse_pair(struct hk_pair *p, struct hk_sdict *d, int n_fields, c
 	if (n_fields >= 7) {
 		p->strand[0] = *fields[5] == '+'? 1 : *fields[5] == '-'? -1 : 0;
 		p->strand[1] = *fields[6] == '+'? 1 : *fields[6] == '-'? -1 : 0;
-		if (n_fields >= 9) { // FIXME: make this more general
-			if (fields[7][2] == 0)
-				p->phase[0] = *fields[7] == '.'? -1 : (int)*fields[7] - '0';
-			else p->_.phase_prob[0] = atof(fields[7]);
-			if (fields[8][2] == 0)
-				p->phase[1] = *fields[8] == '.'? -1 : (int)*fields[8] - '0';
-			else p->_.phase_prob[1] = atof(fields[8]);
+		if (n_fields >= 11) { // FIXME: make this more general
+			p->_.p4[0] = atof(fields[7]);
+			p->_.p4[1] = atof(fields[8]);
+			p->_.p4[2] = atof(fields[9]);
+			p->_.p4[3] = atof(fields[10]);
+		} else if (n_fields >= 9) {
+			p->phase[0] = *fields[7] == '.'? -1 : (int)*fields[7] - '0';
+			p->phase[1] = *fields[8] == '.'? -1 : (int)*fields[8] - '0';
 		}
 	}
 }
