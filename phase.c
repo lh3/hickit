@@ -3,14 +3,12 @@
 #include "hkpriv.h"
 #include "krng.h"
 
-static float dist2weight(int32_t d, int32_t max, float beta)
+static inline float dist2weight(int32_t d, int32_t max)
 {
-	float x = (float)d / max;
-//	return expf(-beta * x * x);
-	return 1.0f / (x + 1e-3f);
+	return 1.0f / ((float)d / max + 1e-3f);
 }
 
-void hk_nei_weight(struct hk_nei *n, int32_t max_radius, float beta)
+void hk_nei_weight(struct hk_nei *n, int32_t max_radius)
 {
 	int32_t i;
 	for (i = 0; i < n->n_pairs; ++i) {
@@ -18,18 +16,18 @@ void hk_nei_weight(struct hk_nei *n, int32_t max_radius, float beta)
 		int32_t cnt = n->offcnt[i] & 0xffff, j;
 		for (j = 0; j < cnt; ++j) {
 			struct hk_nei1 *n1 = &n->nei[off + j];
-			n1->_.w = dist2weight(n1->_.d, max_radius, beta);
+			n1->_.w = dist2weight(n1->_.d, max_radius);
 		}
 	}
 }
 
-float hk_pseudo_weight(int32_t max_radius, float beta)
+float hk_pseudo_weight(int32_t max_radius)
 {
 	const int n = 1000;
 	int i, step = max_radius / n, d;
 	double sum;
 	for (i = 0, d = 0, sum = 0.0; i < n; ++i, d += step) // naive integral on [0,max_radius)
-		sum += dist2weight(d, max_radius, beta);
+		sum += dist2weight(d, max_radius);
 	sum /= n;
 	if (hk_verbose >= 3)
 		fprintf(stderr, "[M::%s] pseudo-weight: %.4f\n", __func__, sum);
