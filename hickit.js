@@ -436,6 +436,67 @@ function hic_chronly(args)
 	buf.destroy();
 }
 
+function hic_bedflt(args)
+{
+	var c, min_ov_len = 30, min_ov_ratio = 0.5;
+	while ((c = getopt(args, "l:r:")) != null) {
+		if (c == 'l') min_ov_len = parseInt(getopt.arg);
+		else if (c == 'r') min_ov_ratio = parseInt(getopt.arg);
+	}
+	if (args.length - getopt.ind < 1) {
+		print("Usage: hickit.js bedflt [options] <flt.bed> <in.seg>");
+		print("Options:");
+		print("  -l INT     min overlap length [" + min_ov_len + "]");
+		print("  -r FLOAT   min overlap ratio [" + min_ov_ratio + "]");
+		exit(1);
+	}
+
+	var file, buf = new Bytes();
+
+	var bed = {};
+	file = new File(args[getopt.ind]);
+	while (file.readline(buf) >= 0) {
+		var t = buf.toString().split("\t");
+		if (bed[t[0]] == null) bed[t[0]] = [];
+		bed[t[0]].push([parseInt(t[1]), parseInt(t[2])]);
+	}
+	file.close();
+	for (var chr in bed) {
+		Interval.sort(bed[chr]);
+		Interval.merge(bed[chr]);
+		Interval.index_end(bed[chr]);
+	}
+
+	var re = /\t([^\s!]+)!(\d+)!(\d+)/g;
+	file = getopt.ind + 1 < args.length && args[getopt.ind+1] != '-'? new File(args[getopt.ind+1]) : new File();
+	while (file.readline(buf) >= 0) {
+		var m, flt = false, line = buf.toString();
+		if (line[0] == '#') {
+			print(line);
+			continue;
+		}
+		while ((m = re.exec(line)) != null) {
+			if (bed[m[1]] == null) continue;
+			var st = parseInt(m[2]), en = parseInt(m[3]);
+			var ov = Interval.find_ovlp(bed[m[1]], st, en);
+			var ov_len = 0;
+			for (var i = 0; i < ov.length; ++i) {
+				var max_st = st > ov[i][0]? st : ov[i][0];
+				var min_en = en < ov[i][1]? en : ov[i][1];
+				if (min_en < max_st) throw Error("Bug!");
+				ov_len += min_en - max_st;
+			}
+			//print(m[1], m[2], m[3], ov.length, ov_len);
+			if (ov_len >= min_ov_len && ov_len >= (en - st) * min_ov_ratio)
+				flt = true;
+		}
+		if (!flt) print(line);
+	}
+	file.close();
+
+	buf.destroy();
+}
+
 function main(args)
 {
 	if (args.length == 0) {
@@ -444,6 +505,7 @@ function main(args)
 		print("  sam2seg        convert SAM to segments/pairs");
 		print("  vcf2tsv        convert phased VCF to simple TSV (chr, pos1, al1, al2)");
 		print("  chronly        filter out non-chromosomal segments/pairs");
+		print("  bedflt         filter out segments overlapping a BED");
 		exit(1);
 	}
 
@@ -451,6 +513,7 @@ function main(args)
 	if (cmd == 'sam2seg') hic_sam2seg(args);
 	else if (cmd == 'vcf2tsv') hic_vcf2tsv(args);
 	else if (cmd == 'chronly') hic_chronly(args);
+	else if (cmd == 'bedflt') hic_bedflt(args);
 	else throw Error("unrecognized command: " + cmd);
 }
 
