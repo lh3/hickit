@@ -184,3 +184,61 @@ void hk_nei_gibbs(krng_t *r, struct hk_nei *n, struct hk_pair *pairs, int n_burn
 			pairs[i]._.p4[j] = (float)a[i].p[j].c1 / tot;
 	free(a);
 }
+
+void hk_validate_holdback(krng_t *r, float ratio, int32_t n_pairs, struct hk_pair *pairs)
+{
+	int32_t i;
+	for (i = 0; i < n_pairs; ++i) {
+		struct hk_pair *p = &pairs[i];
+		if (p->phase[0] >= 0 || p->phase[1] >= 0) {
+			if (kr_drand_r(r) < ratio) {
+				if (p->phase[0] >= 0) p->phase[0] = -10 + p->phase[0];
+				if (p->phase[1] >= 0) p->phase[1] = -10 + p->phase[0];
+			}
+		}
+	}
+}
+
+void hk_validate_revert(int32_t n_pairs, struct hk_pair *pairs)
+{
+	int32_t i;
+	for (i = 0; i < n_pairs; ++i) {
+		struct hk_pair *p = &pairs[i];
+		if (p->phase[0] < -1 || p->phase[1] < -1) {
+			if (p->phase[0] == -10 || p->phase[0] == -9) p->phase[0] += 10;
+			if (p->phase[1] == -10 || p->phase[1] == -9) p->phase[1] += 10;
+		}
+	}
+}
+
+void hk_validate_roc(int32_t n_pairs, struct hk_pair *pairs)
+{
+	int32_t i, j, cnt[101], tot, sum;
+	memset(cnt, 0, sizeof(int32_t) * 101);
+	for (i = 0; i < n_pairs; ++i) {
+		struct hk_pair *p = &pairs[i];
+		if (p->phase[0] >= -1 && p->phase[1] >= -1) continue;
+		if (p->phase[0] == -10 || p->phase[0] == -9) {
+			int32_t phase = p->phase[0] + 10;
+			float q[2];
+			q[0] = p->_.p4[0] + p->_.p4[1];
+			q[1] = 1.0f - q[0];
+			++cnt[(int)(q[phase] * 100.0f)];
+		}
+		if (p->phase[1] == -10 || p->phase[1] == -9) {
+			int32_t phase = p->phase[1] + 10;
+			float q[2];
+			q[0] = p->_.p4[0] + p->_.p4[2];
+			q[1] = 1.0f - q[0];
+			++cnt[(int)(q[phase] * 100.0f)];
+		}
+	}
+	for (i = 0, tot = 0; i < 101; ++i) tot += cnt[i];
+	for (i = 99, sum = cnt[100]; i > 50; --i) {
+		int err = 0;
+		sum += cnt[i];
+		for (j = 0; j <= 100 - i; ++j) err += cnt[j]; // could be made faster, but doesn't really matter
+		printf("%.2f\t%.4f\t%.4f\n", .01f * i, (float)sum / tot, (float)sum / (err + sum));
+	}
+	hk_validate_revert(n_pairs, pairs);
+}

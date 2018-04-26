@@ -91,7 +91,9 @@ float hk_pseudo_weight(int32_t max_radius, float beta);
 void hk_nei_phase(struct hk_nei *n, struct hk_pair *pairs, int n_iter, float pseudo_cnt);
 void hk_nei_gibbs(krng_t *r, struct hk_nei *n, struct hk_pair *pairs, int n_burnin, int n_iter, float pseudo_cnt);
 void hk_nei_destroy(struct hk_nei *n);
-void kad_srand(void *d, uint64_t seed);
+
+void hk_validate_holdback(krng_t *r, float ratio, int32_t n_pairs, struct hk_pair *pairs);
+void hk_validate_roc(int32_t n_pairs, struct hk_pair *pairs);
 
 void hk_print_seg(FILE *fp, const struct hk_sdict *d, int32_t n_segs, const struct hk_seg *segs);
 void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs);

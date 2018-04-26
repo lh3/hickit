@@ -4,7 +4,7 @@
 #include <string.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r61"
+#define HICKIT_VERSION "r64"
 
 static inline int64_t hk_parse_num(const char *str)
 {
@@ -51,12 +51,12 @@ int main(int argc, char *argv[])
 	struct hk_map *m = 0;
 	int c, ret = 0, is_seg_out = 0, is_phase = 0, is_dedup = 1, is_tad_out = 0, is_gibbs = 0, sel_phased = 0, mask_tad = 0;
 	int seed = 1, png_width = 800;
-	float phase_thres = 0.8f;
+	float phase_thres = 0.8f, val_frac = -1.0f;
 	char *fn_png = 0;
 	krng_t rng;
 
 	hk_opt_init(&opt);
-	while ((c = getopt(argc, argv, "o:R:SptDMGPr:v:d:s:a:m:n:fr:b:i:w:VB:T:")) >= 0) {
+	while ((c = getopt(argc, argv, "o:R:SptDMGPr:v:d:s:a:m:n:fr:b:i:w:VB:T:F:")) >= 0) {
 		if (c == 'S') is_seg_out = 1;
 		else if (c == 's') opt.max_seg = atoi(optarg);
 		else if (c == 'a') opt.area_weight = atof(optarg);
@@ -69,6 +69,7 @@ int main(int argc, char *argv[])
 		else if (c == 'B') opt.beta = atof(optarg);
 		else if (c == 'f') opt.flag |= HK_OUT_PHASE;
 		else if (c == 'R') seed = atoi(optarg);
+		else if (c == 'F') val_frac = atof(optarg);
 		else if (c == 'G') is_gibbs = is_phase = 1;
 		else if (c == 'M') mask_tad = 1;
 		else if (c == 't') is_tad_out = 1;
@@ -131,10 +132,15 @@ int main(int argc, char *argv[])
 		n = hk_pair2nei(m->n_pairs, m->pairs, opt.max_radius, opt.max_nei);
 		hk_nei_weight(n, opt.max_radius, opt.beta);
 		pseudo_cnt = hk_pseudo_weight(opt.max_radius, opt.beta) * opt.pseudo_coeff;
+		if (val_frac > 0.0f && val_frac < 1.0f)
+			hk_validate_holdback(&rng, val_frac, m->n_pairs, m->pairs);
 		if (!is_gibbs) hk_nei_phase(n, m->pairs, opt.n_iter, pseudo_cnt);
 		else hk_nei_gibbs(&rng, n, m->pairs, opt.n_burnin, opt.n_iter, pseudo_cnt);
 		hk_nei_destroy(n);
-		hk_print_pair(stdout, HK_OUT_P4, m->d, m->n_pairs, m->pairs);
+		if (val_frac > 0.0f && val_frac < 1.0f)
+			hk_validate_roc(m->n_pairs, m->pairs);
+		else
+			hk_print_pair(stdout, HK_OUT_P4, m->d, m->n_pairs, m->pairs);
 	} else {
 		if (fn_png) hk_pair_image(m->d, m->n_pairs, m->pairs, png_width, phase_thres, fn_png);
 		else hk_print_pair(stdout, opt.flag, m->d, m->n_pairs, m->pairs);
