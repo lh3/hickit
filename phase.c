@@ -22,14 +22,17 @@ void hk_nei_weight(struct hk_nei *n, int32_t max_radius, float beta)
 	}
 }
 
-float hk_pseudo_cnt(int32_t max_radius, float beta)
+float hk_pseudo_weight(int32_t max_radius, float beta)
 {
 	const int n = 1000;
-	int i, step = max_radius / n, x;
-	double sum, d;
+	int i, step = max_radius / n, d;
+	double sum;
 	for (i = 0, d = 0, sum = 0.0; i < n; ++i, d += step) // naive integral on [0,max_radius)
 		sum += dist2weight(d, max_radius, beta);
-	return sum / n;
+	sum /= n;
+	if (hk_verbose >= 3)
+		fprintf(stderr, "[M::%s] pseudo-weight: %.4f\n", __func__, sum);
+	return sum;
 }
 
 struct phase_aux {

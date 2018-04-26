@@ -119,12 +119,14 @@ int main(int argc, char *argv[])
 
 	if (is_phase) { // phasing
 		struct hk_nei *n;
+		float pseudo_cnt;
 		if (sel_phased)
 			m->n_pairs = hk_pair_select_phased(m->n_pairs, m->pairs);
 		n = hk_pair2nei(m->n_pairs, m->pairs, opt.max_radius, opt.max_nei);
 		hk_nei_weight(n, opt.max_radius, opt.beta);
-		if (!is_gibbs) hk_nei_phase(n, m->pairs, opt.n_iter, opt.pseudo_cnt);
-		else hk_nei_gibbs(&rng, n, m->pairs, opt.n_burnin, opt.n_iter, opt.pseudo_cnt);
+		pseudo_cnt = hk_pseudo_weight(opt.max_radius, opt.beta) * opt.pseudo_coeff;
+		if (!is_gibbs) hk_nei_phase(n, m->pairs, opt.n_iter, pseudo_cnt);
+		else hk_nei_gibbs(&rng, n, m->pairs, opt.n_burnin, opt.n_iter, pseudo_cnt);
 		hk_nei_destroy(n);
 		hk_print_pair(stdout, HK_OUT_P4, m->d, m->n_pairs, m->pairs);
 	} else {
