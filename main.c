@@ -4,7 +4,7 @@
 #include <string.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r66"
+#define HICKIT_VERSION "r67"
 
 static inline int64_t hk_parse_num(const char *str)
 {
@@ -125,16 +125,14 @@ int main(int argc, char *argv[])
 
 	if (is_phase) { // phasing
 		struct hk_nei *n;
-		float pseudo_cnt;
 		if (sel_phased)
 			m->n_pairs = hk_pair_select_phased(m->n_pairs, m->pairs);
 		n = hk_pair2nei(m->n_pairs, m->pairs, opt.max_radius, opt.max_nei);
 		hk_nei_weight(n, opt.max_radius);
-		pseudo_cnt = hk_pseudo_weight(opt.max_radius) * opt.pseudo_coeff;
 		if (val_frac > 0.0f && val_frac < 1.0f)
 			hk_validate_holdback(&rng, val_frac, m->n_pairs, m->pairs);
-		if (!is_gibbs) hk_nei_phase(n, m->pairs, opt.n_iter, pseudo_cnt);
-		else hk_nei_gibbs(&rng, n, m->pairs, opt.n_burnin, opt.n_iter, pseudo_cnt);
+		if (!is_gibbs) hk_nei_phase(n, m->pairs, opt.n_iter, opt.pseudo_cnt);
+		else hk_nei_gibbs(&rng, n, m->pairs, opt.n_burnin, opt.n_iter, opt.pseudo_cnt);
 		hk_nei_destroy(n);
 		if (val_frac > 0.0f && val_frac < 1.0f)
 			hk_validate_roc(m->n_pairs, m->pairs);

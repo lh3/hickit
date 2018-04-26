@@ -8,20 +8,7 @@ static inline float dist2weight(int32_t d, int32_t max)
 	return 1.0f / ((float)d / max + 1e-3f);
 }
 
-void hk_nei_weight(struct hk_nei *n, int32_t max_radius)
-{
-	int32_t i;
-	for (i = 0; i < n->n_pairs; ++i) {
-		int64_t off = n->offcnt[i] >> 16;
-		int32_t cnt = n->offcnt[i] & 0xffff, j;
-		for (j = 0; j < cnt; ++j) {
-			struct hk_nei1 *n1 = &n->nei[off + j];
-			n1->_.w = dist2weight(n1->_.d, max_radius);
-		}
-	}
-}
-
-float hk_pseudo_weight(int32_t max_radius)
+static float hk_pseudo_weight(int32_t max_radius)
 {
 	const int n = 1000;
 	int i, step = max_radius / n, d;
@@ -32,6 +19,21 @@ float hk_pseudo_weight(int32_t max_radius)
 	if (hk_verbose >= 3)
 		fprintf(stderr, "[M::%s] pseudo-weight: %.4f\n", __func__, sum);
 	return sum;
+}
+
+void hk_nei_weight(struct hk_nei *n, int32_t max_radius)
+{
+	int32_t i;
+	float coef;
+	coef = 1.0 / hk_pseudo_weight(max_radius);
+	for (i = 0; i < n->n_pairs; ++i) {
+		int64_t off = n->offcnt[i] >> 16;
+		int32_t cnt = n->offcnt[i] & 0xffff, j;
+		for (j = 0; j < cnt; ++j) {
+			struct hk_nei1 *n1 = &n->nei[off + j];
+			n1->_.w = coef * dist2weight(n1->_.d, max_radius);
+		}
+	}
 }
 
 struct phase_aux {

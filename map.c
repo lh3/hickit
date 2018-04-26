@@ -22,7 +22,7 @@ void hk_opt_init(struct hk_opt *c)
 	c->area_weight = 5.0f;
 	c->max_radius = 10000000;
 	c->max_nei = 50;
-	c->pseudo_coeff = 0.4f;
+	c->pseudo_cnt = 0.4f;
 	c->n_iter = 1000;
 	c->n_burnin = 1000;
 }
