@@ -29,10 +29,10 @@ depend:
 
 # DO NOT DELETE
 
-image.o: hkpriv.h hickit.h ksort.h stb_image_write.h
-main.o: hickit.h
-map.o: hickit.h hkpriv.h khash.h kseq.h
-neighbor.o: hkpriv.h hickit.h ksort.h
-pair.o: hkpriv.h hickit.h ksort.h
-phase.o: hkpriv.h hickit.h
-tad.o: hkpriv.h hickit.h klist.h kavl.h
+image.o: hkpriv.h hickit.h krng.h ksort.h stb_image_write.h
+main.o: hickit.h krng.h
+map.o: hickit.h krng.h hkpriv.h khash.h kseq.h
+neighbor.o: hkpriv.h hickit.h krng.h ksort.h
+pair.o: hkpriv.h hickit.h krng.h ksort.h
+phase.o: hkpriv.h hickit.h krng.h
+tad.o: hkpriv.h hickit.h krng.h klist.h kavl.h
