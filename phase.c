@@ -88,8 +88,8 @@ void hk_nei_phase2(struct hk_nei *n, struct hk_pair *pairs, int n_iter, float ps
 	// write back
 	for (i = 0; i < n->n_pairs; ++i) {
 		struct hk_pair *p = &pairs[i];
-		p->_.phase_prob[0] = pre[i].p[0<<1|0] + pre[i].p[0<<1|1];
-		p->_.phase_prob[1] = pre[i].p[0<<1|0] + pre[i].p[1<<1|0];
+		p->_.phase_prob[0] = pre[i].p[1<<1|0] + pre[i].p[1<<1|1];
+		p->_.phase_prob[1] = pre[i].p[0<<1|1] + pre[i].p[1<<1|1];
 	}
 	free(a[0]);
 }
