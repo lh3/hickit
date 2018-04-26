@@ -4,7 +4,7 @@
 #include <string.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r55"
+#define HICKIT_VERSION "r61"
 
 static inline int64_t hk_parse_num(const char *str)
 {
@@ -38,7 +38,11 @@ static void print_usage(FILE *fp, const struct hk_opt *opt)
 	fprintf(fp, "    -i INT     number of iterations [%d]\n", opt->n_iter);
 	fprintf(fp, "    -G         use Gibbs sampling instead of EM-like\n");
 	fprintf(fp, "    -b INT     number of burn-in iterations (Gibbs only) [%d]\n", opt->n_burnin);
-	fprintf(fp, "    -R INT     random seed (Gibbs only) []\n");
+	fprintf(fp, "    -R INT     random seed (Gibbs only) [1]\n");
+	fprintf(fp, "  Image:\n");
+	fprintf(fp, "    -o FILE    write PNG to FILE []\n");
+	fprintf(fp, "    -w INT     width of the image [800]\n");
+	fprintf(fp, "    -T FLOAT   threshold for a dot considered phased [0.8]\n");
 }
 
 int main(int argc, char *argv[])
@@ -47,11 +51,12 @@ int main(int argc, char *argv[])
 	struct hk_map *m = 0;
 	int c, ret = 0, is_seg_out = 0, is_phase = 0, is_dedup = 1, is_tad_out = 0, is_gibbs = 0, sel_phased = 0, mask_tad = 0;
 	int seed = 1, png_width = 800;
+	float phase_thres = 0.8f;
 	char *fn_png = 0;
 	krng_t rng;
 
 	hk_opt_init(&opt);
-	while ((c = getopt(argc, argv, "o:R:SptDMGPr:v:d:s:a:m:n:fr:b:i:w:VB:")) >= 0) {
+	while ((c = getopt(argc, argv, "o:R:SptDMGPr:v:d:s:a:m:n:fr:b:i:w:VB:T:")) >= 0) {
 		if (c == 'S') is_seg_out = 1;
 		else if (c == 's') opt.max_seg = atoi(optarg);
 		else if (c == 'a') opt.area_weight = atof(optarg);
@@ -73,6 +78,7 @@ int main(int argc, char *argv[])
 		else if (c == 'v') hk_verbose = atoi(optarg);
 		else if (c == 'o') fn_png = optarg;
 		else if (c == 'w') png_width = atoi(optarg);
+		else if (c == 'T') phase_thres = atof(optarg);
 		else if (c == 'V') {
 			puts(HICKIT_VERSION);
 			return 0;
@@ -130,7 +136,7 @@ int main(int argc, char *argv[])
 		hk_nei_destroy(n);
 		hk_print_pair(stdout, HK_OUT_P4, m->d, m->n_pairs, m->pairs);
 	} else {
-		if (fn_png) hk_pair_image(m->d, m->n_pairs, m->pairs, png_width, 0.1f, fn_png);
+		if (fn_png) hk_pair_image(m->d, m->n_pairs, m->pairs, png_width, phase_thres, fn_png);
 		else hk_print_pair(stdout, opt.flag, m->d, m->n_pairs, m->pairs);
 	}
 

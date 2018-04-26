@@ -163,7 +163,7 @@ static void hk_parse_pair(struct hk_pair *p, struct hk_sdict *d, int n_fields, c
 	int32_t c1, c2;
 	int64_t p1, p2;
 	char *q;
-	int has_digit;
+	int j, has_digit;
 	c1 = hk_sd_put(d, fields[1], 0);
 	p1 = hk_parse_64(fields[2], &q, &has_digit);
 	assert(p1 >= 0 && has_digit);
@@ -178,10 +178,8 @@ static void hk_parse_pair(struct hk_pair *p, struct hk_sdict *d, int n_fields, c
 		p->strand[0] = *fields[5] == '+'? 1 : *fields[5] == '-'? -1 : 0;
 		p->strand[1] = *fields[6] == '+'? 1 : *fields[6] == '-'? -1 : 0;
 		if (n_fields >= 11) { // FIXME: make this more general
-			p->_.p4[0] = atof(fields[7]);
-			p->_.p4[1] = atof(fields[8]);
-			p->_.p4[2] = atof(fields[9]);
-			p->_.p4[3] = atof(fields[10]);
+			for (j = 0; j < 4; ++j)
+				p->_.p4[j] = atof(fields[7 + j]);
 		} else if (n_fields >= 9) {
 			p->phase[0] = *fields[7] == '.'? -1 : (int)*fields[7] - '0';
 			p->phase[1] = *fields[8] == '.'? -1 : (int)*fields[8] - '0';

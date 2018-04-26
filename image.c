@@ -3,21 +3,22 @@
 #include <assert.h>
 #include "hkpriv.h"
 #include "ksort.h"
-KSORT_INIT_GENERIC(int)
+KSORT_INIT_GENERIC(float)
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
 struct cnt_aux {
-	int32_t cnt[4];
+	double cnt[4];
 	uint32_t tot;
 };
 
 void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int w, float phase_thres, const char *fn)
 {
 	int64_t tot_len, *off;
-	int32_t i, j, *tmp, ww = w * w, c_max, pixel_bp, m_tmp, n_tmp;
+	int32_t i, j, ww = w * w, pixel_bp, m_tmp, n_tmp;
 	uint8_t *buf;
+	float *tmp, c_max;
 	double s, t;
 	struct cnt_aux *cnt;
 
@@ -46,31 +47,28 @@ void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pa
 		z = y[0] * w + y[1];
 		c = &cnt[z];
 		++c->tot;
-		if (phase_thres > 0.0f) {
-			int q[2];
-			q[0] = p->_.phase_prob[0] <= phase_thres? 0 : p->_.phase_prob[0] >= 1.0f - phase_thres? 1 : -1;
-			q[1] = p->_.phase_prob[1] <= phase_thres? 0 : p->_.phase_prob[1] >= 1.0f - phase_thres? 1 : -1;
-			if (q[0] >= 0 && q[1] >= 0)
-				++c->cnt[q[0]<<1|q[1]];
-		}
+		for (j = 0; j < 4; ++j)
+			c->cnt[j] += p->_.p4[j];
 	}
 
 	// figure out the max depth
 	m_tmp = n_tmp = 0, tmp = 0;
 	for (i = 0; i < w; ++i) {
 		for (j = i; j < w; ++j) {
-			int32_t k, max = 0, z = i * w + j;
+			int32_t k, z = i * w + j;
+			double max = -1.0;
 			struct cnt_aux *c = &cnt[z];
+			if (c->tot == 0) continue;
 			for (k = 0; k < 4; ++k)
 				max = max > c->cnt[k]? max : c->cnt[k];
-			if (max > 0 && max >= c->tot / 2) {
+			if (max / c->tot >= phase_thres) {
 				if (n_tmp == m_tmp)
 					EXPAND(tmp, m_tmp);
 				tmp[n_tmp++] = max;
 			}
 		}
 	}
-	c_max = ks_ksmall_int(n_tmp, tmp, (int)(n_tmp * .95 + .499));
+	c_max = ks_ksmall_float(n_tmp, tmp, (int)(n_tmp * .95 + .499));
 	free(tmp);
 
 	t = 255.0 / c_max;
@@ -84,14 +82,14 @@ void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pa
 			if (c->tot == 0) {
 				*p++ = 0, *p++ = 0, *p++ = 0, *q++ = 0, *q++ = 0, *q++ = 0;
 			} else {
-				int x, k, max_k = -1, max = -1;
+				int x, k, max_k = -1;
+				double max = -1.0;
 				for (k = 0; k < 4; ++k)
 					if (c->cnt[k] > max)
 						max_k = k, max = c->cnt[k];
-				if (max == 0 || max < c->tot/2) x = (int)(c->tot * t);
-				else x = (int)(max * t);
+				x = max >= c->tot * phase_thres? (int)(max * t) : (int)(c->tot * t);
 				if (x > 255) x = 255;
-				if (max == 0 || max < c->tot/2) *p++ = x/2, *p++ = x/2, *p++ = x/2, *q++ = x/2, *q++ = x/2, *q++ = x/2;
+				if (max < c->tot * phase_thres) *p++ = x/2, *p++ = x/2, *p++ = x/2, *q++ = x/2, *q++ = x/2, *q++ = x/2;
 				else if (max_k == 0) *p++ = x, *p++ = 0, *p++ = 0, *q++ = x, *q++ = 0, *q++ = 0;
 				else if (max_k == 1) *p++ = x, *p++ = 0, *p++ = x, *q++ = 0, *q++ = x, *q++ = x;
 				else if (max_k == 2) *p++ = 0, *p++ = x, *p++ = x, *q++ = x, *q++ = 0, *q++ = x;
