@@ -5,7 +5,7 @@
 #include <getopt.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r71"
+#define HICKIT_VERSION "r72"
 
 static struct option long_options[] = {
 	{ "version",        no_argument,       0, 0 },

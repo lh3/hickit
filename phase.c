@@ -275,9 +275,11 @@ void hk_validate_roc(int32_t n_pairs, struct hk_pair *pairs)
 	for (i = 99; i > 25; --i) {
 		for (j = 0; j < 2; ++j)
 			sum_all[j] += all[j][i], sum_cnt[j][0] += cnt[j][0][i], sum_cnt[j][1] += cnt[j][1][i];
-		printf("%.2f\t%.4f\t%.4f\t%.4f\t%.4f\n", .01f * i,
+		printf("%.2f\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\n", .01f * i,
 			   (float)sum_all[0] / tot[0], (sum_cnt[0][1] + .05) / (sum_cnt[0][0] + sum_cnt[0][1] + 0.1),
-			   (float)sum_all[1] / tot[1], (sum_cnt[1][1] + .05) / (sum_cnt[1][0] + sum_cnt[1][1] + 0.1));
+			   (float)sum_all[1] / tot[1], (sum_cnt[1][1] + .05) / (sum_cnt[1][0] + sum_cnt[1][1] + 0.1),
+			   (float)(sum_all[0] + sum_all[1]) / (tot[0] + tot[1]),
+			   (sum_cnt[0][1] + sum_cnt[1][1] + .05) / (sum_cnt[0][0] + sum_cnt[0][1] + sum_cnt[1][0] + sum_cnt[1][1] + 0.1));
 	}
 	hk_validate_revert(n_pairs, pairs);
 }
