@@ -59,7 +59,15 @@ static inline void spacial_adj(const struct hk_pair *p1, float p[4])
 void hk_nei_impute(struct hk_nei *n, struct hk_pair *pairs, int n_iter, float pseudo_cnt, int use_spacial)
 {
 	struct phase_aux *a[2], *cur, *pre, *tmp;
-	int32_t i, iter;
+	int32_t i, iter, n_phased_legs = 0;
+
+	for (i = 0; i < n->n_pairs; ++i)
+		n_phased_legs += (pairs[i].phase[0] >= 0) + (pairs[i].phase[1] >= 0);
+	if (n_phased_legs < 2) {
+		if (hk_verbose >= 2)
+			fprintf(stderr, "[W::%s] too few phased legs for imputation\n", __func__);
+		return;
+	}
 
 	a[0] = CALLOC(struct phase_aux, n->n_pairs * 2);
 	a[1] = a[0] + n->n_pairs;

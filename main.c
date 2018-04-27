@@ -2,9 +2,23 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <getopt.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r70"
+#define HICKIT_VERSION "r71"
+
+static struct option long_options[] = {
+	{ "version",        no_argument,       0, 0 },
+	{ "out-seg",        no_argument,       0, 0 }, // 1: output the segment format; mostly for testing
+	{ "seed",           required_argument, 0, 'S' },
+	{ "no-dedup",       no_argument,       0, 'D' },
+	{ "verbose",        required_argument, 0, 0 },
+	{ "select-phased",  no_argument,       0, 0 }, // 5: only imput pairs containing at least one phased leg
+	{ "no-spacial",     no_argument,       0, 'u' },
+	{ "tad-flag",       no_argument,       0, 0 }, // 7
+	{ "out-phase",      no_argument,       0, 0 }, // 8: output two "phase" columns in .pairs
+	{ 0, 0, 0, 0}
+};
 
 static inline int64_t hk_parse_num(const char *str)
 {
@@ -22,64 +36,71 @@ static void print_usage(FILE *fp, const struct hk_opt *opt)
 	fprintf(fp, "Usage: hickit [options] <in.seg>|<in.pairs>\n");
 	fprintf(fp, "Options:\n");
 	fprintf(fp, "  Input filtering:\n");
-	fprintf(fp, "    -s INT     ignore fragments with >INT segments [%d]\n", opt->max_seg);
-	fprintf(fp, "    -q INT     min mapping quality [%d]\n", opt->min_mapq);
-	fprintf(fp, "    -d NUM     min distance [%d]\n", opt->min_dist);
-	fprintf(fp, "    -D         don't perform duplicate removal\n");
+	fprintf(fp, "    -s INT        ignore fragments with >INT segments [%d]\n", opt->max_seg);
+	fprintf(fp, "    -q INT        min mapping quality [%d]\n", opt->min_mapq);
+	fprintf(fp, "    -d NUM        min distance between legs [%d]\n", opt->min_dist);
+	fprintf(fp, "    -D            don't remove duplicates\n");
 	fprintf(fp, "  TAD calling:\n");
-	fprintf(fp, "    -t         call TADs\n");
-	fprintf(fp, "    -a FLOAT   area weight (smaller for bigger TADs) [%.2f]\n", opt->area_weight);
-	fprintf(fp, "    -m INT     min TAD size [%d]\n", opt->min_tad_size);
-	fprintf(fp, "    -M         ignore pairs contained in TADs\n");
+	fprintf(fp, "    -t            call and output TADs\n");
+	fprintf(fp, "    -a FLOAT      area weight (smaller for bigger TADs) [%.2f]\n", opt->area_weight);
+	fprintf(fp, "    -c INT        min TAD size [%d]\n", opt->min_tad_size);
+	fprintf(fp, "    --tad-flag    flag pairs contained in TADs (forced with -p/-G)\n");
 	fprintf(fp, "  Imputation:\n");
-	fprintf(fp, "    -p         impute\n");
-	fprintf(fp, "    -r NUM     max radius [10m]\n");
-	fprintf(fp, "    -n INT     max neighbors [%d]\n", opt->max_nei);
-	fprintf(fp, "    -i INT     number of iterations [%d]\n", opt->n_iter);
-	fprintf(fp, "    -G         use Gibbs sampling (NOT recommended)\n");
-	fprintf(fp, "    -b INT     number of burn-in iterations (Gibbs only) [%d]\n", opt->n_burnin);
-	fprintf(fp, "    -R INT     random seed (Gibbs only) [1]\n");
-	fprintf(fp, "  Image:\n");
-	fprintf(fp, "    -o FILE    write PNG to FILE []\n");
-	fprintf(fp, "    -w INT     width of the image [800]\n");
-	fprintf(fp, "    -T FLOAT   threshold for a dot considered phased [0.8]\n");
+	fprintf(fp, "    -p            impute phases with EM\n");
+	fprintf(fp, "    -r NUM        max radius [10m]\n");
+	fprintf(fp, "    -n INT        max neighbors [%d]\n", opt->max_nei);
+	fprintf(fp, "    -k INT        number of iterations [%d]\n", opt->n_iter);
+	fprintf(fp, "    -G            impute with Gibbs sampling (NOT recommended)\n");
+	fprintf(fp, "    -B INT        number of burn-in iterations (Gibbs only) [%d]\n", opt->n_burnin);
+	fprintf(fp, "    -v FLOAT      fraction of phased legs held out for validation [0]\n");
+	fprintf(fp, "    -u            disable the spacial heuristic (EM-only so far)\n");
+	fprintf(fp, "  Image generation:\n");
+	fprintf(fp, "    -I FILE       write PNG to FILE (no output to stdout) []\n");
+	fprintf(fp, "    -w INT        width of the image [800]\n");
+	fprintf(fp, "    -P FLOAT      probability threshold for a dot considered phased [0.7]\n");
+	fprintf(fp, "  Miscellaneous:\n");
+	fprintf(fp, "    -S INT        random seed for Gibbs sampling and validation [1]\n");
+	fprintf(fp, "    --out-phase   output two 'phase' columns in .pairs\n");
+	fprintf(fp, "    --version     version number\n");
 }
 
 int main(int argc, char *argv[])
 {
 	struct hk_opt opt;
 	struct hk_map *m = 0;
-	int c, ret = 0, is_seg_out = 0, is_impute = 0, is_dedup = 1, is_tad_out = 0, is_gibbs = 0, sel_phased = 0, mask_tad = 0, use_spacial = 1;
+	int c, long_idx, ret = 0, is_seg_out = 0, is_impute = 0, is_dedup = 1, is_tad_out = 0, is_gibbs = 0, sel_phased = 0, mask_tad = 0, use_spacial = 1;
 	int seed = 1, png_width = 800;
-	float phase_thres = 0.8f, val_frac = -1.0f;
+	float phase_thres = 0.7f, val_frac = -1.0f;
 	char *fn_png = 0;
 	krng_t rng;
 
 	hk_opt_init(&opt);
-	while ((c = getopt(argc, argv, "o:R:SptDMGPr:v:d:s:a:m:n:fr:b:i:w:VT:F:")) >= 0) {
-		if (c == 'S') is_seg_out = 1;
-		else if (c == 's') opt.max_seg = atoi(optarg);
-		else if (c == 'a') opt.area_weight = atof(optarg);
-		else if (c == 'r') opt.max_radius = hk_parse_num(optarg);
+	while ((c = getopt_long(argc, argv, "s:q:d:Dta:c:pr:n:k:GB:v:I:w:P:S:", long_options, &long_idx)) >= 0) {
+		if (c == 's') opt.max_seg = atoi(optarg);
+		else if (c == 'q') opt.min_mapq = atoi(optarg);
 		else if (c == 'd') opt.min_dist = hk_parse_num(optarg);
-		else if (c == 'm') opt.min_tad_size = atoi(optarg);
-		else if (c == 'n') opt.max_nei = atoi(optarg);
-		else if (c == 'b') opt.n_burnin = atoi(optarg);
-		else if (c == 'i') opt.n_iter = atoi(optarg);
-		else if (c == 'f') opt.flag |= HK_OUT_PHASE;
-		else if (c == 'R') seed = atoi(optarg);
-		else if (c == 'F') val_frac = atof(optarg);
-		else if (c == 'G') is_gibbs = is_impute = 1;
-		else if (c == 'M') mask_tad = 1;
-		else if (c == 't') is_tad_out = 1;
-		else if (c == 'p') is_impute = 1;
 		else if (c == 'D') is_dedup = 0;
-		else if (c == 'P') sel_phased = 1;
-		else if (c == 'v') hk_verbose = atoi(optarg);
-		else if (c == 'o') fn_png = optarg;
+		else if (c == 't') is_tad_out = 1;
+		else if (c == 'a') opt.area_weight = atof(optarg);
+		else if (c == 'c') opt.min_tad_size = atoi(optarg);
+		else if (c == 'p') is_impute = 1;
+		else if (c == 'r') opt.max_radius = hk_parse_num(optarg);
+		else if (c == 'n') opt.max_nei = atoi(optarg);
+		else if (c == 'k') opt.n_iter = atoi(optarg);
+		else if (c == 'G') is_gibbs = is_impute = 1;
+		else if (c == 'B') opt.n_burnin = atoi(optarg);
+		else if (c == 'v') val_frac = atof(optarg), is_impute = 1;
+		else if (c == 'u') use_spacial = 0;
+		else if (c == 'I') fn_png = optarg;
 		else if (c == 'w') png_width = atoi(optarg);
-		else if (c == 'T') phase_thres = atof(optarg);
-		else if (c == 'V') {
+		else if (c == 'P') phase_thres = atof(optarg);
+		else if (c == 'S') seed = atoi(optarg);
+		else if (c == 0 && long_idx == 1) is_seg_out = 1;
+		else if (c == 0 && long_idx == 4) hk_verbose = atoi(optarg);
+		else if (c == 0 && long_idx == 5) sel_phased = 1;
+		else if (c == 0 && long_idx == 7) mask_tad = 1;
+		else if (c == 0 && long_idx == 7) opt.flag |= HK_OUT_PHASE;
+		else if (c == 0 && long_idx == 0) {
 			puts(HICKIT_VERSION);
 			return 0;
 		}
@@ -110,10 +131,10 @@ int main(int argc, char *argv[])
 		m->pairs = hk_seg2pair(m->n_segs, m->segs, opt.min_dist, opt.max_seg, opt.min_mapq, &m->n_pairs);
 	if (is_dedup)
 		m->n_pairs = hk_pair_dedup(m->n_pairs, m->pairs, opt.min_dist);
-	hk_pair_count(m->n_pairs, m->pairs);
 	if (is_tad_out || mask_tad) {
 		int32_t n_tads;
 		struct hk_pair *tads;
+		hk_pair_count(m->n_pairs, m->pairs);
 		tads = hk_pair2tad(m->d, m->n_pairs, m->pairs, opt.min_tad_size, opt.area_weight, &n_tads);
 		if (is_tad_out)
 			hk_print_pair(stdout, opt.flag, m->d, n_tads, tads);
