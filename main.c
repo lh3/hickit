@@ -4,7 +4,7 @@
 #include <string.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r67"
+#define HICKIT_VERSION "r68"
 
 static inline int64_t hk_parse_num(const char *str)
 {

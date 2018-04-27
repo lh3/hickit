@@ -215,41 +215,44 @@ void hk_validate_revert(int32_t n_pairs, struct hk_pair *pairs)
 
 void hk_validate_roc(int32_t n_pairs, struct hk_pair *pairs)
 {
-	int32_t i, j, cnt[101], inter[101], tot, tot_inter, sum, sum_inter;
-	memset(cnt, 0, sizeof(int32_t) * 101);
-	memset(inter, 0, sizeof(int32_t) * 101);
+	int32_t i, j, all[2][100], cnt[2][2][100], tot[2], sum_all[2], sum_cnt[2][2];
+	memset(all, 0, sizeof(int32_t) * 100 * 2);
+	memset(cnt, 0, sizeof(int32_t) * 100 * 4);
 	for (i = 0; i < n_pairs; ++i) {
 		struct hk_pair *p = &pairs[i];
+		float max = -1.0f;
+		int32_t w, max_j = -1, off_diag = (p->chr>>32 != (int32_t)p->chr);
+		for (j = 0; j < 4; ++j)
+			if (max < p->_.p4[j])
+				max = p->_.p4[j], max_j = j;
+		w = (int)(max * 100.0f);
+		if (w == 100) w = 99;
+		++all[0][w];
+		if (off_diag) ++all[1][w];
 		if (p->phase[0] >= -1 && p->phase[1] >= -1) continue;
 		if (p->phase[0] == -10 || p->phase[0] == -9) {
 			int32_t phase = p->phase[0] + 10;
-			float q[2];
-			q[0] = p->_.p4[0] + p->_.p4[1];
-			q[1] = 1.0f - q[0];
-			++cnt[(int)(q[phase] * 100.0f)];
-			if (p->chr>>32 != (int32_t)p->chr)
-				++inter[(int)(q[phase] * 100.0f)];
+			int32_t u = (max_j>>1 == phase);
+			++cnt[0][u][w];
+			if (off_diag) ++cnt[1][u][w];
 		}
 		if (p->phase[1] == -10 || p->phase[1] == -9) {
 			int32_t phase = p->phase[1] + 10;
-			float q[2];
-			q[0] = p->_.p4[0] + p->_.p4[2];
-			q[1] = 1.0f - q[0];
-			++cnt[(int)(q[phase] * 100.0f)];
-			if (p->chr>>32 != (int32_t)p->chr)
-				++inter[(int)(q[phase] * 100.0f)];
+			int32_t u = ((max_j&1) == phase);
+			++cnt[0][u][w];
+			if (off_diag) ++cnt[1][u][w];
 		}
 	}
-	for (i = 0, tot = tot_inter = 0; i < 101; ++i)
-		tot += cnt[i], tot_inter += inter[i];
-	for (i = 99, sum = cnt[100], sum_inter = inter[100]; i > 50; --i) {
-		int err = 0, err_inter = 0;
-		sum += cnt[i], sum_inter += inter[i];
-		for (j = 0; j <= 100 - i; ++j) // could be made faster, but doesn't really matter
-			err += cnt[j], err_inter += inter[j];
+	for (i = 0, tot[0] = tot[1] = 0; i < 100; ++i)
+		tot[0] += all[0][i], tot[1] += all[1][i];
+	for (j = 0; j < 2; ++j)
+		sum_all[j] = sum_cnt[j][0] = sum_cnt[j][1] = 0;
+	for (i = 99; i > 25; --i) {
+		for (j = 0; j < 2; ++j)
+			sum_all[j] += all[j][i], sum_cnt[j][0] += cnt[j][0][i], sum_cnt[j][1] += cnt[j][1][i];
 		printf("%.2f\t%.4f\t%.4f\t%.4f\t%.4f\n", .01f * i,
-			   (float)sum / tot, (float)sum / (err + sum),
-			   (float)sum_inter / tot_inter, (float)sum_inter / (err_inter + sum_inter));
+			   (float)sum_all[0] / tot[0], (float)sum_cnt[0][1] / (sum_cnt[0][0] + sum_cnt[0][1]),
+			   (float)sum_all[1] / tot[1], (float)sum_cnt[1][1] / (sum_cnt[1][0] + sum_cnt[1][1]));
 	}
 	hk_validate_revert(n_pairs, pairs);
 }
