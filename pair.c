@@ -9,6 +9,11 @@
 #define pair_lt(a, b) ((a).chr < (b).chr || ((a).chr == (b).chr && (a).pos < (b).pos))
 KSORT_INIT(pair, struct hk_pair, pair_lt)
 
+void hk_pair_sort(int32_t n_pairs, struct hk_pair *pairs)
+{
+	ks_introsort_pair(n_pairs, pairs);
+}
+
 struct hk_pair *hk_seg2pair(int32_t n_segs, const struct hk_seg *segs, int min_dist, int max_seg, int min_mapq, int32_t *n_pairs_)
 {
 	int32_t m_pairs = 0, n_pairs = 0, i, j, st;

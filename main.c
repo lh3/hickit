@@ -5,7 +5,7 @@
 #include <getopt.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r72"
+#define HICKIT_VERSION "r74"
 
 static struct option long_options[] = {
 	{ "version",        no_argument,       0, 0 },
@@ -17,6 +17,7 @@ static struct option long_options[] = {
 	{ "no-spacial",     no_argument,       0, 'u' },
 	{ "tad-flag",       no_argument,       0, 0 }, // 7
 	{ "out-phase",      no_argument,       0, 0 }, // 8: output two "phase" columns in .pairs
+	{ "sort",           no_argument,       0, 0 }, // 9
 	{ 0, 0, 0, 0}
 };
 
@@ -40,6 +41,7 @@ static void print_usage(FILE *fp, const struct hk_opt *opt)
 	fprintf(fp, "    -q INT        min mapping quality [%d]\n", opt->min_mapq);
 	fprintf(fp, "    -d NUM        min distance between legs [%d]\n", opt->min_dist);
 	fprintf(fp, "    -D            don't remove duplicates\n");
+	fprintf(fp, "    --sort        force to re-sort pairs\n");
 	fprintf(fp, "  TAD calling:\n");
 	fprintf(fp, "    -t            call and output TADs\n");
 	fprintf(fp, "    -a FLOAT      area weight (smaller for bigger TADs) [%.2f]\n", opt->area_weight);
@@ -69,7 +71,7 @@ int main(int argc, char *argv[])
 	struct hk_opt opt;
 	struct hk_map *m = 0;
 	int c, long_idx, ret = 0, is_seg_out = 0, is_impute = 0, is_dedup = 1, is_tad_out = 0, is_gibbs = 0, sel_phased = 0, mask_tad = 0, use_spacial = 1;
-	int seed = 1, png_width = 800;
+	int assume_sorted = 1, seed = 1, png_width = 800;
 	float phase_thres = 0.7f, val_frac = -1.0f;
 	char *fn_png = 0;
 	krng_t rng;
@@ -99,7 +101,8 @@ int main(int argc, char *argv[])
 		else if (c == 0 && long_idx == 4) hk_verbose = atoi(optarg);
 		else if (c == 0 && long_idx == 5) sel_phased = 1;
 		else if (c == 0 && long_idx == 7) mask_tad = 1;
-		else if (c == 0 && long_idx == 7) opt.flag |= HK_OUT_PHASE;
+		else if (c == 0 && long_idx == 8) opt.flag |= HK_OUT_PHASE;
+		else if (c == 0 && long_idx == 9) assume_sorted = 0;
 		else if (c == 0 && long_idx == 0) {
 			puts(HICKIT_VERSION);
 			return 0;
@@ -129,6 +132,8 @@ int main(int argc, char *argv[])
 
 	if (m->pairs == 0 && m->segs)
 		m->pairs = hk_seg2pair(m->n_segs, m->segs, opt.min_dist, opt.max_seg, opt.min_mapq, &m->n_pairs);
+	else if (m->segs == 0 && m->pairs && !assume_sorted)
+		hk_pair_sort(m->n_pairs, m->pairs);
 	if (is_dedup)
 		m->n_pairs = hk_pair_dedup(m->n_pairs, m->pairs, opt.min_dist);
 	if (is_tad_out || mask_tad) {

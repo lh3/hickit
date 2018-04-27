@@ -78,6 +78,7 @@ struct hk_map *hk_map_read(const char *fn);
 void hk_map_destroy(struct hk_map *m);
 
 struct hk_pair *hk_seg2pair(int32_t n_segs, const struct hk_seg *segs, int min_dist, int max_seg, int min_mapq, int32_t *n_pairs_);
+void hk_pair_sort(int32_t n_pairs, struct hk_pair *pairs);
 int32_t hk_pair_dedup(int n_pairs, struct hk_pair *pairs, int min_dist);
 int32_t hk_pair_select_phased(int n_pairs, struct hk_pair *pairs);
 void hk_pair_count(int32_t n_pairs, struct hk_pair *pairs);

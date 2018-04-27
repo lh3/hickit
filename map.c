@@ -200,6 +200,7 @@ struct hk_map *hk_map_read(const char *fn)
 	kstream_t *ks;
 	int dret;
 	int32_t m_segs = 0, m_pairs = 0, n_fields = 0, m_fields = 0;
+	int64_t n_data_rows = 0;
 	char **fields = 0;
 	struct hk_map *m;
 
@@ -210,8 +211,9 @@ struct hk_map *hk_map_read(const char *fn)
 	while (ks_getuntil(ks, KS_SEP_LINE, &str, &dret) >= 0) {
 		char *p, *q;
 		int32_t k, n_segs = 0;
+		if (str.l && str.s[0] != '#') ++n_data_rows;
 		// read chromsomes
-		if (str.l >= 12 + 3 && strncmp(str.s, "#chromosome:", 12) == 0) {
+		if (n_data_rows == 0 && str.l >= 12 + 3 && strncmp(str.s, "#chromosome:", 12) == 0) {
 			char *chr;
 			int64_t len;
 			int has_digit;
