@@ -19,7 +19,7 @@ KMEMPOOL_INIT(cnt, struct cnt_aux, cnt_free)
 
 void hk_pair_count_1chr(int32_t n_pairs, struct hk_pair *pairs)
 {
-	int32_t i, n_ends = 0;
+	int32_t i, n, n_ends = 0;
 	struct cnt_aux *root = 0;
 	kmempool_t(cnt) *mp;
 	mp = kmp_init(cnt);
@@ -35,8 +35,9 @@ void hk_pair_count_1chr(int32_t n_pairs, struct hk_pair *pairs)
 				break;
 			} else {
 				struct hk_pair *q = &pairs[(int32_t)t->end_i];
-				q->n = n_ends - t->n_ends - (int32_t)t->n_bridges + 1; // +1 for itself
-				assert(q->n >= 0);
+				n = n_ends - t->n_ends - (int32_t)t->n_bridges + 1; // +1 for itself
+				assert(n >= 0);
+				q->n = n;
 				++n_ends;
 				kmp_free(cnt, mp, t);
 			}
@@ -51,7 +52,9 @@ void hk_pair_count_1chr(int32_t n_pairs, struct hk_pair *pairs)
 		struct hk_pair *q;
 		t = kavl_erase_first(cnt, &root);
 		q = &pairs[(int32_t)t->end_i];
-		q->n = n_ends - t->n_ends - (int32_t)t->n_bridges + 1;
+		n = n_ends - t->n_ends - (int32_t)t->n_bridges + 1;
+		assert(n >= 0);
+		q->n = n;
 		++n_ends;
 		kmp_free(cnt, mp, t);
 	}
@@ -116,7 +119,7 @@ static struct hk_pair *hk_tad_call1(int32_t n_pairs, struct hk_pair *pairs, int 
 			}
 		}
 		a[i].i = a[j].mmax_i;
-		f = a[j].mmax_f + (p->n - min_tad_size - area_weight * avg_density * area);
+		f = a[j].mmax_f + ((int32_t)p->n - min_tad_size - area_weight * avg_density * area);
 		if (f >= mmax_f)
 			mmax_f = f, mmax_i = i;
 		a[i].mmax_f = mmax_f;

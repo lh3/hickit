@@ -42,7 +42,7 @@ struct hk_pair {      // a contact pair
 	uint64_t pos;     // pos1<<32 | pos2
 	int8_t strand[2]; // strand
 	int8_t phase[2];  // phase
-	int32_t n;
+	uint32_t n:31, tad_masked:1;
 	union {
 		float phase_prob[2];
 		float p4[4];
@@ -83,7 +83,7 @@ int32_t hk_pair_select_phased(int n_pairs, struct hk_pair *pairs);
 void hk_pair_count(int32_t n_pairs, struct hk_pair *pairs);
 
 struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int min_tad_size, float area_weight, int32_t *n_tads_);
-int32_t hk_mask_by_tad(int32_t n_tads, const struct hk_pair *tads, int32_t n_pairs, struct hk_pair *pairs);
+void hk_mask_by_tad(int32_t n_tads, const struct hk_pair *tads, int32_t n_pairs, struct hk_pair *pairs);
 
 struct hk_nei *hk_pair2nei(int n_pairs, const struct hk_pair *pairs, int max_radius, int max_nei);
 void hk_nei_weight(struct hk_nei *n, int32_t max_radius);

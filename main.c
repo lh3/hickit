@@ -4,7 +4,7 @@
 #include <string.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r68"
+#define HICKIT_VERSION "r69"
 
 static inline int64_t hk_parse_num(const char *str)
 {
@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
 {
 	struct hk_opt opt;
 	struct hk_map *m = 0;
-	int c, ret = 0, is_seg_out = 0, is_phase = 0, is_dedup = 1, is_tad_out = 0, is_gibbs = 0, sel_phased = 0, mask_tad = 0;
+	int c, ret = 0, is_seg_out = 0, is_impute = 0, is_dedup = 1, is_tad_out = 0, is_gibbs = 0, sel_phased = 0, mask_tad = 0;
 	int seed = 1, png_width = 800;
 	float phase_thres = 0.8f, val_frac = -1.0f;
 	char *fn_png = 0;
@@ -69,10 +69,10 @@ int main(int argc, char *argv[])
 		else if (c == 'f') opt.flag |= HK_OUT_PHASE;
 		else if (c == 'R') seed = atoi(optarg);
 		else if (c == 'F') val_frac = atof(optarg);
-		else if (c == 'G') is_gibbs = is_phase = 1;
+		else if (c == 'G') is_gibbs = is_impute = 1;
 		else if (c == 'M') mask_tad = 1;
 		else if (c == 't') is_tad_out = 1;
-		else if (c == 'p') is_phase = 1;
+		else if (c == 'p') is_impute = 1;
 		else if (c == 'D') is_dedup = 0;
 		else if (c == 'P') sel_phased = 1;
 		else if (c == 'v') hk_verbose = atoi(optarg);
@@ -89,6 +89,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 	kr_srand_r(&rng, seed);
+	if (is_impute) mask_tad = 1;
 	if (mask_tad && is_tad_out && hk_verbose >= 2)
 		fprintf(stderr, "[W::%s] option -M is ignored\n", __func__);
 
@@ -117,13 +118,13 @@ int main(int argc, char *argv[])
 		if (is_tad_out)
 			hk_print_pair(stdout, opt.flag, m->d, n_tads, tads);
 		else if (mask_tad)
-			m->n_pairs = hk_mask_by_tad(n_tads, tads, m->n_pairs, m->pairs);
+			hk_mask_by_tad(n_tads, tads, m->n_pairs, m->pairs);
 		free(tads);
 		if (is_tad_out)
 			goto main_return;
 	}
 
-	if (is_phase) { // phasing
+	if (is_impute) { // phasing
 		struct hk_nei *n;
 		if (sel_phased)
 			m->n_pairs = hk_pair_select_phased(m->n_pairs, m->pairs);

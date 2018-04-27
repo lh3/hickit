@@ -60,6 +60,8 @@ struct hk_nei *hk_pair2nei(int n_pairs, const struct hk_pair *pairs, int max_rad
 		offset += c;
 	}
 	n->nei = CALLOC(struct hk_nei1, offset);
+	if (hk_verbose >= 3)
+		fprintf(stderr, "[M::%s] up to %ld neighbor pairs\n", __func__, (long)offset);
 
 	for (i = 1; i < n_pairs; ++i) {
 		const struct hk_pair *q = &pairs[i];

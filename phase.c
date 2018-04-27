@@ -16,8 +16,6 @@ static float hk_pseudo_weight(int32_t max_radius)
 	for (i = 0, d = 0, sum = 0.0; i < n; ++i, d += step) // naive integral on [0,max_radius)
 		sum += dist2weight(d, max_radius);
 	sum /= n;
-	if (hk_verbose >= 3)
-		fprintf(stderr, "[M::%s] pseudo-weight: %.4f\n", __func__, sum);
 	return sum;
 }
 
@@ -221,26 +219,25 @@ void hk_validate_roc(int32_t n_pairs, struct hk_pair *pairs)
 	for (i = 0; i < n_pairs; ++i) {
 		struct hk_pair *p = &pairs[i];
 		float max = -1.0f;
-		int32_t w, max_j = -1, off_diag = (p->chr>>32 != (int32_t)p->chr);
+		int32_t w, max_j = -1, off_diag;
+		if (p->chr>>32 != (int32_t)p->chr) off_diag = 1;
+		else off_diag = !p->tad_masked;
 		for (j = 0; j < 4; ++j)
 			if (max < p->_.p4[j])
 				max = p->_.p4[j], max_j = j;
 		w = (int)(max * 100.0f);
 		if (w == 100) w = 99;
-		++all[0][w];
-		if (off_diag) ++all[1][w];
+		++all[off_diag][w];
 		if (p->phase[0] >= -1 && p->phase[1] >= -1) continue;
 		if (p->phase[0] == -10 || p->phase[0] == -9) {
 			int32_t phase = p->phase[0] + 10;
 			int32_t u = (max_j>>1 == phase);
-			++cnt[0][u][w];
-			if (off_diag) ++cnt[1][u][w];
+			++cnt[off_diag][u][w];
 		}
 		if (p->phase[1] == -10 || p->phase[1] == -9) {
 			int32_t phase = p->phase[1] + 10;
 			int32_t u = ((max_j&1) == phase);
-			++cnt[0][u][w];
-			if (off_diag) ++cnt[1][u][w];
+			++cnt[off_diag][u][w];
 		}
 	}
 	for (i = 0, tot[0] = tot[1] = 0; i < 100; ++i)
