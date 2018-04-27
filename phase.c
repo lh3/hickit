@@ -38,7 +38,25 @@ struct phase_aux {
 	float p[4];
 };
 
-void hk_nei_phase(struct hk_nei *n, struct hk_pair *pairs, int n_iter, float pseudo_cnt)
+static inline void spacial_adj(const struct hk_pair *p1, float p[4])
+{
+	const float f = 1e-8f;
+	int32_t d;
+	float r, q[4];
+	if ((int32_t)(p1->chr>>32) != (int32_t)p1->chr) return;
+	if (p[0] + p[3] + 1.0f == 1.0f || p[1] + p[2] + 1.0f == 1.0f) return;
+	d = hk_ppos2(p1) - hk_ppos1(p1);
+	r = 1.0f - f * d;
+	if (r < 0.9f || r < p[0] + p[3]) return;
+	if (r > 0.99f) r = 0.99f;
+	q[0] = r * p[0] / (p[0] + p[3]);
+	q[3] = r * p[3] / (p[0] + p[3]);
+	q[1] = (1.0f - r) * p[1] / (p[1] + p[2]);
+	q[2] = (1.0f - r) * p[2] / (p[1] + p[2]);
+	memcpy(p, q, 4 * sizeof(float));
+}
+
+void hk_nei_impute(struct hk_nei *n, struct hk_pair *pairs, int n_iter, float pseudo_cnt, int use_spacial)
 {
 	struct phase_aux *a[2], *cur, *pre, *tmp;
 	int32_t i, iter;
@@ -60,6 +78,7 @@ void hk_nei_phase(struct hk_nei *n, struct hk_pair *pairs, int n_iter, float pse
 		} else { // p->phase[1] >= 0; leg1 phase known
 			q->p[0<<1|p->phase[1]] = q->p[1<<1|p->phase[1]] = 0.5f;
 		}
+		if (use_spacial) spacial_adj(p, q->p);
 	}
 	tmp = cur, cur = pre, pre = tmp;
 
@@ -94,6 +113,7 @@ void hk_nei_phase(struct hk_nei *n, struct hk_pair *pairs, int n_iter, float pse
 				q->p[0<<1|p->phase[1]] = c[0<<1|p->phase[1]] * s;
 				q->p[1<<1|p->phase[1]] = c[1<<1|p->phase[1]] * s;
 			}
+			if (use_spacial) spacial_adj(p, q->p);
 		}
 		tmp = cur, cur = pre, pre = tmp;
 		if (iter && iter%10 == 0 && hk_verbose >= 3)
@@ -248,8 +268,8 @@ void hk_validate_roc(int32_t n_pairs, struct hk_pair *pairs)
 		for (j = 0; j < 2; ++j)
 			sum_all[j] += all[j][i], sum_cnt[j][0] += cnt[j][0][i], sum_cnt[j][1] += cnt[j][1][i];
 		printf("%.2f\t%.4f\t%.4f\t%.4f\t%.4f\n", .01f * i,
-			   (float)sum_all[0] / tot[0], (float)sum_cnt[0][1] / (sum_cnt[0][0] + sum_cnt[0][1]),
-			   (float)sum_all[1] / tot[1], (float)sum_cnt[1][1] / (sum_cnt[1][0] + sum_cnt[1][1]));
+			   (float)sum_all[0] / tot[0], (sum_cnt[0][1] + .05) / (sum_cnt[0][0] + sum_cnt[0][1] + 0.1),
+			   (float)sum_all[1] / tot[1], (sum_cnt[1][1] + .05) / (sum_cnt[1][0] + sum_cnt[1][1] + 0.1));
 	}
 	hk_validate_revert(n_pairs, pairs);
 }

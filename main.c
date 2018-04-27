@@ -4,7 +4,7 @@
 #include <string.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r69"
+#define HICKIT_VERSION "r70"
 
 static inline int64_t hk_parse_num(const char *str)
 {
@@ -31,12 +31,12 @@ static void print_usage(FILE *fp, const struct hk_opt *opt)
 	fprintf(fp, "    -a FLOAT   area weight (smaller for bigger TADs) [%.2f]\n", opt->area_weight);
 	fprintf(fp, "    -m INT     min TAD size [%d]\n", opt->min_tad_size);
 	fprintf(fp, "    -M         ignore pairs contained in TADs\n");
-	fprintf(fp, "  Phasing:\n");
-	fprintf(fp, "    -p         perform phasing\n");
+	fprintf(fp, "  Imputation:\n");
+	fprintf(fp, "    -p         impute\n");
 	fprintf(fp, "    -r NUM     max radius [10m]\n");
 	fprintf(fp, "    -n INT     max neighbors [%d]\n", opt->max_nei);
 	fprintf(fp, "    -i INT     number of iterations [%d]\n", opt->n_iter);
-	fprintf(fp, "    -G         use Gibbs sampling instead of EM-like\n");
+	fprintf(fp, "    -G         use Gibbs sampling (NOT recommended)\n");
 	fprintf(fp, "    -b INT     number of burn-in iterations (Gibbs only) [%d]\n", opt->n_burnin);
 	fprintf(fp, "    -R INT     random seed (Gibbs only) [1]\n");
 	fprintf(fp, "  Image:\n");
@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
 {
 	struct hk_opt opt;
 	struct hk_map *m = 0;
-	int c, ret = 0, is_seg_out = 0, is_impute = 0, is_dedup = 1, is_tad_out = 0, is_gibbs = 0, sel_phased = 0, mask_tad = 0;
+	int c, ret = 0, is_seg_out = 0, is_impute = 0, is_dedup = 1, is_tad_out = 0, is_gibbs = 0, sel_phased = 0, mask_tad = 0, use_spacial = 1;
 	int seed = 1, png_width = 800;
 	float phase_thres = 0.8f, val_frac = -1.0f;
 	char *fn_png = 0;
@@ -132,7 +132,7 @@ int main(int argc, char *argv[])
 		hk_nei_weight(n, opt.max_radius);
 		if (val_frac > 0.0f && val_frac < 1.0f)
 			hk_validate_holdback(&rng, val_frac, m->n_pairs, m->pairs);
-		if (!is_gibbs) hk_nei_phase(n, m->pairs, opt.n_iter, opt.pseudo_cnt);
+		if (!is_gibbs) hk_nei_impute(n, m->pairs, opt.n_iter, opt.pseudo_cnt, use_spacial);
 		else hk_nei_gibbs(&rng, n, m->pairs, opt.n_burnin, opt.n_iter, opt.pseudo_cnt);
 		hk_nei_destroy(n);
 		if (val_frac > 0.0f && val_frac < 1.0f)
