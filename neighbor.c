@@ -75,7 +75,7 @@ struct hk_nei *hk_pair2nei(int n_pairs, const struct hk_pair *pairs, int max_rad
 			y = q1 - p1;
 			z = q2 > p2? q2 - p2 : p2 - q2;
 			if (y > max_radius) break;
-			if ((n->offcnt[i]&0xffff) == max_nei && y > n->nei[n->offcnt[i]>>16]._.d)
+			if ((n->offcnt[i]&0xffff) == max_i && y > n->nei[n->offcnt[i]>>16]._.d)
 				break;
 			if (z > max_radius) continue;
 			max_j = (n->offcnt[j+1]>>16) - (n->offcnt[j]>>16);
