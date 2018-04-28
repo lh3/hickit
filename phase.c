@@ -28,10 +28,10 @@ void hk_nei_weight(struct hk_nei *n, const struct hk_pair *pairs, int32_t min_ra
 		const struct hk_pair *p = &pairs[i];
 		int64_t off = n->offcnt[i] >> 16;
 		int32_t cnt = n->offcnt[i] & 0xffff, j;
+		int32_t r = (int32_t)(p->chr>>32) != (int32_t)p->chr? max_radius : hk_ppos2(p) - hk_ppos1(p);
+		if (r < min_radius) r = min_radius;
 		for (j = 0; j < cnt; ++j) {
 			struct hk_nei1 *n1 = &n->nei[off + j];
-			int r = (int32_t)(p->chr>>32) != (int32_t)p->chr? max_radius : hk_ppos2(p) - hk_ppos1(p);
-			if (r < min_radius) r = min_radius;
 			n1->_.w = coef * dist2weight(n1->_.d, r);
 		}
 	}
