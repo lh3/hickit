@@ -19,7 +19,7 @@ struct hk_opt {
 	int min_dist, max_seg, min_mapq;
 	int min_tad_size;
 	float area_weight;
-	int max_radius, max_nei;
+	int min_radius, max_radius, max_nei;
 	float pseudo_cnt;
 	int n_burnin, n_iter;
 };
@@ -87,7 +87,7 @@ struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk
 void hk_mask_by_tad(int32_t n_tads, const struct hk_pair *tads, int32_t n_pairs, struct hk_pair *pairs);
 
 struct hk_nei *hk_pair2nei(int n_pairs, const struct hk_pair *pairs, int max_radius, int max_nei);
-void hk_nei_weight(struct hk_nei *n, int32_t max_radius);
+void hk_nei_weight(struct hk_nei *n, const struct hk_pair *pairs, int min_radius, int32_t max_radius);
 void hk_nei_impute(struct hk_nei *n, struct hk_pair *pairs, int n_iter, float pseudo_cnt, int use_spacial);
 void hk_nei_gibbs(krng_t *r, struct hk_nei *n, struct hk_pair *pairs, int n_burnin, int n_iter, float pseudo_cnt);
 void hk_nei_destroy(struct hk_nei *n);

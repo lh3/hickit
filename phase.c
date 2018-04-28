@@ -19,17 +19,20 @@ static float hk_pseudo_weight(int32_t max_radius)
 	return sum;
 }
 
-void hk_nei_weight(struct hk_nei *n, int32_t max_radius)
+void hk_nei_weight(struct hk_nei *n, const struct hk_pair *pairs, int32_t min_radius, int32_t max_radius)
 {
 	int32_t i;
 	float coef;
 	coef = 1.0 / hk_pseudo_weight(max_radius);
 	for (i = 0; i < n->n_pairs; ++i) {
+		const struct hk_pair *p = &pairs[i];
 		int64_t off = n->offcnt[i] >> 16;
 		int32_t cnt = n->offcnt[i] & 0xffff, j;
 		for (j = 0; j < cnt; ++j) {
 			struct hk_nei1 *n1 = &n->nei[off + j];
-			n1->_.w = coef * dist2weight(n1->_.d, max_radius);
+			int r = (int32_t)(p->chr>>32) != (int32_t)p->chr? max_radius : hk_ppos2(p) - hk_ppos1(p);
+			if (r < min_radius) r = min_radius;
+			n1->_.w = coef * dist2weight(n1->_.d, r);
 		}
 	}
 }

@@ -5,7 +5,7 @@
 #include <getopt.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r76"
+#define HICKIT_VERSION "r80"
 
 static struct option long_options[] = {
 	{ "version",        no_argument,       0, 0 },
@@ -155,7 +155,7 @@ int main(int argc, char *argv[])
 		if (sel_phased)
 			m->n_pairs = hk_pair_select_phased(m->n_pairs, m->pairs);
 		n = hk_pair2nei(m->n_pairs, m->pairs, opt.max_radius, opt.max_nei);
-		hk_nei_weight(n, opt.max_radius);
+		hk_nei_weight(n, m->pairs, opt.min_radius, opt.max_radius);
 		if (val_frac > 0.0f && val_frac < 1.0f)
 			hk_validate_holdback(&rng, val_frac, m->n_pairs, m->pairs);
 		if (!is_gibbs) hk_nei_impute(n, m->pairs, opt.n_iter, opt.pseudo_cnt, use_spacial);

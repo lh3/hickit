@@ -51,7 +51,7 @@ struct hk_nei *hk_pair2nei(int n_pairs, const struct hk_pair *pairs, int max_rad
 			if (z > max_radius) continue;
 			++n->offcnt[j];
 			++n->offcnt[i];
-			if (n->offcnt[i] > max_nei) break; // this line is not really necessary
+			if (n->offcnt[i] > max_nei * 2) break;
 		}
 	}
 	for (i = 0, offset = 0; i < n_pairs; ++i) {
