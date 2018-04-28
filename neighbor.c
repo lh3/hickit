@@ -37,7 +37,7 @@ struct hk_nei *hk_pair2nei(int n_pairs, const struct hk_pair *pairs, int max_rad
 	n = CALLOC(struct hk_nei, 1);
 	n->n_pairs = n_pairs;
 
-	n->offcnt = CALLOC(uint64_t, n_pairs);
+	n->offcnt = CALLOC(uint64_t, n_pairs + 1);
 	for (i = 1; i < n_pairs; ++i) {
 		const struct hk_pair *q = &pairs[i];
 		int32_t j, q1 = hk_ppos1(q), q2 = hk_ppos2(q);
@@ -51,7 +51,7 @@ struct hk_nei *hk_pair2nei(int n_pairs, const struct hk_pair *pairs, int max_rad
 			if (z > max_radius) continue;
 			++n->offcnt[j];
 			++n->offcnt[i];
-			if (n->offcnt[i] > max_nei) break;
+			if (n->offcnt[i] > max_nei) break; // this line is not really necessary
 		}
 	}
 	for (i = 0, offset = 0; i < n_pairs; ++i) {
@@ -59,6 +59,7 @@ struct hk_nei *hk_pair2nei(int n_pairs, const struct hk_pair *pairs, int max_rad
 		n->offcnt[i] = offset << 16;
 		offset += c;
 	}
+	n->offcnt[i] = offset; // this is to avoid edge case below
 	n->nei = CALLOC(struct hk_nei1, offset);
 	if (hk_verbose >= 3)
 		fprintf(stderr, "[M::%s] up to %ld neighbor pairs\n", __func__, (long)offset);
@@ -66,9 +67,10 @@ struct hk_nei *hk_pair2nei(int n_pairs, const struct hk_pair *pairs, int max_rad
 	for (i = 1; i < n_pairs; ++i) {
 		const struct hk_pair *q = &pairs[i];
 		int32_t j, q1 = hk_ppos1(q), q2 = hk_ppos2(q);
+		int32_t max_i = (n->offcnt[i+1]>>16) - (n->offcnt[i]>>16);
 		for (j = i - 1; j >= 0; --j) {
 			const struct hk_pair *p = &pairs[j];
-			int32_t p1 = hk_ppos1(p), p2 = hk_ppos2(p), y, z, d;
+			int32_t p1 = hk_ppos1(p), p2 = hk_ppos2(p), y, z, d, max_j;
 			if (q->chr != p->chr) break;
 			y = q1 - p1;
 			z = q2 > p2? q2 - p2 : p2 - q2;
@@ -76,9 +78,10 @@ struct hk_nei *hk_pair2nei(int n_pairs, const struct hk_pair *pairs, int max_rad
 			if ((n->offcnt[i]&0xffff) == max_nei && y > n->nei[n->offcnt[i]>>16]._.d)
 				break;
 			if (z > max_radius) continue;
+			max_j = (n->offcnt[j+1]>>16) - (n->offcnt[j]>>16);
 			d = y > z? y : z;
-			nei_add(n, max_nei, i, j, d);
-			nei_add(n, max_nei, j, i, d);
+			nei_add(n, max_i, i, j, d);
+			nei_add(n, max_j, j, i, d);
 		}
 	}
 	for (i = 0; i < n_pairs; ++i)
