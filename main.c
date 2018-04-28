@@ -5,7 +5,7 @@
 #include <getopt.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r80"
+#define HICKIT_VERSION "r82"
 
 static struct option long_options[] = {
 	{ "version",        no_argument,       0, 0 },
@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
 	kr_srand_r(&rng, seed);
 	if (is_impute) mask_tad = 1;
 	if (mask_tad && is_tad_out && hk_verbose >= 2)
-		fprintf(stderr, "[W::%s] option -M is ignored\n", __func__);
+		fprintf(stderr, "[W::%s] option --tad-flag is ignored\n", __func__);
 
 	m = hk_map_read(argv[optind]);
 
