@@ -18,9 +18,6 @@ static struct option long_options_pair[] = {
 	{ "no-spacial",     no_argument,       0, 'u' },
 	{ "tad-flag",       no_argument,       0, 0 }, // 7
 	{ "out-phase",      no_argument,       0, 0 }, // 8: output two "phase" columns in .pairs
-	{ "sort",           no_argument,       0, 0 }, // 9
-	{ "no-grad",        no_argument,       0, 0 }, // 10
-	{ "ploidy",         required_argument, 0, 0 }, // 11
 	{ 0, 0, 0, 0}
 };
 
@@ -46,7 +43,6 @@ static void print_usage_pair(FILE *fp, const struct hk_opt *opt)
 	fprintf(fp, "    -r NUM        max radius (affecting imputation as well) [10m]\n");
 	fprintf(fp, "    -m INT        min count within max radius [%d]\n", opt->min_flt_cnt);
 	fprintf(fp, "    -D            don't remove duplicates\n");
-	fprintf(fp, "    --sort        force to re-sort pairs\n");
 	fprintf(fp, "  TAD calling:\n");
 	fprintf(fp, "    -t            call and output TADs\n");
 	fprintf(fp, "    -a FLOAT      area weight (smaller for bigger TADs) [%.2f]\n", opt->area_weight);
@@ -60,14 +56,9 @@ static void print_usage_pair(FILE *fp, const struct hk_opt *opt)
 	fprintf(fp, "    -B INT        number of burn-in iterations (Gibbs only) [%d]\n", opt->n_burnin);
 	fprintf(fp, "    -v FLOAT      fraction of phased legs held out for validation [0]\n");
 	fprintf(fp, "    -u            disable the spacial heuristic (EM-only so far)\n");
-	fprintf(fp, "  Binning:\n");
-	fprintf(fp, "    -b INT        perform binning with INT as the bin size [0]\n");
-	fprintf(fp, "    -C INT        min count in a bin [%d]\n", opt->min_bin_cnt);
-	fprintf(fp, "    -P FLOAT      probability threshold for a dot considered phased [%g]\n", opt->phase_thres);
 	fprintf(fp, "  Miscellaneous:\n");
 	fprintf(fp, "    -S INT        random seed for Gibbs sampling and validation [1]\n");
 	fprintf(fp, "    --out-phase   output two 'phase' columns in .pairs\n");
-	fprintf(fp, "    --version     version number\n");
 }
 
 int main_pair(int argc, char *argv[])
@@ -75,12 +66,12 @@ int main_pair(int argc, char *argv[])
 	struct hk_opt opt;
 	struct hk_map *m = 0;
 	int c, long_idx, ret = 0, is_seg_out = 0, is_impute = 0, is_dedup = 1, is_tad_out = 0, is_gibbs = 0, sel_phased = 0, mask_tad = 0, use_spacial = 1;
-	int assume_sorted = 1, no_grad = 0, seed = 1, ploidy = 2, bin_size = 0;
+	int seed = 1;
 	float val_frac = -1.0f;
 	krng_t rng;
 
 	hk_opt_init(&opt);
-	while ((c = getopt_long(argc, argv, "s:q:d:Dm:ta:c:pr:n:k:GB:v:ub:P:S:", long_options_pair, &long_idx)) >= 0) {
+	while ((c = getopt_long(argc, argv, "s:q:d:Dm:ta:c:pr:n:k:GB:v:uS:", long_options_pair, &long_idx)) >= 0) {
 		if (c == 's') opt.max_seg = atoi(optarg);
 		else if (c == 'q') opt.min_mapq = atoi(optarg);
 		else if (c == 'd') opt.min_dist = hk_parse_num(optarg);
@@ -97,21 +88,12 @@ int main_pair(int argc, char *argv[])
 		else if (c == 'B') opt.n_burnin = atoi(optarg);
 		else if (c == 'v') val_frac = atof(optarg), is_impute = 1;
 		else if (c == 'u') use_spacial = 0;
-		else if (c == 'b') bin_size = hk_parse_num(optarg);
-		else if (c == 'P') opt.phase_thres = atof(optarg);
 		else if (c == 'S') seed = atoi(optarg);
 		else if (c == 0 && long_idx == 1) is_seg_out = 1;
 		else if (c == 0 && long_idx == 4) hk_verbose = atoi(optarg);
 		else if (c == 0 && long_idx == 5) sel_phased = 1;
 		else if (c == 0 && long_idx == 7) mask_tad = 1;
 		else if (c == 0 && long_idx == 8) opt.flag |= HK_OUT_PHASE;
-		else if (c == 0 && long_idx == 9) assume_sorted = 0;
-		else if (c == 0 && long_idx == 10) no_grad = 1;
-		else if (c == 0 && long_idx == 11) ploidy = atoi(optarg);
-		else if (c == 0 && long_idx == 0) {
-			puts(HICKIT_VERSION);
-			return 0;
-		}
 	}
 	if (argc - optind == 0) {
 		print_usage_pair(stderr, &opt);
@@ -137,8 +119,6 @@ int main_pair(int argc, char *argv[])
 
 	if (m->pairs == 0 && m->segs)
 		m->pairs = hk_seg2pair(m->n_segs, m->segs, opt.min_dist, opt.max_seg, opt.min_mapq, &m->n_pairs);
-	else if (m->segs == 0 && m->pairs && !assume_sorted)
-		hk_pair_sort(m->n_pairs, m->pairs);
 	if (is_dedup)
 		m->n_pairs = hk_pair_dedup(m->n_pairs, m->pairs, opt.min_dist);
 	if (opt.min_flt_cnt > 0)
@@ -168,19 +148,9 @@ int main_pair(int argc, char *argv[])
 		if (!is_gibbs) hk_nei_impute(n, m->pairs, opt.n_iter, opt.pseudo_cnt, use_spacial);
 		else hk_nei_gibbs(&rng, n, m->pairs, opt.n_burnin, opt.n_iter, opt.pseudo_cnt);
 		hk_nei_destroy(n);
-		if (val_frac > 0.0f && val_frac < 1.0f) {
+		if (val_frac > 0.0f && val_frac < 1.0f)
 			hk_validate_roc(m->n_pairs, m->pairs);
-		} else if (bin_size > 0) {
-			if (ploidy == 2) {
-				struct hk_bmap *bm;
-				bm = hk_bmap_gen2(m->d, m->n_pairs, m->pairs, bin_size, opt.n_multi_ploidy, opt.min_bin_cnt, opt.phase_thres);
-				hk_bmap_destroy(bm);
-			} else {
-				fprintf(stderr, "[E::%s] not implemented\n", __func__);
-				ret = 1;
-				goto main_return;
-			}
-		} else
+		else
 			hk_print_pair(stdout, HK_OUT_P4, m->d, m->n_pairs, m->pairs);
 	} else {
 		hk_print_pair(stdout, opt.flag, m->d, m->n_pairs, m->pairs);
@@ -191,16 +161,53 @@ main_return:
 	return ret;
 }
 
+int main_bin(int argc, char *argv[])
+{
+	int c, bin_size = 1000000, min_cnt = 5, ploidy = 2, n_multi_ploidy = 23;
+	float phase_thres = 0.7f;
+	struct hk_map *m;
+	struct hk_bmap *bm;
+	while ((c = getopt(argc, argv, "c:b:p:P:f:")) >= 0) {
+		if (c == 'c') min_cnt = atoi(optarg);
+		else if (c == 'b') bin_size = hk_parse_num(optarg);
+		else if (c == 'p') phase_thres = atof(optarg);
+		else if (c == 'P') ploidy = atoi(optarg);
+		else if (c == 'f') n_multi_ploidy = atoi(optarg);
+	}
+	if (optind == argc) {
+		fprintf(stderr, "Usage: hickit bin [options] <in.pairs>\n");
+		fprintf(stderr, "Options:\n");
+		fprintf(stderr, "  -b NUM        bin size [1m]\n");
+		fprintf(stderr, "  -c INT        min count [%d]\n", min_cnt);
+		fprintf(stderr, "  -p FLOAT      phase threshold [%g]\n", phase_thres);
+		fprintf(stderr, "  -P INT        ploidy [%d]\n", ploidy);
+		fprintf(stderr, "  -f INT        first INT chr have multiple ploidy [%d]\n", n_multi_ploidy);
+		return 1;
+	}
+	m = hk_map_read(argv[optind]);
+	assert(m && m->pairs);
+	if (ploidy == 2) {
+		bm = hk_bmap_gen2(m->d, m->n_pairs, m->pairs, bin_size, n_multi_ploidy, min_cnt, phase_thres);
+	} else {
+		fprintf(stderr, "[E::%s] not implemented\n", __func__);
+		hk_map_destroy(m);
+		return 1;
+	}
+	hk_bmap_destroy(bm);
+	hk_map_destroy(m);
+	return 0;
+}
+
 int main_image2d(int argc, char *argv[])
 {
 	int c, width = 800, no_dim = 0;
 	float phase_thres = 0.7f;
 	char *fn_png = 0;
 	struct hk_map *m;
-	while ((c = getopt(argc, argv, "w:o:P:d")) >= 0) {
+	while ((c = getopt(argc, argv, "w:o:p:d")) >= 0) {
 		if (c == 'w') width = atoi(optarg);
 		else if (c == 'o') fn_png = optarg;
-		else if (c == 'P') phase_thres = atof(optarg);
+		else if (c == 'p') phase_thres = atof(optarg);
 		else if (c == 'd') no_dim = 1;
 	}
 	if (optind == argc) {
@@ -208,7 +215,7 @@ int main_image2d(int argc, char *argv[])
 		fprintf(stderr, "Options:\n");
 		fprintf(stderr, "  -o FILE      PNG file name (required) []\n");
 		fprintf(stderr, "  -w INT       image width [%d]\n", width);
-		fprintf(stderr, "  -P FLOAT     probability threshold for a dot considered phased [%g]\n", phase_thres);
+		fprintf(stderr, "  -p FLOAT     probability threshold for a dot considered phased [%g]\n", phase_thres);
 		fprintf(stderr, "  -d           don't dim by counts\n");
 		return 1;
 	}
@@ -218,8 +225,6 @@ int main_image2d(int argc, char *argv[])
 	}
 	m = hk_map_read(argv[optind]);
 	assert(m && m->pairs);
-	if (!hk_pair_is_sorted(m->n_pairs, m->pairs))
-		hk_pair_sort(m->n_pairs, m->pairs);
 	hk_pair_image(m->d, m->n_pairs, m->pairs, width, phase_thres, no_dim, fn_png);
 	hk_map_destroy(m);
 	return 0;
@@ -231,13 +236,19 @@ int main(int argc, char *argv[])
 	if (argc == 1) {
 		fprintf(stderr, "Usage: hickit <command> [arguments]\n");
 		fprintf(stderr, "Commands:\n");
-		fprintf(stderr, "  pair       filter, TAD calling and phase imputation\n");
+		fprintf(stderr, "  pair       filtering, TAD calling and phase imputation\n");
+		fprintf(stderr, "  bin        binning\n");
 		fprintf(stderr, "  image2d    generate 2D contact map in PNG\n");
+		fprintf(stderr, "  version    print version number\n");
 		return 1;
 	}
 	if (strcmp(argv[1], "pair") == 0) ret = main_pair(argc-1, argv+1);
+	else if (strcmp(argv[1], "bin") == 0) ret = main_bin(argc-1, argv+1);
 	else if (strcmp(argv[1], "image2d") == 0) ret = main_image2d(argc-1, argv+1);
-	else {
+	else if (strcmp(argv[1], "version") == 0) {
+		printf("%s\n", HICKIT_VERSION);
+		return 0;
+	} else {
 		fprintf(stderr, "[E::%s] unrecognized command '%s'\n", __func__, argv[1]);
 		ret = 1;
 	}

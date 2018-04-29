@@ -27,9 +27,6 @@ void hk_opt_init(struct hk_opt *c)
 	c->pseudo_cnt = 0.4f;
 	c->n_iter = 1000;
 	c->n_burnin = 1000;
-	c->n_multi_ploidy = 23;
-	c->phase_thres = 0.7f;
-	c->min_bin_cnt = 5;
 }
 
 /*********************
@@ -290,5 +287,7 @@ parse_seg:
 	free(str.s);
 	ks_destroy(ks);
 	gzclose(fp);
+	if (m->pairs && !hk_pair_is_sorted(m->n_pairs, m->pairs))
+		hk_pair_sort(m->n_pairs, m->pairs);
 	return m;
 }

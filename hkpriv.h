@@ -21,6 +21,9 @@
 extern "C" {
 #endif
 
+int hk_pair_is_sorted(int32_t n_pairs, const struct hk_pair *pairs);
+void hk_pair_sort(int32_t n_pairs, struct hk_pair *pairs);
+
 #ifdef __cplusplus
 }
 #endif
