@@ -6,10 +6,10 @@
 #include <getopt.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r85"
+#define HICKIT_VERSION "r90"
 
 static struct option long_options_pair[] = {
-	{ "version",        no_argument,       0, 0 },
+	{ "out-phase",      no_argument,       0, 0 }, // 0
 	{ "out-seg",        no_argument,       0, 0 }, // 1: output the segment format; mostly for testing
 	{ "seed",           required_argument, 0, 'S' },
 	{ "no-dedup",       no_argument,       0, 'D' },
@@ -17,7 +17,6 @@ static struct option long_options_pair[] = {
 	{ "select-phased",  no_argument,       0, 0 }, // 5: only imput pairs containing at least one phased leg
 	{ "no-spacial",     no_argument,       0, 'u' },
 	{ "tad-flag",       no_argument,       0, 0 }, // 7
-	{ "out-phase",      no_argument,       0, 0 }, // 8: output two "phase" columns in .pairs
 	{ 0, 0, 0, 0}
 };
 
@@ -47,7 +46,6 @@ static void print_usage_pair(FILE *fp, const struct hk_opt *opt)
 	fprintf(fp, "    -t            call and output TADs\n");
 	fprintf(fp, "    -a FLOAT      area weight (smaller for bigger TADs) [%.2f]\n", opt->area_weight);
 	fprintf(fp, "    -c INT        min TAD size [%d]\n", opt->min_tad_size);
-	fprintf(fp, "    --tad-flag    flag pairs contained in TADs (forced with -p/-G)\n");
 	fprintf(fp, "  Imputation:\n");
 	fprintf(fp, "    -p            impute phases with EM\n");
 	fprintf(fp, "    -n INT        max neighbors within max radius [%d]\n", opt->max_nei);
@@ -89,11 +87,11 @@ int main_pair(int argc, char *argv[])
 		else if (c == 'v') val_frac = atof(optarg), is_impute = 1;
 		else if (c == 'u') use_spacial = 0;
 		else if (c == 'S') seed = atoi(optarg);
+		else if (c == 0 && long_idx == 0) opt.flag |= HK_OUT_PHASE;
 		else if (c == 0 && long_idx == 1) is_seg_out = 1;
 		else if (c == 0 && long_idx == 4) hk_verbose = atoi(optarg);
 		else if (c == 0 && long_idx == 5) sel_phased = 1;
 		else if (c == 0 && long_idx == 7) mask_tad = 1;
-		else if (c == 0 && long_idx == 8) opt.flag |= HK_OUT_PHASE;
 	}
 	if (argc - optind == 0) {
 		print_usage_pair(stderr, &opt);
