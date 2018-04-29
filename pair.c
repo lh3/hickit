@@ -158,7 +158,7 @@ int32_t hk_pair_filter(int32_t n_pairs, struct hk_pair *pairs, int32_t max_radiu
 			if (d < a[j].d) a[j].d = d;
 			++a[i].n;
 			if (d < a[i].d) a[i].d = d;
-			if (a[i].n > min_cnt * 2) break;
+			if (a[i].n > min_cnt * 10) break;
 		}
 	}
 	for (i = k = 0; i < n_pairs; ++i)
