@@ -61,7 +61,7 @@ static void print_usage(FILE *fp, const struct hk_opt *opt)
 	fprintf(fp, "  2D contact image:\n");
 	fprintf(fp, "    -I FILE       write PNG to FILE (no output to stdout) []\n");
 	fprintf(fp, "    -w INT        width of the image [800]\n");
-	fprintf(fp, "    -P FLOAT      probability threshold for a dot considered phased [0.7]\n");
+	fprintf(fp, "    -P FLOAT      probability threshold for a dot considered phased [%g]\n", opt->phase_thres);
 	fprintf(fp, "  Miscellaneous:\n");
 	fprintf(fp, "    -S INT        random seed for Gibbs sampling and validation [1]\n");
 	fprintf(fp, "    --out-phase   output two 'phase' columns in .pairs\n");
@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
 	struct hk_map *m = 0;
 	int c, long_idx, ret = 0, is_seg_out = 0, is_impute = 0, is_dedup = 1, is_tad_out = 0, is_gibbs = 0, sel_phased = 0, mask_tad = 0, use_spacial = 1;
 	int assume_sorted = 1, no_grad = 0, seed = 1, png_width = 800;
-	float phase_thres = 0.7f, val_frac = -1.0f;
+	float val_frac = -1.0f;
 	char *fn_png = 0;
 	krng_t rng;
 
@@ -98,7 +98,7 @@ int main(int argc, char *argv[])
 		else if (c == 'u') use_spacial = 0;
 		else if (c == 'I') fn_png = optarg;
 		else if (c == 'w') png_width = atoi(optarg);
-		else if (c == 'P') phase_thres = atof(optarg);
+		else if (c == 'P') opt.phase_thres = atof(optarg);
 		else if (c == 'S') seed = atoi(optarg);
 		else if (c == 0 && long_idx == 1) is_seg_out = 1;
 		else if (c == 0 && long_idx == 4) hk_verbose = atoi(optarg);
@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
 		else
 			hk_print_pair(stdout, HK_OUT_P4, m->d, m->n_pairs, m->pairs);
 	} else {
-		if (fn_png) hk_pair_image(m->d, m->n_pairs, m->pairs, png_width, phase_thres, no_grad, fn_png);
+		if (fn_png) hk_pair_image(m->d, m->n_pairs, m->pairs, png_width, opt.phase_thres, no_grad, fn_png);
 		else hk_print_pair(stdout, opt.flag, m->d, m->n_pairs, m->pairs);
 	}
 

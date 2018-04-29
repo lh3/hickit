@@ -22,6 +22,8 @@ struct hk_opt {
 	int min_radius, max_radius, max_nei;
 	float pseudo_cnt;
 	int n_burnin, n_iter;
+	int n_multi_ploidy;
+	float phase_thres;
 };
 
 struct hk_sdict {     // sequence dictionary
@@ -69,9 +71,26 @@ struct hk_map {
 	struct hk_pair *pairs;
 };
 
+struct hk_bpair {
+	uint64_t chr;
+	uint64_t pos;
+	uint64_t end;
+	int32_t n;
+	float p;
+};
+
+struct hk_bmap {
+	int32_t ploidy, n_full;
+	struct hk_sdict *d;
+	int32_t n_pairs;
+	struct hk_bpair *pairs;
+};
+
 extern int hk_verbose;
 
 void hk_opt_init(struct hk_opt *opt);
+
+struct hk_sdict *hk_sd_dup(const struct hk_sdict *d, int ploidy, int n_full);
 
 struct hk_map *hk_map_read(const char *fn);
 void hk_map_destroy(struct hk_map *m);
@@ -95,8 +114,12 @@ void hk_nei_destroy(struct hk_nei *n);
 void hk_validate_holdback(krng_t *r, float ratio, int32_t n_pairs, struct hk_pair *pairs);
 void hk_validate_roc(int32_t n_pairs, struct hk_pair *pairs);
 
+struct hk_bmap *hk_bmap_gen2(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int size, int n_full, int min_cnt, float phase_thres);
+void hk_bmap_destroy(struct hk_bmap *m);
+
 void hk_print_seg(FILE *fp, const struct hk_sdict *d, int32_t n_segs, const struct hk_seg *segs);
 void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs);
+
 void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int w, float phase_thres, int no_grad, const char *fn);
 
 #ifdef __cplusplus

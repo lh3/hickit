@@ -1,7 +1,7 @@
 CFLAGS=		-g -Wall -O2 -Wc++-compat
 CPPFLAGS=
 INCLUDES=
-OBJS=		map.o pair.o tad.o neighbor.o phase.o image.o
+OBJS=		map.o pair.o tad.o neighbor.o phase.o bin.o image.o
 PROG=		hickit
 LIBS=		-lm -lz
 ASAN_FLAG=

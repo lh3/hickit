@@ -27,6 +27,8 @@ void hk_opt_init(struct hk_opt *c)
 	c->pseudo_cnt = 0.4f;
 	c->n_iter = 1000;
 	c->n_burnin = 1000;
+	c->n_multi_ploidy = 23;
+	c->phase_thres = 0.7f;
 }
 
 /*********************
@@ -71,6 +73,33 @@ int32_t hk_sd_put(struct hk_sdict *d, const char *s, int32_t len)
 		kh_val(h, k) = d->n++;
 	}
 	return kh_val(h, k);
+}
+
+struct hk_sdict *hk_sd_dup(const struct hk_sdict *d, int ploidy, int n_full)
+{
+	struct hk_sdict *dp;
+	int i, j;
+	assert(d->n >= n_full);
+	dp = CALLOC(struct hk_sdict, 1);
+	dp->n = dp->m = n_full * ploidy + (d->n - n_full);
+	dp->len = CALLOC(int32_t, dp->n);
+	dp->name = CALLOC(char*, dp->n);
+	for (i = 0; i < n_full; ++i) {
+		char *s;
+		int l;
+		l = strlen(d->name[i]);
+		s = CALLOC(char, l + 2);
+		strcpy(s, d->name[i]);
+		s[l+1] = 0;
+		for (j = 0; j < ploidy; ++j) {
+			s[l] = 'a' + j;
+			hk_sd_put(dp, s, d->len[i]);
+		}
+		free(s);
+	}
+	for (i = n_full; i < d->n; ++i)
+		hk_sd_put(dp, d->name[i], d->len[i]);
+	return dp;
 }
 
 /*************************
