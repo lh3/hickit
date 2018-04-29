@@ -81,7 +81,8 @@ struct hk_bmap *hk_bmap_gen2(const struct hk_sdict *d, int32_t n_pairs, const st
 			if (max >= phase_thres) {
 				struct hk_bpair *p;
 				int32_t chr[2], pos[2], end[2];
-				EXPAND(m->pairs, m_pairs);
+				if (m->n_pairs == m_pairs)
+					EXPAND(m->pairs, m_pairs);
 				chr[0] = q->pos[0]>>32, chr[1] = q->pos[1]>>32;
 				pos[0] = (int32_t)q->pos[0], pos[1] = (int32_t)q->pos[1];
 				end[0] = pos[0] + size < d->len[chr[0]]? pos[0] + size : d->len[chr[0]];
@@ -98,6 +99,8 @@ struct hk_bmap *hk_bmap_gen2(const struct hk_sdict *d, int32_t n_pairs, const st
 	}
 	kh_destroy(bin_cnt, h);
 	hk_bpair_sort(m->n_pairs, m->pairs);
+	if (hk_verbose >= 3)
+		fprintf(stderr, "[M::%s] %d bin pairs\n", __func__, m->n_pairs);
 	return m;
 }
 
