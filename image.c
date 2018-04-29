@@ -13,7 +13,7 @@ struct cnt_aux {
 	uint32_t tot;
 };
 
-void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int w, float phase_thres, const char *fn)
+void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int w, float phase_thres, int no_grad, const char *fn)
 {
 	int64_t tot_len, *off;
 	int32_t i, j, ww = w * w, pixel_bp, m_tmp, n_tmp;
@@ -89,6 +89,7 @@ void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pa
 						max_k = k, max = c->cnt[k];
 				x = max >= c->tot * phase_thres? (int)(max * t) : (int)(c->tot * t);
 				if (x > 255) x = 255;
+				if (no_grad) x = 255;
 				if (max < c->tot * phase_thres) *p++ = x/2, *p++ = x/2, *p++ = x/2, *q++ = x/2, *q++ = x/2, *q++ = x/2;
 				else if (max_k == 0) *p++ = x, *p++ = 0, *p++ = 0, *q++ = x, *q++ = 0, *q++ = 0;
 				else if (max_k == 1) *p++ = x, *p++ = 0, *p++ = x, *q++ = 0, *q++ = x, *q++ = x;

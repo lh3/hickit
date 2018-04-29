@@ -16,7 +16,7 @@ extern "C" {
 
 struct hk_opt {
 	int flag;
-	int min_dist, max_seg, min_mapq;
+	int min_dist, max_seg, min_mapq, min_flt_cnt;
 	int min_tad_size;
 	float area_weight;
 	int min_radius, max_radius, max_nei;
@@ -80,6 +80,7 @@ void hk_map_destroy(struct hk_map *m);
 struct hk_pair *hk_seg2pair(int32_t n_segs, const struct hk_seg *segs, int min_dist, int max_seg, int min_mapq, int32_t *n_pairs_);
 void hk_pair_sort(int32_t n_pairs, struct hk_pair *pairs);
 int32_t hk_pair_dedup(int n_pairs, struct hk_pair *pairs, int min_dist);
+int32_t hk_pair_filter(int32_t n_pairs, struct hk_pair *pairs, int32_t max_radius, int32_t min_cnt);
 int32_t hk_pair_select_phased(int n_pairs, struct hk_pair *pairs);
 void hk_pair_count(int32_t n_pairs, struct hk_pair *pairs);
 
@@ -97,7 +98,7 @@ void hk_validate_roc(int32_t n_pairs, struct hk_pair *pairs);
 
 void hk_print_seg(FILE *fp, const struct hk_sdict *d, int32_t n_segs, const struct hk_seg *segs);
 void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs);
-void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int w, float phase_thres, const char *fn);
+void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int w, float phase_thres, int no_grad, const char *fn);
 
 #ifdef __cplusplus
 }

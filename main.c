@@ -5,7 +5,7 @@
 #include <getopt.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r83"
+#define HICKIT_VERSION "r84"
 
 static struct option long_options[] = {
 	{ "version",        no_argument,       0, 0 },
@@ -18,6 +18,7 @@ static struct option long_options[] = {
 	{ "tad-flag",       no_argument,       0, 0 }, // 7
 	{ "out-phase",      no_argument,       0, 0 }, // 8: output two "phase" columns in .pairs
 	{ "sort",           no_argument,       0, 0 }, // 9
+	{ "no-grad",        no_argument,       0, 0 }, // 10
 	{ 0, 0, 0, 0}
 };
 
@@ -40,6 +41,8 @@ static void print_usage(FILE *fp, const struct hk_opt *opt)
 	fprintf(fp, "    -s INT        ignore fragments with >INT segments [%d]\n", opt->max_seg);
 	fprintf(fp, "    -q INT        min mapping quality [%d]\n", opt->min_mapq);
 	fprintf(fp, "    -d NUM        min distance between legs [%d]\n", opt->min_dist);
+	fprintf(fp, "    -r NUM        max radius (affecting imputation as well) [10m]\n");
+	fprintf(fp, "    -m INT        min count within max radius [%d]\n", opt->min_flt_cnt);
 	fprintf(fp, "    -D            don't remove duplicates\n");
 	fprintf(fp, "    --sort        force to re-sort pairs\n");
 	fprintf(fp, "  TAD calling:\n");
@@ -49,14 +52,13 @@ static void print_usage(FILE *fp, const struct hk_opt *opt)
 	fprintf(fp, "    --tad-flag    flag pairs contained in TADs (forced with -p/-G)\n");
 	fprintf(fp, "  Imputation:\n");
 	fprintf(fp, "    -p            impute phases with EM\n");
-	fprintf(fp, "    -r NUM        max radius [10m]\n");
-	fprintf(fp, "    -n INT        max neighbors [%d]\n", opt->max_nei);
+	fprintf(fp, "    -n INT        max neighbors within max radius [%d]\n", opt->max_nei);
 	fprintf(fp, "    -k INT        number of iterations [%d]\n", opt->n_iter);
 	fprintf(fp, "    -G            impute with Gibbs sampling (NOT recommended)\n");
 	fprintf(fp, "    -B INT        number of burn-in iterations (Gibbs only) [%d]\n", opt->n_burnin);
 	fprintf(fp, "    -v FLOAT      fraction of phased legs held out for validation [0]\n");
 	fprintf(fp, "    -u            disable the spacial heuristic (EM-only so far)\n");
-	fprintf(fp, "  Image generation:\n");
+	fprintf(fp, "  2D contact image:\n");
 	fprintf(fp, "    -I FILE       write PNG to FILE (no output to stdout) []\n");
 	fprintf(fp, "    -w INT        width of the image [800]\n");
 	fprintf(fp, "    -P FLOAT      probability threshold for a dot considered phased [0.7]\n");
@@ -71,17 +73,18 @@ int main(int argc, char *argv[])
 	struct hk_opt opt;
 	struct hk_map *m = 0;
 	int c, long_idx, ret = 0, is_seg_out = 0, is_impute = 0, is_dedup = 1, is_tad_out = 0, is_gibbs = 0, sel_phased = 0, mask_tad = 0, use_spacial = 1;
-	int assume_sorted = 1, seed = 1, png_width = 800;
+	int assume_sorted = 1, no_grad = 0, seed = 1, png_width = 800;
 	float phase_thres = 0.7f, val_frac = -1.0f;
 	char *fn_png = 0;
 	krng_t rng;
 
 	hk_opt_init(&opt);
-	while ((c = getopt_long(argc, argv, "s:q:d:Dta:c:pr:n:k:GB:v:I:w:P:S:", long_options, &long_idx)) >= 0) {
+	while ((c = getopt_long(argc, argv, "s:q:d:Dm:ta:c:pr:n:k:GB:v:I:w:P:S:", long_options, &long_idx)) >= 0) {
 		if (c == 's') opt.max_seg = atoi(optarg);
 		else if (c == 'q') opt.min_mapq = atoi(optarg);
 		else if (c == 'd') opt.min_dist = hk_parse_num(optarg);
 		else if (c == 'D') is_dedup = 0;
+		else if (c == 'm') opt.min_flt_cnt = atoi(optarg);
 		else if (c == 't') is_tad_out = 1;
 		else if (c == 'a') opt.area_weight = atof(optarg);
 		else if (c == 'c') opt.min_tad_size = atoi(optarg);
@@ -103,6 +106,7 @@ int main(int argc, char *argv[])
 		else if (c == 0 && long_idx == 7) mask_tad = 1;
 		else if (c == 0 && long_idx == 8) opt.flag |= HK_OUT_PHASE;
 		else if (c == 0 && long_idx == 9) assume_sorted = 0;
+		else if (c == 0 && long_idx == 10) no_grad = 1;
 		else if (c == 0 && long_idx == 0) {
 			puts(HICKIT_VERSION);
 			return 0;
@@ -136,6 +140,8 @@ int main(int argc, char *argv[])
 		hk_pair_sort(m->n_pairs, m->pairs);
 	if (is_dedup)
 		m->n_pairs = hk_pair_dedup(m->n_pairs, m->pairs, opt.min_dist);
+	if (opt.min_flt_cnt > 0)
+		m->n_pairs = hk_pair_filter(m->n_pairs, m->pairs, opt.max_radius, opt.min_flt_cnt);
 	if (is_tad_out || mask_tad) {
 		int32_t n_tads;
 		struct hk_pair *tads;
@@ -166,7 +172,7 @@ int main(int argc, char *argv[])
 		else
 			hk_print_pair(stdout, HK_OUT_P4, m->d, m->n_pairs, m->pairs);
 	} else {
-		if (fn_png) hk_pair_image(m->d, m->n_pairs, m->pairs, png_width, phase_thres, fn_png);
+		if (fn_png) hk_pair_image(m->d, m->n_pairs, m->pairs, png_width, phase_thres, no_grad, fn_png);
 		else hk_print_pair(stdout, opt.flag, m->d, m->n_pairs, m->pairs);
 	}
 
