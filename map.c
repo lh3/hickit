@@ -29,6 +29,7 @@ void hk_opt_init(struct hk_opt *c)
 	c->n_burnin = 1000;
 	c->n_multi_ploidy = 23;
 	c->phase_thres = 0.7f;
+	c->min_bin_cnt = 5;
 }
 
 /*********************
