@@ -88,7 +88,7 @@ struct hk_bmap *hk_bmap_gen2(const struct hk_sdict *d, int32_t n_pairs, const st
 				end[0] = pos[0] + size < d->len[chr[0]]? pos[0] + size : d->len[chr[0]];
 				end[1] = pos[1] + size < d->len[chr[1]]? pos[1] + size : d->len[chr[1]];
 				chr[0] = chr[0] < n_full? chr[0] * 2 + (max_j>>1&1) : n_full * 2 + (chr[0] - n_full);
-				chr[1] = chr[1] < n_full? chr[1] * 2 + (max_j>>1&1) : n_full * 2 + (chr[1] - n_full);
+				chr[1] = chr[1] < n_full? chr[1] * 2 + (max_j&1) : n_full * 2 + (chr[1] - n_full);
 				p = &m->pairs[m->n_pairs++];
 				p->chr = (uint64_t)chr[0]<<32 | chr[1];
 				p->pos = (uint64_t)pos[0]<<32 | pos[1];

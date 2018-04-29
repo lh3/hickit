@@ -116,6 +116,7 @@ void hk_bmap_destroy(struct hk_bmap *m);
 
 void hk_print_seg(FILE *fp, const struct hk_sdict *d, int32_t n_segs, const struct hk_seg *segs);
 void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs);
+void hk_print_bpair(FILE *fp, const struct hk_sdict *d, int32_t n_pairs, const struct hk_bpair *pairs);
 
 void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int w, float phase_thres, int no_grad, const char *fn);
 

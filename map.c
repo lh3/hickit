@@ -79,9 +79,6 @@ struct hk_sdict *hk_sd_dup(const struct hk_sdict *d, int ploidy, int n_full)
 	int i, j;
 	assert(d->n >= n_full);
 	dp = hk_sd_init();
-	dp->n = dp->m = n_full * ploidy + (d->n - n_full);
-	dp->len = CALLOC(int32_t, dp->n);
-	dp->name = CALLOC(char*, dp->n);
 	for (i = 0; i < n_full; ++i) {
 		char *s;
 		int l;
