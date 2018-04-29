@@ -44,7 +44,6 @@ struct hk_pair {      // a contact pair
 	int8_t phase[2];  // phase
 	uint32_t n:31, tad_masked:1;
 	union {
-		float phase_prob[2];
 		float p4[4];
 	} _;
 };
