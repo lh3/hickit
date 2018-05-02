@@ -238,16 +238,19 @@ void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs
 	}
 }
 
-void hk_print_bpair(FILE *fp, const struct hk_sdict *d, int32_t n_pairs, const struct hk_bpair *pairs)
+void hk_print_bmap(FILE *fp, const struct hk_bmap *m)
 {
 	int32_t i;
 	fprintf(fp, "## pairs format v1.0\n");
-	fprintf(fp, "#sorted: chr1-chr2-pos1-pos2\n");
+	fprintf(fp, "#sorted: chr1-pos1-chr2-pos2\n");
 	fprintf(fp, "#shape: upper triangle\n");
-	hk_print_chr(fp, d);
-	for (i = 0; i < n_pairs; ++i) {
-		const struct hk_bpair *p = &pairs[i];
-		fprintf(fp, ".\t%s\t%d\t%s\t%d\t%d\t%.4f\n", d->name[p->chr>>32], (int32_t)(p->pos>>32),
-				d->name[(int32_t)p->chr], (int32_t)p->pos, p->n, p->p);
+	hk_print_chr(fp, m->d);
+	for (i = 0; i < m->n_pairs; ++i) {
+		const struct hk_bpair *p = &m->pairs[i];
+		const struct hk_bead *b[2];
+		b[0] = &m->beads[p->bid[0]];
+		b[1] = &m->beads[p->bid[1]];
+		fprintf(fp, ".\t%s\t%d\t%s\t%d\t%d\t%.4f\n", m->d->name[b[0]->chr], b[0]->st,
+				m->d->name[b[1]->chr], b[1]->st, p->n, p->p);
 	}
 }

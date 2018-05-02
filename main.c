@@ -6,7 +6,7 @@
 #include <getopt.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r93"
+#define HICKIT_VERSION "r94"
 
 static struct option long_options_pair[] = {
 	{ "out-phase",      no_argument,       0, 0 }, // 0
@@ -184,14 +184,14 @@ int main_bin(int argc, char *argv[])
 	}
 	m = hk_map_read(argv[optind]);
 	assert(m && m->pairs);
-	if (ploidy == 2) {
-		bm = hk_bmap_gen2(m->d, m->n_pairs, m->pairs, bin_size, n_multi_ploidy, min_cnt, phase_thres);
-		hk_print_bpair(stdout, bm->d, bm->n_pairs, bm->pairs);
-	} else {
-		fprintf(stderr, "[E::%s] not implemented\n", __func__);
-		hk_map_destroy(m);
-		return 1;
+	bm = hk_bmap_gen(m->d, m->n_pairs, m->pairs, bin_size, min_cnt);
+	if (ploidy > 1 && 1) {
+		struct hk_bmap *bm2;
+		bm2 = hk_bmap_dup(bm, ploidy, n_multi_ploidy, min_cnt, phase_thres);
+		hk_bmap_destroy(bm);
+		bm = bm2;
 	}
+	hk_print_bmap(stdout, bm);
 	hk_bmap_destroy(bm);
 	hk_map_destroy(m);
 	return 0;

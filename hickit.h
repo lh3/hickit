@@ -70,17 +70,21 @@ struct hk_map {
 };
 
 struct hk_bpair {
-	uint64_t chr;
-	uint64_t pos;
-	uint64_t end;
+	int32_t bid[2];
 	int32_t n;
+	int8_t phase[2];
 	float p;
 };
 
+struct hk_bead {
+	int32_t chr, st, en;
+};
+
 struct hk_bmap {
-	int32_t ploidy, n_full;
+	int32_t ploidy, n_full, n_beads, n_pairs;
 	struct hk_sdict *d;
-	int32_t n_pairs;
+	struct hk_bead *beads;
+	uint64_t *offcnt; // index into beads
 	struct hk_bpair *pairs;
 };
 
@@ -111,12 +115,13 @@ void hk_nei_destroy(struct hk_nei *n);
 void hk_validate_holdback(krng_t *r, float ratio, int32_t n_pairs, struct hk_pair *pairs);
 void hk_validate_roc(int32_t n_pairs, struct hk_pair *pairs);
 
-struct hk_bmap *hk_bmap_gen2(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int size, int n_full, int min_cnt, float phase_thres);
+struct hk_bmap *hk_bmap_gen(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int size, int min_cnt);
+struct hk_bmap *hk_bmap_dup(const struct hk_bmap *m0, int ploidy, int n_with_homo, int min_cnt, float phase_thres);
 void hk_bmap_destroy(struct hk_bmap *m);
 
 void hk_print_seg(FILE *fp, const struct hk_sdict *d, int32_t n_segs, const struct hk_seg *segs);
 void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs);
-void hk_print_bpair(FILE *fp, const struct hk_sdict *d, int32_t n_pairs, const struct hk_bpair *pairs);
+void hk_print_bmap(FILE *fp, const struct hk_bmap *m);
 
 void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int w, float phase_thres, int no_grad, const char *fn);
 

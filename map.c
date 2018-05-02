@@ -85,10 +85,12 @@ struct hk_sdict *hk_sd_dup(const struct hk_sdict *d, int ploidy, int n_full)
 		l = strlen(d->name[i]);
 		s = CALLOC(char, l + 2);
 		strcpy(s, d->name[i]);
-		s[l+1] = 0;
-		for (j = 0; j < ploidy; ++j) {
-			s[l] = 'a' + j;
-			hk_sd_put(dp, s, d->len[i]);
+		if (ploidy > 1) {
+			s[l+1] = 0;
+			for (j = 0; j < ploidy; ++j) {
+				s[l] = 'a' + j;
+				hk_sd_put(dp, s, d->len[i]);
+			}
 		}
 		free(s);
 	}
