@@ -140,10 +140,8 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 
 	// repulsive forces
 	y = CALLOC(struct avl_coor, m->n_beads);
-	for (i = 0; i < m->n_beads; ++i) {
-		y[i].x[0] = x[i][0], y[i].x[1] = x[i][1], y[i].x[2] = x[i][2];
-		y[i].i = i;
-	}
+	for (i = 0; i < m->n_beads; ++i)
+		y[i].i = i, y[i].x[0] = x[i][0], y[i].x[1] = x[i][1], y[i].x[2] = x[i][2];
 	ks_introsort(cx, m->n_beads, y);
 	kavl_insert(cy, &root, &y[0], 0);
 	for (i = 1, left = 0; i < m->n_beads; ++i) {
@@ -158,11 +156,12 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 		}
 		left = j;
 		assert(kavl_size(head, root) == i - left);
+		// traverse neighbors in 3D
 		t.i = 0, t.x[0] = x0, t.x[1] = q->x[1] - rep_radius, t.x[2] = q->x[2] - rep_radius;
 		kavl_itr_find(cy, root, &t, &itr);
 		while ((p = kavl_at(&itr)) != 0) {
 			float dz;
-			if (p->x[1] - q->x[1] > rep_radius) break;
+			if (p->x[1] - q->x[1] > rep_radius) break; // out of range on the Y-axis
 			dz = p->x[2] - q->x[2];
 			if (dz >= -rep_radius && dz <= rep_radius) {
 				khint_t k;
@@ -184,7 +183,7 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 	// free
 	free(y);
 	free(f);
-	return sum / m->n_beads;
+	return sqrt(sum / m->n_beads);
 }
 
 void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
@@ -214,7 +213,7 @@ void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 		double s;
 		s = hk_fdg1(opt, m, h);
 		if (iter && iter%10 == 0 && hk_verbose >= 3)
-			fprintf(stderr, "[M::%s] %d iterations done (%.4f)\n", __func__, iter+1, s);
+			fprintf(stderr, "[M::%s] %d iterations done (unit force: %.4f)\n", __func__, iter+1, s);
 	}
 	kh_destroy(set64, h);
 }
