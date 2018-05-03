@@ -30,7 +30,7 @@ depend:
 # DO NOT DELETE
 
 bin.o: hkpriv.h hickit.h krng.h khash.h ksort.h
-fdg.o: hkpriv.h hickit.h krng.h ksort.h kavl.h
+fdg.o: hkpriv.h hickit.h krng.h ksort.h kavl.h khash.h
 image.o: hkpriv.h hickit.h krng.h ksort.h stb_image_write.h
 main.o: hickit.h krng.h
 map.o: hickit.h krng.h hkpriv.h khash.h kseq.h
