@@ -23,7 +23,7 @@ struct avl_coor {
 	KAVL_HEAD(struct avl_coor) head;
 };
 
-#define cy_cmp(a, b) ((a)->x[1] != (b)->x[1]? (a)->x[1] - (b)->x[1] : (a)->i - (b)->i)
+#define cy_cmp(a, b) ((a)->x[1] != (b)->x[1]? ((a)->x[1] > (b)->x[1]) - ((a)->x[1] < (b)->x[1]) : (a)->i - (b)->i)
 KAVL_INIT(cy, struct avl_coor, head, cy_cmp)
 
 #define cx_lt(a, b) ((a).x[0] < (b).x[0])
@@ -154,14 +154,52 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 			kavl_erase(cy, &root, &y[j]);
 		}
 		left = j;
+		assert(kavl_size(head, root) == i - left);
+		int cnt = 0;
+#if 0
+		kavl_itr_t(cy) itr;
+		struct avl_coor t;
+		const struct avl_coor *p;
+		t.x[0] = x0, t.x[1] = y[i].x[1] - rep_radius, t.x[2] = y[i].x[2] - rep_radius;
+		t.i = 0;
+		if (y[i].i == 37436 && 0) {
+			kavl_itr_first(cy, root, &itr);
+			while ((p = kavl_at(&itr)) != 0) {
+				printf("[%d,%d] %f\t%f\t%f\n", y[i].i, p->i, p->x[0]-y[i].x[0], p->x[1]-y[i].x[1], p->x[2]-y[i].x[2]);
+				if (!kavl_itr_next(cy, &itr)) break;
+			}
+			kavl_itr_find(cy, root, &t, &itr);
+			p = kavl_at(&itr);
+			printf("!!![%d,%d] %f\t%f\t%f\n", y[i].i, p->i, p->x[0]-y[i].x[0], p->x[1]-y[i].x[1], p->x[2]-y[i].x[2]);
+		}
+		kavl_itr_find(cy, root, &t, &itr);
+		while ((p = kavl_at(&itr)) != 0) {
+			if (p->x[1] - y[i].x[1] > rep_radius) break;
+			//if (y[i].i == 37436) printf("***[%d,%d] %f\t%f\t%f\n", y[i].i, p->i, p->x[0]-y[i].x[0], p->x[1]-y[i].x[1], p->x[2]-y[i].x[2]);
+			float s = p->x[2] - y[i].x[2];
+			if (p->x[2] - y[i].x[2] >= -rep_radius && p->x[2] - y[i].x[2] <= rep_radius) {
+				khint_t k;
+				k = kh_get(set64, h, (uint64_t)y[i].i << 32 | p->i);
+				if (k == kh_end(h))
+					update_force(x, y[i].i, p->i, opt->k_rep, rep_radius, 1, f);
+				++cnt;
+			}
+			if (!kavl_itr_next(cy, &itr)) break;
+		}
+#else
 		for (j = left; j < i; ++j) {
 			khint_t k;
+			const struct avl_coor *p = &y[j];
+			if (y[i].i == 37436) printf("[%d,%d] %f\t%f\t%f\n", y[i].i, p->i, p->x[0]-y[i].x[0], p->x[1]-y[i].x[1], p->x[2]-y[i].x[2]);
 			if (y[j].x[1] - y[i].x[1] > rep_radius || y[j].x[1] - y[i].x[1] < -rep_radius) continue;
 			if (y[j].x[2] - y[i].x[2] > rep_radius || y[j].x[2] - y[i].x[2] < -rep_radius) continue;
 			k = kh_get(set64, h, (uint64_t)y[i].i << 32 | y[j].i);
 			if (k == kh_end(h))
 				update_force(x, y[i].i, y[j].i, opt->k_rep, rep_radius, 1, f);
+			++cnt;
 		}
+#endif
+		//if (cnt > 0) printf("[%d] %d\n", i, cnt);
 		kavl_insert(cy, &root, &y[i], 0);
 	}
 
