@@ -12,18 +12,6 @@ void hk_bpair_sort(int32_t n_pairs, struct hk_bpair *pairs)
 	ks_introsort_bpair(n_pairs, pairs);
 }
 
-static inline uint64_t hash64(uint64_t key)
-{
-	key = ~key + (key << 21);
-	key = key ^ key >> 24;
-	key = (key + (key << 3)) + (key << 8);
-	key = key ^ key >> 14;
-	key = (key + (key << 2)) + (key << 4);
-	key = key ^ key >> 28;
-	key = key + (key << 31);
-	return key;
-}
-
 struct cnt_aux {
 	int32_t bid[2];
 	float c[4];

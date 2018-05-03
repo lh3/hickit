@@ -6,7 +6,7 @@
 #include <getopt.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r94"
+#define HICKIT_VERSION "r96"
 
 static struct option long_options_pair[] = {
 	{ "out-phase",      no_argument,       0, 0 }, // 0
@@ -161,27 +161,38 @@ main_return:
 
 int main_bin(int argc, char *argv[])
 {
-	int c, bin_size = 1000000, min_cnt = 1, ploidy = 2, n_multi_ploidy = 23;
+	int c, bin_size = 1000000, min_cnt = 1, ploidy = 2, n_multi_ploidy = 23, seed = 1, fdg = 0;
 	float phase_thres = 0.7f;
 	struct hk_map *m;
 	struct hk_bmap *bm;
-	while ((c = getopt(argc, argv, "c:b:p:P:f:")) >= 0) {
+	struct hk_fdg_opt opt;
+	krng_t rng;
+
+	hk_fdg_opt_init(&opt);
+	while ((c = getopt(argc, argv, "c:b:p:P:f:gk:")) >= 0) {
 		if (c == 'c') min_cnt = atoi(optarg);
 		else if (c == 'b') bin_size = hk_parse_num(optarg);
 		else if (c == 'p') phase_thres = atof(optarg);
 		else if (c == 'P') ploidy = atoi(optarg);
 		else if (c == 'f') n_multi_ploidy = atoi(optarg);
+		else if (c == 'g') fdg = 1;
+		else if (c == 'k') opt.n_iter = atoi(optarg);
 	}
 	if (optind == argc) {
 		fprintf(stderr, "Usage: hickit bin [options] <in.pairs>\n");
 		fprintf(stderr, "Options:\n");
-		fprintf(stderr, "  -b NUM        bin size [1m]\n");
-		fprintf(stderr, "  -c INT        min count [%d]\n", min_cnt);
-		fprintf(stderr, "  -p FLOAT      phase threshold [%g]\n", phase_thres);
-		fprintf(stderr, "  -P INT        ploidy [%d]\n", ploidy);
-		fprintf(stderr, "  -f INT        first INT chr have multiple ploidy [%d]\n", n_multi_ploidy);
+		fprintf(stderr, "  Binning:\n");
+		fprintf(stderr, "    -b NUM        bin size [1m]\n");
+		fprintf(stderr, "    -c INT        min count [%d]\n", min_cnt);
+		fprintf(stderr, "    -p FLOAT      phase threshold [%g]\n", phase_thres);
+		fprintf(stderr, "    -P INT        ploidy [%d]\n", ploidy);
+		fprintf(stderr, "    -f INT        first INT chr have multiple ploidy [%d]\n", n_multi_ploidy);
+		fprintf(stderr, "  FDG:\n");
+		fprintf(stderr, "    -g            perform FDG\n");
+		fprintf(stderr, "    -k INT        max iteration [%d]\n", opt.n_iter);
 		return 1;
 	}
+	kr_srand_r(&rng, seed);
 	m = hk_map_read(argv[optind]);
 	assert(m && m->pairs);
 	bm = hk_bmap_gen(m->d, m->n_pairs, m->pairs, bin_size, min_cnt);
@@ -191,7 +202,10 @@ int main_bin(int argc, char *argv[])
 		hk_bmap_destroy(bm);
 		bm = bm2;
 	}
-	hk_print_bmap(stdout, bm);
+	if (fdg) {
+		hk_fdg(&opt, bm, &rng);
+		hk_print_fdg(stdout, bm);
+	} else hk_print_bmap(stdout, bm);
 	hk_bmap_destroy(bm);
 	hk_map_destroy(m);
 	return 0;

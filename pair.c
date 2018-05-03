@@ -254,3 +254,14 @@ void hk_print_bmap(FILE *fp, const struct hk_bmap *m)
 				m->d->name[b[1]->chr], b[1]->st, p->n, p->p);
 	}
 }
+
+void hk_print_fdg(FILE *fp, const struct hk_bmap *m)
+{
+	int32_t i;
+	hk_print_chr(fp, m->d);
+	for (i = 0; i < m->n_beads; ++i) {
+		const struct hk_bead *b = &m->beads[i];
+		fprintf(fp, "%s\t%d\t%f\t%f\t%f\n", m->d->name[b->chr], b->st,
+				m->x[i][0], m->x[i][1], m->x[i][2]);
+	}
+}

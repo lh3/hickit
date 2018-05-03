@@ -24,6 +24,18 @@ extern "C" {
 int hk_pair_is_sorted(int32_t n_pairs, const struct hk_pair *pairs);
 void hk_pair_sort(int32_t n_pairs, struct hk_pair *pairs);
 
+static inline uint64_t hash64(uint64_t key)
+{
+	key = ~key + (key << 21);
+	key = key ^ key >> 24;
+	key = (key + (key << 3)) + (key << 8);
+	key = key ^ key >> 14;
+	key = (key + (key << 2)) + (key << 4);
+	key = key ^ key >> 28;
+	key = key + (key << 31);
+	return key;
+}
+
 #ifdef __cplusplus
 }
 #endif

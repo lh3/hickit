@@ -1,4 +1,4 @@
-CFLAGS=		-g -Wall -O2 -Wc++-compat
+CFLAGS=		-g -Wall -O2 -Wc++-compat -ffast-math
 CPPFLAGS=
 INCLUDES=
 OBJS=		map.o pair.o tad.o neighbor.o phase.o bin.o fdg.o image.o
