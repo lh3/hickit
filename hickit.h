@@ -92,11 +92,10 @@ struct hk_bmap {
 };
 
 struct hk_fdg_opt {
-	float max_init;
+	float target_radius;
+	float k_rep, r_rep;
 	int n_iter;
-	float k_rep;
 	float step;
-	float rep_radius, att_radius;
 };
 
 extern int hk_verbose;

@@ -31,12 +31,18 @@ KSORT_INIT(cx, struct avl_coor, cx_lt)
 
 void hk_fdg_opt_init(struct hk_fdg_opt *opt)
 {
-	opt->max_init = 100.0f;
+	opt->target_radius = 10.0f;
+	opt->k_rep = 1.0f;
+	opt->r_rep = 1.0f;
 	opt->n_iter = 1000;
 	opt->step = 0.01f;
-	opt->k_rep = 1.0f;
-	opt->att_radius = 1.0f;
-	opt->rep_radius = 1.0f;
+}
+
+static float fdg_optimal_dist(float target_radius, int n_beads)
+{
+	double v;
+	v = 4.0 / 3.0 * M_PI * pow(target_radius, 3.0) / n_beads;
+	return pow(v, 1.0 / 3.0);
 }
 
 fvec3_t *hk_fdg_init(krng_t *rng, int n_beads, float max)
@@ -113,7 +119,10 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 	struct avl_coor *y, *root = 0;
 	fvec3_t *f, *x = m->x;
 	double sum = 0.0;
+	float att_radius, rep_radius;
 
+	att_radius = fdg_optimal_dist(opt->target_radius, m->n_beads);
+	rep_radius = att_radius * opt->r_rep;
 	f = CALLOC(fvec3_t, m->n_beads);
 
 	// attractive forces
@@ -121,12 +130,12 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 		int32_t off = m->offcnt[i] >> 32;
 		int32_t cnt = (int32_t)m->offcnt[i];
 		for (j = 1; j < cnt; ++j)
-			update_force(x, off + j - 1, off + j, 1.0f, opt->att_radius, 0, f);
+			update_force(x, off + j - 1, off + j, 1.0f, att_radius, 0, f);
 	}
 	for (i = 0; i < m->n_pairs; ++i) { // contact
 		const struct hk_bpair *p = &m->pairs[i];
 		if (p->bid[0] != p->bid[1])
-			update_force(x, p->bid[0], p->bid[1], 1.0f, opt->att_radius, 0, f);
+			update_force(x, p->bid[0], p->bid[1], 1.0f, att_radius, 0, f);
 	}
 
 	// repulsive forces
@@ -139,7 +148,7 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 	kavl_insert(cy, &root, &y[0], 0);
 	for (i = 1, left = 0; i < m->n_beads; ++i) {
 		// update _left_
-		float x0 = y[i].x[0] - opt->rep_radius;
+		float x0 = y[i].x[0] - rep_radius;
 		for (j = left; j < i; ++j) {
 			if (y[left].x[0] >= x0) break;
 			kavl_erase(cy, &root, &y[left]);
@@ -147,11 +156,11 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 		left = j;
 		for (j = left; j < i; ++j) {
 			khint_t k;
-			if (y[j].x[1] - y[i].x[1] > opt->rep_radius || y[j].x[1] - y[i].x[1] < -opt->rep_radius) continue;
-			if (y[j].x[2] - y[i].x[2] > opt->rep_radius || y[j].x[2] - y[i].x[2] < -opt->rep_radius) continue;
+			if (y[j].x[1] - y[i].x[1] > rep_radius || y[j].x[1] - y[i].x[1] < -rep_radius) continue;
+			if (y[j].x[2] - y[i].x[2] > rep_radius || y[j].x[2] - y[i].x[2] < -rep_radius) continue;
 			k = kh_get(set64, h, (uint64_t)y[i].i << 32 | y[j].i);
 			if (k == kh_end(h))
-				update_force(x, y[i].i, y[j].i, opt->k_rep, opt->rep_radius, 1, f);
+				update_force(x, y[i].i, y[j].i, opt->k_rep, rep_radius, 1, f);
 		}
 		kavl_insert(cy, &root, &y[i], 0);
 	}
@@ -190,7 +199,7 @@ void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 	}
 
 	// FDG
-	m->x = hk_fdg_init(rng, m->n_beads, opt->max_init);
+	m->x = hk_fdg_init(rng, m->n_beads, opt->target_radius * 10.0f);
 	for (iter = 0; iter < opt->n_iter; ++iter) {
 		double s;
 		s = hk_fdg1(opt, m, h);
