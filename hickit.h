@@ -80,12 +80,20 @@ struct hk_bead {
 	int32_t chr, st, en;
 };
 
+typedef float fvec3_t[3];
+
 struct hk_bmap {
 	int32_t ploidy, n_full, n_beads, n_pairs;
 	struct hk_sdict *d;
 	struct hk_bead *beads;
 	uint64_t *offcnt; // index into beads
 	struct hk_bpair *pairs;
+	fvec3_t *x;
+};
+
+struct hk_fdg_opt {
+	float max_init;
+	int n_iter;
 };
 
 extern int hk_verbose;

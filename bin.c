@@ -191,18 +191,9 @@ struct hk_bmap *hk_bmap_dup(const struct hk_bmap *m0, int ploidy, int n_with_hom
 
 void hk_bmap_destroy(struct hk_bmap *m)
 {
+	free(m->x);
+	free(m->offcnt);
+	free(m->beads);
 	free(m->pairs);
 	free(m);
 }
-/*
-struct coor_3d {
-	float x[3];
-	int32_t i;
-};
-
-void hk_fdg(struct hk_bmap *m)
-{
-	const float k1 = 1.0f, k2 = 25.0f, d_lim = 2.0f, d_lower = 0.1f, d_upper = 1.0f;
-	int32_t i;
-}
-*/
