@@ -158,7 +158,6 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 		}
 		left = j;
 		assert(kavl_size(head, root) == i - left);
-#if 1
 		t.i = 0, t.x[0] = x0, t.x[1] = q->x[1] - rep_radius, t.x[2] = q->x[2] - rep_radius;
 		kavl_itr_find(cy, root, &t, &itr);
 		while ((p = kavl_at(&itr)) != 0) {
@@ -173,19 +172,6 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 			}
 			if (!kavl_itr_next(cy, &itr)) break;
 		}
-#else
-		for (j = left; j < i; ++j) {
-			khint_t k;
-			const struct avl_coor *p = &y[j];
-			float dz, dy = p->x[1] - q->x[1];
-			if (dy > rep_radius || dy < -rep_radius) continue;
-			dz = p->x[2] - q->x[2];
-			if (dz > rep_radius || dz < -rep_radius) continue;
-			k = kh_get(set64, h, (uint64_t)q->i << 32 | p->i);
-			if (k == kh_end(h))
-				update_force(x, q->i, p->i, opt->k_rep, rep_radius, 1, f);
-		}
-#endif
 		kavl_insert(cy, &root, q, 0);
 	}
 
