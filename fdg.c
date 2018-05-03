@@ -150,8 +150,8 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 		// update _left_
 		float x0 = y[i].x[0] - rep_radius;
 		for (j = left; j < i; ++j) {
-			if (y[left].x[0] >= x0) break;
-			kavl_erase(cy, &root, &y[left]);
+			if (y[j].x[0] >= x0) break;
+			kavl_erase(cy, &root, &y[j]);
 		}
 		left = j;
 		for (j = left; j < i; ++j) {
