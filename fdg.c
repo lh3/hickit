@@ -147,42 +147,29 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 	ks_introsort(cx, m->n_beads, y);
 	kavl_insert(cy, &root, &y[0], 0);
 	for (i = 1, left = 0; i < m->n_beads; ++i) {
+		struct avl_coor t, *q = &y[i];
+		const struct avl_coor *p;
+		kavl_itr_t(cy) itr;
 		// update _left_
-		float x0 = y[i].x[0] - rep_radius;
+		float x0 = q->x[0] - rep_radius;
 		for (j = left; j < i; ++j) {
 			if (y[j].x[0] >= x0) break;
 			kavl_erase(cy, &root, &y[j]);
 		}
 		left = j;
 		assert(kavl_size(head, root) == i - left);
-		int cnt = 0;
-#if 0
-		kavl_itr_t(cy) itr;
-		struct avl_coor t;
-		const struct avl_coor *p;
-		t.x[0] = x0, t.x[1] = y[i].x[1] - rep_radius, t.x[2] = y[i].x[2] - rep_radius;
-		t.i = 0;
-		if (y[i].i == 37436 && 0) {
-			kavl_itr_first(cy, root, &itr);
-			while ((p = kavl_at(&itr)) != 0) {
-				printf("[%d,%d] %f\t%f\t%f\n", y[i].i, p->i, p->x[0]-y[i].x[0], p->x[1]-y[i].x[1], p->x[2]-y[i].x[2]);
-				if (!kavl_itr_next(cy, &itr)) break;
-			}
-			kavl_itr_find(cy, root, &t, &itr);
-			p = kavl_at(&itr);
-			printf("!!![%d,%d] %f\t%f\t%f\n", y[i].i, p->i, p->x[0]-y[i].x[0], p->x[1]-y[i].x[1], p->x[2]-y[i].x[2]);
-		}
+#if 1
+		t.i = 0, t.x[0] = x0, t.x[1] = q->x[1] - rep_radius, t.x[2] = q->x[2] - rep_radius;
 		kavl_itr_find(cy, root, &t, &itr);
 		while ((p = kavl_at(&itr)) != 0) {
-			if (p->x[1] - y[i].x[1] > rep_radius) break;
-			//if (y[i].i == 37436) printf("***[%d,%d] %f\t%f\t%f\n", y[i].i, p->i, p->x[0]-y[i].x[0], p->x[1]-y[i].x[1], p->x[2]-y[i].x[2]);
-			float s = p->x[2] - y[i].x[2];
-			if (p->x[2] - y[i].x[2] >= -rep_radius && p->x[2] - y[i].x[2] <= rep_radius) {
+			float dz;
+			if (p->x[1] - q->x[1] > rep_radius) break;
+			dz = p->x[2] - q->x[2];
+			if (dz >= -rep_radius && dz <= rep_radius) {
 				khint_t k;
-				k = kh_get(set64, h, (uint64_t)y[i].i << 32 | p->i);
+				k = kh_get(set64, h, (uint64_t)q->i << 32 | p->i);
 				if (k == kh_end(h))
-					update_force(x, y[i].i, p->i, opt->k_rep, rep_radius, 1, f);
-				++cnt;
+					update_force(x, q->i, p->i, opt->k_rep, rep_radius, 1, f);
 			}
 			if (!kavl_itr_next(cy, &itr)) break;
 		}
@@ -190,17 +177,16 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 		for (j = left; j < i; ++j) {
 			khint_t k;
 			const struct avl_coor *p = &y[j];
-			if (y[i].i == 37436) printf("[%d,%d] %f\t%f\t%f\n", y[i].i, p->i, p->x[0]-y[i].x[0], p->x[1]-y[i].x[1], p->x[2]-y[i].x[2]);
-			if (y[j].x[1] - y[i].x[1] > rep_radius || y[j].x[1] - y[i].x[1] < -rep_radius) continue;
-			if (y[j].x[2] - y[i].x[2] > rep_radius || y[j].x[2] - y[i].x[2] < -rep_radius) continue;
-			k = kh_get(set64, h, (uint64_t)y[i].i << 32 | y[j].i);
+			float dz, dy = p->x[1] - q->x[1];
+			if (dy > rep_radius || dy < -rep_radius) continue;
+			dz = p->x[2] - q->x[2];
+			if (dz > rep_radius || dz < -rep_radius) continue;
+			k = kh_get(set64, h, (uint64_t)q->i << 32 | p->i);
 			if (k == kh_end(h))
-				update_force(x, y[i].i, y[j].i, opt->k_rep, rep_radius, 1, f);
-			++cnt;
+				update_force(x, q->i, p->i, opt->k_rep, rep_radius, 1, f);
 		}
 #endif
-		//if (cnt > 0) printf("[%d] %d\n", i, cnt);
-		kavl_insert(cy, &root, &y[i], 0);
+		kavl_insert(cy, &root, q, 0);
 	}
 
 	// update coordinate
