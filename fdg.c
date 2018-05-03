@@ -214,7 +214,7 @@ void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 		double s;
 		s = hk_fdg1(opt, m, h);
 		if (iter && iter%10 == 0 && hk_verbose >= 3)
-			fprintf(stderr, "[M::%s] %d iterations done (unit force: %.4f)\n", __func__, iter+1, s);
+			fprintf(stderr, "[M::%s] %d iterations done (RMS force: %.4f)\n", __func__, iter+1, s);
 	}
 	kh_destroy(set64, h);
 }
