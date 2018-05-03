@@ -6,7 +6,7 @@
 #include <getopt.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r96"
+#define HICKIT_VERSION "r97"
 
 static struct option long_options_pair[] = {
 	{ "out-phase",      no_argument,       0, 0 }, // 0
@@ -169,14 +169,19 @@ int main_bin(int argc, char *argv[])
 	krng_t rng;
 
 	hk_fdg_opt_init(&opt);
-	while ((c = getopt(argc, argv, "c:b:p:P:f:gk:")) >= 0) {
+	while ((c = getopt(argc, argv, "c:b:p:P:f:ga:r:R:e:k:s:")) >= 0) {
 		if (c == 'c') min_cnt = atoi(optarg);
 		else if (c == 'b') bin_size = hk_parse_num(optarg);
 		else if (c == 'p') phase_thres = atof(optarg);
 		else if (c == 'P') ploidy = atoi(optarg);
 		else if (c == 'f') n_multi_ploidy = atoi(optarg);
 		else if (c == 'g') fdg = 1;
+		else if (c == 'a') opt.att_radius = atof(optarg);
+		else if (c == 'r') opt.rep_radius = atof(optarg);
+		else if (c == 'R') opt.k_rep = atof(optarg);
+		else if (c == 'e') opt.step = atof(optarg);
 		else if (c == 'k') opt.n_iter = atoi(optarg);
+		else if (c == 's') seed = atoi(optarg);
 	}
 	if (optind == argc) {
 		fprintf(stderr, "Usage: hickit bin [options] <in.pairs>\n");
@@ -189,7 +194,12 @@ int main_bin(int argc, char *argv[])
 		fprintf(stderr, "    -f INT        first INT chr have multiple ploidy [%d]\n", n_multi_ploidy);
 		fprintf(stderr, "  FDG:\n");
 		fprintf(stderr, "    -g            perform FDG\n");
+		fprintf(stderr, "    -a FLOAT      optimal backbone and contact distance [%g]\n", opt.att_radius);
+		fprintf(stderr, "    -r FLOAT      max repulsive distance [%g]\n", opt.rep_radius);
+		fprintf(stderr, "    -R FLOAT      relative repulsive coefficient [%g]\n", opt.k_rep);
+		fprintf(stderr, "    -e FLOAT      step size [%g]\n", opt.step);
 		fprintf(stderr, "    -k INT        max iteration [%d]\n", opt.n_iter);
+		fprintf(stderr, "    -s INT        seed for initialization [%d]\n", seed);
 		return 1;
 	}
 	kr_srand_r(&rng, seed);

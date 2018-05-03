@@ -94,7 +94,8 @@ struct hk_bmap {
 struct hk_fdg_opt {
 	float max_init;
 	int n_iter;
-	float k;
+	float k_rep;
+	float step;
 	float rep_radius, att_radius;
 };
 

@@ -33,7 +33,8 @@ void hk_fdg_opt_init(struct hk_fdg_opt *opt)
 {
 	opt->max_init = 100.0f;
 	opt->n_iter = 1000;
-	opt->k = 0.01f;
+	opt->step = 0.01f;
+	opt->k_rep = 1.0f;
 	opt->att_radius = 1.0f;
 	opt->rep_radius = 1.0f;
 }
@@ -88,6 +89,11 @@ static inline void fv3_scale(float a, fvec3_t x)
 	x[0] *= a, x[1] *= a, x[2] *= a;
 }
 
+static inline void fv3_axpy(float a, const fvec3_t x, fvec3_t y)
+{
+	y[0] += a * x[0], y[1] += a * x[1], y[2] += a * x[2];
+}
+
 static inline void update_force(const fvec3_t *x, int32_t i, int32_t j, float k, float radius, int repel, fvec3_t *f)
 {
 	float dist, force;
@@ -115,12 +121,12 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 		int32_t off = m->offcnt[i] >> 32;
 		int32_t cnt = (int32_t)m->offcnt[i];
 		for (j = 1; j < cnt; ++j)
-			update_force(x, off + j - 1, off + j, opt->k, opt->att_radius, 0, f);
+			update_force(x, off + j - 1, off + j, 1.0f, opt->att_radius, 0, f);
 	}
 	for (i = 0; i < m->n_pairs; ++i) { // contact
 		const struct hk_bpair *p = &m->pairs[i];
 		if (p->bid[0] != p->bid[1])
-			update_force(x, p->bid[0], p->bid[1], opt->k, opt->att_radius, 0, f);
+			update_force(x, p->bid[0], p->bid[1], 1.0f, opt->att_radius, 0, f);
 	}
 
 	// repulsive forces
@@ -145,7 +151,7 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 			if (y[j].x[2] - y[i].x[2] > opt->rep_radius || y[j].x[2] - y[i].x[2] < -opt->rep_radius) continue;
 			k = kh_get(set64, h, (uint64_t)y[i].i << 32 | y[j].i);
 			if (k == kh_end(h))
-				update_force(x, y[i].i, y[j].i, opt->k, opt->rep_radius, 1, f);
+				update_force(x, y[i].i, y[j].i, opt->k_rep, opt->rep_radius, 1, f);
 		}
 		kavl_insert(cy, &root, &y[i], 0);
 	}
@@ -153,7 +159,7 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 	// update coordinate
 	for (i = 0; i < m->n_beads; ++i) {
 		sum += fv3_L2(f[i]); // TODO: check if precision is good enough
-		fv3_addto(f[i], m->x[i]);
+		fv3_axpy(opt->step, f[i], m->x[i]);
 	}
 
 	// free
@@ -189,7 +195,7 @@ void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 		double s;
 		s = hk_fdg1(opt, m, h);
 		if (iter && iter%10 == 0 && hk_verbose >= 3)
-			fprintf(stderr, "[M::%s] %d iterations done (%.10f)\n", __func__, iter+1, s);
+			fprintf(stderr, "[M::%s] %d iterations done (%.4f)\n", __func__, iter+1, s);
 	}
 	kh_destroy(set64, h);
 }
