@@ -35,7 +35,7 @@ void hk_fdg_opt_init(struct hk_fdg_opt *opt)
 	opt->k_rep = 1.0f;
 	opt->r_rep = 1.0f;
 	opt->n_iter = 1000;
-	opt->step = 0.01f;
+	opt->step = 0.02f;
 }
 
 static float fdg_optimal_dist(float target_radius, int n_beads)
@@ -119,10 +119,11 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 	struct avl_coor *y, *root = 0;
 	fvec3_t *f, *x = m->x;
 	double sum = 0.0;
-	float att_radius, rep_radius;
+	float step, att_radius, rep_radius;
 
 	att_radius = fdg_optimal_dist(opt->target_radius, m->n_beads);
 	rep_radius = att_radius * opt->r_rep;
+	step = opt->step * att_radius;
 	f = CALLOC(fvec3_t, m->n_beads);
 
 	// attractive forces
@@ -177,7 +178,7 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 	// update coordinate
 	for (i = 0; i < m->n_beads; ++i) {
 		sum += fv3_L2(f[i]); // TODO: check if precision is good enough
-		fv3_axpy(opt->step, f[i], m->x[i]);
+		fv3_axpy(step, f[i], m->x[i]);
 	}
 
 	// free
