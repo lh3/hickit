@@ -1,13 +1,20 @@
 CFLAGS=		-g -Wall -O2 -Wc++-compat -ffast-math
 CPPFLAGS=
 INCLUDES=
-OBJS=		map.o pair.o tad.o neighbor.o phase.o bin.o fdg.o image.o
+OBJS=		map.o pair.o tad.o neighbor.o phase.o bin.o fdg.o image.o view3d.o
 PROG=		hickit
 LIBS=		-lm -lz
+LIBS_GL=
 ASAN_FLAG=
 
 ifneq ($(asan),)
 	ASAN_FLAG = -fsanitize=address
+endif
+
+ifneq ($(gl),)
+	CPPFLAGS += -DHAVE_GL
+	CFLAGS += -Wno-deprecated-declarations
+	LIBS_GL = -framework OpenGL -framework GLUT
 endif
 
 .PHONY:all clean depend
@@ -19,7 +26,7 @@ endif
 all:$(PROG)
 
 hickit:$(OBJS) main.o
-		$(CC) -o $@ $^ $(ASAN_FLAG) $(LIBS)
+		$(CC) -o $@ $^ $(ASAN_FLAG) $(LIBS_GL) $(LIBS)
 
 clean:
 		rm -fr gmon.out *.o a.out $(PROG) *.a *.dSYM hickit.aux hickit.log hickit.pdf
@@ -38,3 +45,4 @@ neighbor.o: hkpriv.h hickit.h krng.h ksort.h
 pair.o: hkpriv.h hickit.h krng.h ksort.h
 phase.o: hkpriv.h hickit.h krng.h
 tad.o: hkpriv.h hickit.h krng.h klist.h kavl.h
+view3d.o: hkpriv.h hickit.h krng.h

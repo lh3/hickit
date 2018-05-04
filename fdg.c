@@ -218,3 +218,32 @@ void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 	}
 	kh_destroy(set64, h);
 }
+
+void hk_fdg_normalize(struct hk_bmap *m)
+{
+	int32_t i, j;
+	fvec3_t max, min, scale;
+	double sum[3];
+	max[0] = max[1] = max[2] = -1e30f;
+	min[0] = min[1] = min[2] = 1e30f;
+	sum[0] = sum[1] = sum[2] = 0.0;
+	for (i = 0; i < m->n_beads; ++i) {
+		for (j = 0; j < 3; ++j) {
+			max[j] = max[j] > m->x[i][j]? max[j] : m->x[i][j];
+			min[j] = min[j] < m->x[i][j]? min[j] : m->x[i][j];
+			sum[j] += m->x[i][j];
+		}
+	}
+	for (j = 0; j < 3; ++j) {
+		double x;
+		sum[j] /= m->n_beads;
+		x = max[j] - sum[j] > sum[j] - min[j]? max[j] - sum[j] : sum[j] - min[j];
+		x /= 5.0;
+		scale[j] = 1.0 / x;
+	}
+	if (hk_verbose >= 3)
+		fprintf(stderr, "[M::%s] center: (%.4f,%.4f,%.4f)\n", __func__, sum[0], sum[1], sum[2]);
+	for (i = 0; i < m->n_beads; ++i)
+		for (j = 0; j < 3; ++j)
+			m->x[i][j] = (m->x[i][j] - sum[j]) * scale[j];
+}

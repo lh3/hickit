@@ -253,16 +253,20 @@ int main_image2d(int argc, char *argv[])
 
 int main_view3d(int argc, char *argv[])
 {
-	int c;
+	int c, width = 780;
 	struct hk_bmap *m;
-	while ((c = getopt(argc, argv, "")) >= 0) {
+
+	hk_v3d_prep(&argc, argv);
+	while ((c = getopt(argc, argv, "w:")) >= 0) {
+		if (c == 'w') width = atoi(optarg);
 	}
 	if (optind == argc) {
 		fprintf(stderr, "Usage: hickit view3d [options] <in.3dg>\n");
 		return 1;
 	}
 	m = hk_3dg_read(argv[optind]);
-	hk_print_3dg(stdout, m);
+	assert(m);
+	hk_v3d_view(m, width);
 	hk_bmap_destroy(m);
 	return 0;
 }
