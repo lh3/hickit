@@ -238,7 +238,6 @@ void hk_fdg_normalize(struct hk_bmap *m)
 		double x;
 		sum[j] /= m->n_beads;
 		x = max[j] - sum[j] > sum[j] - min[j]? max[j] - sum[j] : sum[j] - min[j];
-		x /= 5.0;
 		scale[j] = 1.0 / x;
 	}
 	if (hk_verbose >= 3)
