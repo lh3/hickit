@@ -221,6 +221,21 @@ static inline int is_pos_int(const char *s)
 	return 1;
 }
 
+static void parse_chr(struct hk_sdict *d, char *s)
+{
+	char *chr, *p, *q;
+	int64_t len;
+	int has_digit;
+	for (p = s + 12; isspace(*p) && *p != 0; ++p) {}
+	assert(*p);
+	for (q = p; *q != 0 && !isspace(*q); ++q) {}
+	assert(*q);
+	*q = 0, chr = p, p = q + 1;
+	len = hk_parse_64(p, &p, &has_digit);
+	assert(has_digit && len > 0 && len <= INT32_MAX);
+	hk_sd_put(d, chr, len);
+}
+
 struct hk_map *hk_map_read(const char *fn)
 {
 	gzFile fp;
@@ -242,17 +257,7 @@ struct hk_map *hk_map_read(const char *fn)
 		if (str.l && str.s[0] != '#') ++n_data_rows;
 		// read chromsomes
 		if (n_data_rows == 0 && str.l >= 12 + 3 && strncmp(str.s, "#chromosome:", 12) == 0) {
-			char *chr;
-			int64_t len;
-			int has_digit;
-			for (p = str.s + 12; isspace(*p) && *p != 0; ++p) {}
-			assert(*p);
-			for (q = p; *q != 0 && !isspace(*q); ++q) {}
-			assert(*q);
-			*q = 0, chr = p, p = q + 1;
-			len = hk_parse_64(p, &p, &has_digit);
-			assert(has_digit && len > 0 && len <= INT32_MAX);
-			hk_sd_put(m->d, chr, len);
+			parse_chr(m->d, str.s);
 			continue;
 		}
 		// split into fields
