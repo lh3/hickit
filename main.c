@@ -212,7 +212,7 @@ int main_bin(int argc, char *argv[])
 	}
 	if (fdg) {
 		hk_fdg(&opt, bm, &rng);
-		hk_print_fdg(stdout, bm);
+		hk_print_3dg(stdout, bm);
 	} else hk_print_bmap(stdout, bm);
 	hk_bmap_destroy(bm);
 	hk_map_destroy(m);
@@ -251,6 +251,22 @@ int main_image2d(int argc, char *argv[])
 	return 0;
 }
 
+int main_view3d(int argc, char *argv[])
+{
+	int c;
+	struct hk_bmap *m;
+	while ((c = getopt(argc, argv, "")) >= 0) {
+	}
+	if (optind == argc) {
+		fprintf(stderr, "Usage: hickit view3d [options] <in.3dg>\n");
+		return 1;
+	}
+	m = hk_3dg_read(argv[optind]);
+	hk_print_3dg(stdout, m);
+	hk_bmap_destroy(m);
+	return 0;
+}
+
 int main(int argc, char *argv[])
 {
 	int ret = 0;
@@ -266,6 +282,7 @@ int main(int argc, char *argv[])
 	if (strcmp(argv[1], "pair") == 0) ret = main_pair(argc-1, argv+1);
 	else if (strcmp(argv[1], "bin") == 0) ret = main_bin(argc-1, argv+1);
 	else if (strcmp(argv[1], "image2d") == 0) ret = main_image2d(argc-1, argv+1);
+	else if (strcmp(argv[1], "view3d") == 0) ret = main_view3d(argc-1, argv+1);
 	else if (strcmp(argv[1], "version") == 0) {
 		printf("%s\n", HICKIT_VERSION);
 		return 0;

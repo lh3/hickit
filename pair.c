@@ -255,7 +255,7 @@ void hk_print_bmap(FILE *fp, const struct hk_bmap *m)
 	}
 }
 
-void hk_print_fdg(FILE *fp, const struct hk_bmap *m)
+void hk_print_3dg(FILE *fp, const struct hk_bmap *m)
 {
 	int32_t i;
 	hk_print_chr(fp, m->d);

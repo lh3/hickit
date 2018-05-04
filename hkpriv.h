@@ -21,8 +21,10 @@
 extern "C" {
 #endif
 
+void hk_sd_destroy(struct hk_sdict *d);
 int hk_pair_is_sorted(int32_t n_pairs, const struct hk_pair *pairs);
 void hk_pair_sort(int32_t n_pairs, struct hk_pair *pairs);
+void hk_bmap_set_offcnt(struct hk_bmap *m);
 
 static inline uint64_t hash64(uint64_t key)
 {

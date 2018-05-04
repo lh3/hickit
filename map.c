@@ -236,6 +236,24 @@ static void parse_chr(struct hk_sdict *d, char *s)
 	hk_sd_put(d, chr, len);
 }
 
+static char **split_fields(char *s, char **fields, int32_t *n_fields_, int32_t *m_fields_)
+{
+	int32_t n_fields, m_fields = *m_fields_;
+	char *p, *q;
+	for (n_fields = 0, p = q = s;; ++q) {
+		if (*q == '\t' || *q == 0) {
+			int c = *q;
+			if (n_fields == m_fields)
+				EXPAND(fields, m_fields);
+			fields[n_fields++] = p;
+			*q = 0, p = q + 1;
+			if (c == 0) break;
+		}
+	}
+	*n_fields_ = n_fields, *m_fields_ = m_fields;
+	return fields;
+}
+
 struct hk_map *hk_map_read(const char *fn)
 {
 	gzFile fp;
@@ -252,25 +270,12 @@ struct hk_map *hk_map_read(const char *fn)
 	m = hk_map_init();
 	ks = ks_init(fp);
 	while (ks_getuntil(ks, KS_SEP_LINE, &str, &dret) >= 0) {
-		char *p, *q;
 		int32_t k, n_segs = 0;
 		if (str.l && str.s[0] != '#') ++n_data_rows;
-		// read chromsomes
-		if (n_data_rows == 0 && str.l >= 12 + 3 && strncmp(str.s, "#chromosome:", 12) == 0) {
+		if (n_data_rows == 0 && str.l >= 12 + 3 && strncmp(str.s, "#chromosome:", 12) == 0)
 			parse_chr(m->d, str.s);
-			continue;
-		}
-		// split into fields
-		for (n_fields = 0, p = q = str.s;; ++q) {
-			if (*q == '\t' || *q == 0) {
-				int c = *q;
-				if (n_fields == m_fields)
-					EXPAND(fields, m_fields);
-				fields[n_fields++] = p;
-				*q = 0, p = q + 1;
-				if (c == 0) break;
-			}
-		}
+		if (str.s[0] == '#') continue;
+		fields = split_fields(str.s, fields, &n_fields, &m_fields);
 		if (n_fields < 5) goto parse_seg;
 		if (!is_pos_int(fields[2]) || !is_pos_int(fields[4])) goto parse_seg;
 		if (n_fields >= 7 && (strlen(fields[5]) != 1 || strlen(fields[6]) != 1))
@@ -293,5 +298,46 @@ parse_seg:
 	gzclose(fp);
 	if (m->pairs && !hk_pair_is_sorted(m->n_pairs, m->pairs))
 		hk_pair_sort(m->n_pairs, m->pairs);
+	return m;
+}
+
+struct hk_bmap *hk_3dg_read(const char *fn)
+{
+	gzFile fp;
+	kstring_t str = {0,0,0};
+	kstream_t *ks;
+	int32_t dret, m_beads = 0, n_fields = 0, m_fields = 0, n_data_rows = 0;
+	char **fields = 0;
+	struct hk_bmap *m;
+
+	fp = fn && strcmp(fn, "-")? gzopen(fn, "rb") : gzdopen(fileno(stdin), "rb");
+	if (fp == 0) return 0;
+	m = CALLOC(struct hk_bmap, 1);
+	m->d = hk_sd_init();
+	ks = ks_init(fp);
+	while (ks_getuntil(ks, KS_SEP_LINE, &str, &dret) >= 0) {
+		if (str.l && str.s[0] != '#') ++n_data_rows;
+		if (n_data_rows == 0 && str.l >= 12 + 3 && strncmp(str.s, "#chromosome:", 12) == 0)
+			parse_chr(m->d, str.s);
+		if (str.s[0] == '#') continue;
+		fields = split_fields(str.s, fields, &n_fields, &m_fields);
+		if (n_fields >= 5) {
+			struct hk_bead *b;
+			if (m->n_beads == m_beads) {
+				EXPAND(m->beads, m_beads);
+				REALLOC(m->x, m_beads);
+			}
+			m->x[m->n_beads][0] = atof(fields[2]);
+			m->x[m->n_beads][1] = atof(fields[3]);
+			m->x[m->n_beads][2] = atof(fields[4]);
+			b = &m->beads[m->n_beads++];
+			b->chr = hk_sd_put(m->d, fields[0], 0);
+			b->st = b->en = atoi(fields[1]);
+		}
+	}
+	free(str.s);
+	ks_destroy(ks);
+	gzclose(fp);
+	hk_bmap_set_offcnt(m);
 	return m;
 }

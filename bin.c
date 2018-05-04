@@ -179,6 +179,7 @@ struct hk_bmap *hk_bmap_dup(const struct hk_bmap *m0, int ploidy, int n_with_hom
 
 void hk_bmap_destroy(struct hk_bmap *m)
 {
+	if (m->d) hk_sd_destroy(m->d);
 	free(m->x);
 	free(m->offcnt);
 	free(m->beads);
