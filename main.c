@@ -6,7 +6,7 @@
 #include <getopt.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r111"
+#define HICKIT_VERSION "r113"
 
 static struct option long_options_pair[] = {
 	{ "out-phase",      no_argument,       0, 0 }, // 0
@@ -162,7 +162,7 @@ main_return:
 int main_bin(int argc, char *argv[])
 {
 	int c, bin_size = 1000000, min_cnt = 1, ploidy = 2, n_multi_ploidy = 23, seed = 1, fdg = 0;
-	float phase_thres = 0.8f, drop_frac = 0.05f;
+	float phase_thres = 0.51f, drop_frac = 0.05f;
 	struct hk_map *m;
 	struct hk_bmap *bm;
 	struct hk_fdg_opt opt;
