@@ -84,7 +84,7 @@ struct hk_bead {
 typedef float fvec3_t[3];
 
 struct hk_bmap {
-	int32_t ploidy, n_full, n_beads, n_pairs;
+	int32_t n_beads, n_pairs;
 	struct hk_sdict *d;
 	struct hk_bead *beads;
 	uint64_t *offcnt; // index into beads
@@ -129,7 +129,6 @@ void hk_validate_roc(int32_t n_pairs, struct hk_pair *pairs);
 
 struct hk_bmap *hk_3dg_read(const char *fn);
 struct hk_bmap *hk_bmap_gen(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int size);
-struct hk_bmap *hk_bmap_dup(const struct hk_bmap *m0, int ploidy, int n_with_homo, int min_cnt, float phase_thres);
 void hk_bmap_destroy(struct hk_bmap *m);
 
 void hk_fdg_opt_init(struct hk_fdg_opt *opt);

@@ -163,7 +163,7 @@ int main_bin(int argc, char *argv[])
 {
 	int c, bin_size = 1000000, min_cnt = 1, ploidy = 2, n_multi_ploidy = 23, seed = 1, fdg = 0;
 	float phase_thres = 0.51f;
-	struct hk_map *m;
+	struct hk_map *m, *mp;
 	struct hk_bmap *bm;
 	struct hk_fdg_opt opt;
 	krng_t rng;
@@ -203,24 +203,15 @@ int main_bin(int argc, char *argv[])
 	kr_srand_r(&rng, seed);
 	m = hk_map_read(argv[optind]);
 	assert(m && m->pairs);
-	{
-		struct hk_map *p = hk_pair_sep_phase(m, ploidy, n_multi_ploidy, phase_thres);
-		hk_print_pair(stdout, 0, p->d, p->n_pairs, p->pairs);
-		return 0;
-	}
-	bm = hk_bmap_gen(m->d, m->n_pairs, m->pairs, bin_size);
-	if (ploidy > 1 && 1) {
-		struct hk_bmap *bm2;
-		bm2 = hk_bmap_dup(bm, ploidy, n_multi_ploidy, min_cnt, phase_thres);
-		hk_bmap_destroy(bm);
-		bm = bm2;
-	}
+	mp = hk_pair_sep_phase(m, ploidy, n_multi_ploidy, phase_thres);
+	hk_map_destroy(m);
+	bm = hk_bmap_gen(mp->d, mp->n_pairs, mp->pairs, bin_size);
+	hk_map_destroy(mp);
 	if (fdg) {
 		hk_fdg(&opt, bm, &rng);
 		hk_print_3dg(stdout, bm);
 	} else hk_print_bmap(stdout, bm);
 	hk_bmap_destroy(bm);
-	hk_map_destroy(m);
 	return 0;
 }
 
