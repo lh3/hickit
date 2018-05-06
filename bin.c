@@ -149,6 +149,7 @@ struct hk_bmap *hk_bmap_gen(const struct hk_sdict *d, int32_t n_pairs, const str
 	if (hk_verbose >= 3)
 		fprintf(stderr, "[M::%s] generated %d beads\n", __func__, m->n_beads);
 	hk_bmap_merge_beads(m, n_pairs, pairs);
+	hk_bmap_merge_beads(m, n_pairs, pairs);
 
 	h = hash_count(m, n_pairs, pairs);
 	for (k = 0, n_del = 0; k < kh_end(h); ++k) {

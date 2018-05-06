@@ -100,7 +100,7 @@ static inline void fv3_axpy(float a, const fvec3_t x, fvec3_t y)
 	y[0] += a * x[0], y[1] += a * x[1], y[2] += a * x[2];
 }
 
-static inline void update_force(const fvec3_t *x, int32_t i, int32_t j, float k, float radius, int repel, fvec3_t *f)
+static inline void update_force(fvec3_t *x, int32_t i, int32_t j, float k, float radius, int repel, fvec3_t *f)
 {
 	float dist, force;
 	fvec3_t delta;
