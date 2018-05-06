@@ -113,7 +113,7 @@ static inline void update_force(const fvec3_t *x, int32_t i, int32_t j, float k,
 	fv3_subfrom(delta, f[j]);
 }
 
-static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(set64) *h, const int32_t *cnt_un, fvec3_t *r)
+static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(set64) *h, fvec3_t *r)
 {
 	const float decay = 0.9f;
 	int32_t i, j, n_y, left;
@@ -133,25 +133,19 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 		int32_t cnt = (int32_t)m->offcnt[i];
 		for (j = 1; j < cnt; ++j) {
 			int32_t bid = off + j;
-			float k = 1.0f, radius = att_radius;
-			if (cnt_un[bid - 1] == 0 || cnt_un[bid] == 0)
-				k = 5.0f, radius = att_radius * 0.01f;
-			update_force(x, bid - 1, bid, k, radius, 0, f);
+			update_force(x, bid - 1, bid, 1.0f, att_radius, 0, f);
 		}
 	}
 	for (i = 0; i < m->n_pairs; ++i) { // contact
 		const struct hk_bpair *p = &m->pairs[i];
 		if (p->bid[0] == p->bid[1]) continue;
-		if (cnt_un[p->bid[0]] == 0 || cnt_un[p->bid[1]] == 0) continue;
 		update_force(x, p->bid[0], p->bid[1], 1.0f, att_radius, 0, f);
 	}
 
 	// repulsive forces: generate y[]
 	y = CALLOC(struct avl_coor, m->n_beads);
 	for (i = n_y = 0; i < m->n_beads; ++i) {
-		struct avl_coor *p;
-		if (cnt_un[i] == 0) continue;
-		p = &y[n_y++];
+		struct avl_coor *p = &y[n_y++];
 		p->i = i, p->x[0] = x[i][0], p->x[1] = x[i][1], p->x[2] = x[i][2];
 	}
 	ks_introsort(cx, n_y, y);
@@ -207,7 +201,7 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 
 void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 {
-	int32_t iter, i, j, absent, *cnt_un;
+	int32_t iter, i, j, absent;
 	khash_t(set64) *h;
 	fvec3_t *r;
 
@@ -227,29 +221,15 @@ void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 		kh_put(set64, h, (uint64_t)p->bid[1] << 32 | p->bid[0], &absent);
 	}
 
-	// find unconstrained beads
-	cnt_un = CALLOC(int32_t, m->n_beads);
-	for (i = 0; i < m->n_pairs; ++i) {
-		const struct hk_bpair *p = &m->pairs[i];
-		const struct hk_bead *b[2];
-		if (p->bid[0] == p->bid[1]) continue;
-		b[0] = &m->beads[p->bid[0]];
-		b[1] = &m->beads[p->bid[1]];
-		if (b[0]->chr == b[1]->chr && p->bid[1] == p->bid[0] + 1) continue;
-		++cnt_un[p->bid[0]];
-		++cnt_un[p->bid[1]];
-	}
-
 	// FDG
 	m->x = hk_fdg_init(rng, m->n_beads, opt->target_radius * 2.0f);
 	r = 0? CALLOC(fvec3_t, m->n_beads) : 0;
 	for (iter = 0; iter < opt->n_iter; ++iter) {
 		double s;
-		s = hk_fdg1(opt, m, h, cnt_un, r);
+		s = hk_fdg1(opt, m, h, r);
 		if (iter && iter%10 == 0 && hk_verbose >= 3)
 			fprintf(stderr, "[M::%s] %d iterations done (RMS force: %.4f)\n", __func__, iter+1, s);
 	}
-	free(cnt_un);
 	free(r);
 	kh_destroy(set64, h);
 }
