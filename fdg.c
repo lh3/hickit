@@ -141,8 +141,9 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 	}
 	for (i = 0; i < m->n_pairs; ++i) { // contact
 		const struct hk_bpair *p = &m->pairs[i];
-		if (p->bid[0] != p->bid[1])
-			update_force(x, p->bid[0], p->bid[1], 1.0f, att_radius, 0, f);
+		if (p->bid[0] == p->bid[1]) continue;
+		if (cnt_un[p->bid[0]] == 0 || cnt_un[p->bid[1]] == 0) continue;
+		update_force(x, p->bid[0], p->bid[1], 1.0f, att_radius, 0, f);
 	}
 
 	// repulsive forces: generate y[]
