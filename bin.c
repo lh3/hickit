@@ -170,6 +170,19 @@ struct hk_bmap *hk_bmap_gen(const struct hk_sdict *d, int32_t n_pairs, const str
 	return m;
 }
 
+void hk_bmap_copy_x(struct hk_bmap *dst, const struct hk_bmap *src)
+{
+	int32_t i;
+	if (dst->x) free(dst->x);
+	dst->x = CALLOC(fvec3_t, dst->n_beads);
+	for (i = 0; i < dst->n_beads; ++i) {
+		struct hk_bead *pd = &dst->beads[i];
+		int32_t j;
+		j = hk_bmap_pos2bid(src, pd->chr, pd->st);
+		memcpy(dst->x[i], src->x[j], 3 * sizeof(float));
+	}
+}
+
 void hk_bmap_destroy(struct hk_bmap *m)
 {
 	if (m->d) hk_sd_destroy(m->d);

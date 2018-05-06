@@ -222,7 +222,7 @@ void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 	}
 
 	// FDG
-	m->x = hk_fdg_init(rng, m->n_beads, opt->target_radius * 2.0f);
+	if (m->x == 0) m->x = hk_fdg_init(rng, m->n_beads, opt->target_radius * 2.0f);
 	r = 0? CALLOC(fvec3_t, m->n_beads) : 0;
 	for (iter = 0; iter < opt->n_iter; ++iter) {
 		double s;
