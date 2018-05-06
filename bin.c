@@ -77,46 +77,7 @@ int hk_bmap_pos2bid(const struct hk_bmap *m, int32_t chr, int32_t pos)
 	return -1;
 }
 
-void hk_bmap_merge_beads(struct hk_bmap *m, int32_t n_pairs, const struct hk_pair *pairs, float phase_thres, float drop_frac)
-{
-	int32_t i, k, *cnt, *cnt1, thres;
-	// compute counts
-	cnt = CALLOC(int32_t, m->n_beads);
-	for (i = 0; i < n_pairs; ++i) {
-		const struct hk_pair *p = &pairs[i];
-		if (p->_.p4[0] > phase_thres || p->_.p4[1] > phase_thres || p->_.p4[2] > phase_thres || p->_.p4[3] > phase_thres) {
-			int32_t bid[2];
-			bid[0] = hk_bmap_pos2bid(m, p->chr>>32,      hk_ppos1(p));
-			bid[1] = hk_bmap_pos2bid(m, (int32_t)p->chr, hk_ppos2(p));
-			++cnt[bid[0]], ++cnt[bid[1]];
-		}
-	}
-	// compute count threshold
-	cnt1 = CALLOC(int32_t, m->n_beads);
-	for (i = k = 0; i < m->n_beads; ++i)
-		if (cnt[i] > 0) cnt1[k++] = cnt[i];
-	ks_introsort(int32_t, k, cnt1);
-	thres = ks_ksmall_int32_t(k, cnt1, (int)(k * drop_frac));
-	free(cnt1);
-	// merge
-	for (i = k = 0; i < m->n_beads; ++i) {
-		if (cnt[i] == 0) {
-			if (i == 0 || m->beads[i].chr != m->beads[i-1].chr || cnt[i-1] > thres)
-				m->beads[k++] = m->beads[i];
-			else
-				m->beads[k-1].en = m->beads[i].en;
-		} else m->beads[k++] = m->beads[i];
-	}
-	if (hk_verbose >= 3)
-		fprintf(stderr, "[M::%s] reduced the number of beads from %d to %d at count threshold %d\n",
-				__func__, m->n_beads, k, thres);
-	m->n_beads = k;
-	free(m->offcnt);
-	hk_bmap_set_offcnt(m);
-	free(cnt);
-}
-
-struct hk_bmap *hk_bmap_gen(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int size, float phase_thres, float drop_frac)
+struct hk_bmap *hk_bmap_gen(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int size)
 {
 	int32_t i, n_del, m_pairs = 0;
 	khash_t(bin_cnt) *h;
@@ -128,7 +89,6 @@ struct hk_bmap *hk_bmap_gen(const struct hk_sdict *d, int32_t n_pairs, const str
 	m->d = hk_sd_dup(d, 1, 0);
 
 	hk_bmap_gen_beads_uniform(m, size);
-	hk_bmap_merge_beads(m, n_pairs, pairs, phase_thres, drop_frac);
 	if (hk_verbose >= 3)
 		fprintf(stderr, "[M::%s] generated %d beads\n", __func__, m->n_beads);
 

@@ -6,7 +6,7 @@
 #include <getopt.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r113"
+#define HICKIT_VERSION "r114"
 
 static struct option long_options_pair[] = {
 	{ "out-phase",      no_argument,       0, 0 }, // 0
@@ -162,7 +162,7 @@ main_return:
 int main_bin(int argc, char *argv[])
 {
 	int c, bin_size = 1000000, min_cnt = 1, ploidy = 2, n_multi_ploidy = 23, seed = 1, fdg = 0;
-	float phase_thres = 0.51f, drop_frac = 0.05f;
+	float phase_thres = 0.51f;
 	struct hk_map *m;
 	struct hk_bmap *bm;
 	struct hk_fdg_opt opt;
@@ -173,7 +173,6 @@ int main_bin(int argc, char *argv[])
 		if (c == 'c') min_cnt = atoi(optarg);
 		else if (c == 'b') bin_size = hk_parse_num(optarg);
 		else if (c == 'p') phase_thres = atof(optarg);
-		else if (c == 'd') drop_frac = atof(optarg);
 		else if (c == 'P') ploidy = atoi(optarg);
 		else if (c == 'f') n_multi_ploidy = atoi(optarg);
 		else if (c == 'g') fdg = 1;
@@ -190,7 +189,6 @@ int main_bin(int argc, char *argv[])
 		fprintf(stderr, "    -b NUM        bin size [1m]\n");
 		fprintf(stderr, "    -c INT        min count [%d]\n", min_cnt);
 		fprintf(stderr, "    -p FLOAT      phase threshold [%g]\n", phase_thres);
-		fprintf(stderr, "    -d FLOAT      fraction of low-count bins to drop [%g]\n", drop_frac);
 		fprintf(stderr, "    -P INT        ploidy [%d]\n", ploidy);
 		fprintf(stderr, "    -f INT        first INT chr have multiple ploidy [%d]\n", n_multi_ploidy);
 		fprintf(stderr, "  FDG:\n");
@@ -205,7 +203,7 @@ int main_bin(int argc, char *argv[])
 	kr_srand_r(&rng, seed);
 	m = hk_map_read(argv[optind]);
 	assert(m && m->pairs);
-	bm = hk_bmap_gen(m->d, m->n_pairs, m->pairs, bin_size, phase_thres, drop_frac);
+	bm = hk_bmap_gen(m->d, m->n_pairs, m->pairs, bin_size);
 	if (ploidy > 1 && 1) {
 		struct hk_bmap *bm2;
 		bm2 = hk_bmap_dup(bm, ploidy, n_multi_ploidy, min_cnt, phase_thres);

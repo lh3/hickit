@@ -113,10 +113,10 @@ static inline void update_force(const fvec3_t *x, int32_t i, int32_t j, float k,
 	fv3_subfrom(delta, f[j]);
 }
 
-static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(set64) *h, fvec3_t *r)
+static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(set64) *h, const int32_t *cnt_un, fvec3_t *r)
 {
 	const float decay = 0.9f;
-	int32_t i, j, left;
+	int32_t i, j, n_y, left;
 	struct avl_coor *y, *root = 0;
 	fvec3_t *f, *x = m->x;
 	double sum = 0.0;
@@ -127,12 +127,17 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 	step = opt->step * att_radius;
 	f = CALLOC(fvec3_t, m->n_beads);
 
-	// attractive forces
+	// apply attractive forces
 	for (i = 0; i < m->d->n; ++i) { // backbone
 		int32_t off = m->offcnt[i] >> 32;
 		int32_t cnt = (int32_t)m->offcnt[i];
-		for (j = 1; j < cnt; ++j)
-			update_force(x, off + j - 1, off + j, 1.0f, att_radius, 0, f);
+		for (j = 1; j < cnt; ++j) {
+			int32_t bid = off + j;
+			float k = 1.0f, radius = att_radius;
+			if (cnt_un[bid - 1] == 0 || cnt_un[bid] == 0)
+				k = 5.0f, radius = att_radius * 0.01f;
+			update_force(x, bid - 1, bid, k, radius, 0, f);
+		}
 	}
 	for (i = 0; i < m->n_pairs; ++i) { // contact
 		const struct hk_bpair *p = &m->pairs[i];
@@ -140,13 +145,19 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 			update_force(x, p->bid[0], p->bid[1], 1.0f, att_radius, 0, f);
 	}
 
-	// repulsive forces
+	// repulsive forces: generate y[]
 	y = CALLOC(struct avl_coor, m->n_beads);
-	for (i = 0; i < m->n_beads; ++i)
-		y[i].i = i, y[i].x[0] = x[i][0], y[i].x[1] = x[i][1], y[i].x[2] = x[i][2];
-	ks_introsort(cx, m->n_beads, y);
+	for (i = n_y = 0; i < m->n_beads; ++i) {
+		struct avl_coor *p;
+		if (cnt_un[i] == 0) continue;
+		p = &y[n_y++];
+		p->i = i, p->x[0] = x[i][0], p->x[1] = x[i][1], p->x[2] = x[i][2];
+	}
+	ks_introsort(cx, n_y, y);
+
+	// apply repulsive forces
 	kavl_insert(cy, &root, &y[0], 0);
-	for (i = 1, left = 0; i < m->n_beads; ++i) {
+	for (i = 1, left = 0; i < n_y; ++i) {
 		struct avl_coor t, *q = &y[i];
 		const struct avl_coor *p;
 		kavl_itr_t(cy) itr;
@@ -195,7 +206,7 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 
 void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 {
-	int32_t iter, i, j, absent;
+	int32_t iter, i, j, absent, *cnt_un;
 	khash_t(set64) *h;
 	fvec3_t *r;
 
@@ -215,15 +226,29 @@ void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 		kh_put(set64, h, (uint64_t)p->bid[1] << 32 | p->bid[0], &absent);
 	}
 
+	// find unconstrained beads
+	cnt_un = CALLOC(int32_t, m->n_beads);
+	for (i = 0; i < m->n_pairs; ++i) {
+		const struct hk_bpair *p = &m->pairs[i];
+		const struct hk_bead *b[2];
+		if (p->bid[0] == p->bid[1]) continue;
+		b[0] = &m->beads[p->bid[0]];
+		b[1] = &m->beads[p->bid[1]];
+		if (b[0]->chr == b[1]->chr && p->bid[1] == p->bid[0] + 1) continue;
+		++cnt_un[p->bid[0]];
+		++cnt_un[p->bid[1]];
+	}
+
 	// FDG
 	m->x = hk_fdg_init(rng, m->n_beads, opt->target_radius * 2.0f);
 	r = 0? CALLOC(fvec3_t, m->n_beads) : 0;
 	for (iter = 0; iter < opt->n_iter; ++iter) {
 		double s;
-		s = hk_fdg1(opt, m, h, r);
+		s = hk_fdg1(opt, m, h, cnt_un, r);
 		if (iter && iter%10 == 0 && hk_verbose >= 3)
 			fprintf(stderr, "[M::%s] %d iterations done (RMS force: %.4f)\n", __func__, iter+1, s);
 	}
+	free(cnt_un);
 	free(r);
 	kh_destroy(set64, h);
 }
@@ -231,7 +256,8 @@ void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 void hk_fdg_normalize(struct hk_bmap *m)
 {
 	int32_t i, j;
-	fvec3_t max, min, scale;
+	fvec3_t max, min;
+	float scale;
 	double sum[3];
 	max[0] = max[1] = max[2] = -1e30f;
 	min[0] = min[1] = min[2] = 1e30f;
@@ -243,15 +269,16 @@ void hk_fdg_normalize(struct hk_bmap *m)
 			sum[j] += m->x[i][j];
 		}
 	}
-	for (j = 0; j < 3; ++j) {
+	for (j = 0, scale = -1e30f; j < 3; ++j) {
 		double x;
 		sum[j] /= m->n_beads;
 		x = max[j] - sum[j] > sum[j] - min[j]? max[j] - sum[j] : sum[j] - min[j];
-		scale[j] = 1.0 / x;
+		scale = scale > x? scale : x;
 	}
+	scale = 1.0f / scale;
 	if (hk_verbose >= 3)
 		fprintf(stderr, "[M::%s] center: (%.4f,%.4f,%.4f)\n", __func__, sum[0], sum[1], sum[2]);
 	for (i = 0; i < m->n_beads; ++i)
 		for (j = 0; j < 3; ++j)
-			m->x[i][j] = (m->x[i][j] - sum[j]) * scale[j];
+			m->x[i][j] = (m->x[i][j] - sum[j]) * scale;
 }
