@@ -203,6 +203,11 @@ int main_bin(int argc, char *argv[])
 	kr_srand_r(&rng, seed);
 	m = hk_map_read(argv[optind]);
 	assert(m && m->pairs);
+	{
+		struct hk_map *p = hk_pair_sep_phase(m, ploidy, n_multi_ploidy, phase_thres);
+		hk_print_pair(stdout, 0, p->d, p->n_pairs, p->pairs);
+		return 0;
+	}
 	bm = hk_bmap_gen(m->d, m->n_pairs, m->pairs, bin_size);
 	if (ploidy > 1 && 1) {
 		struct hk_bmap *bm2;
