@@ -6,7 +6,7 @@
 #include <getopt.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r123"
+#define HICKIT_VERSION "r124"
 
 static struct option long_options_pair[] = {
 	{ "out-phase",      no_argument,       0, 0 }, // 0
@@ -17,7 +17,6 @@ static struct option long_options_pair[] = {
 	{ "select-phased",  no_argument,       0, 0 }, // 5: only imput pairs containing at least one phased leg
 	{ "no-spacial",     no_argument,       0, 'u' },
 	{ "tad-flag",       no_argument,       0, 0 }, // 7
-	{ "ploidy",         required_argument, 0, 0 }, // 8
 	{ 0, 0, 0, 0}
 };
 
@@ -43,7 +42,7 @@ static void print_usage_pair(FILE *fp, const struct hk_opt *opt)
 	fprintf(fp, "    -r NUM        max radius (affecting imputation as well) [10m]\n");
 	fprintf(fp, "    -m INT        min count within max radius [%d]\n", opt->min_flt_cnt);
 	fprintf(fp, "    -D            don't remove duplicates\n");
-	fprintf(fp, "    --ploidy=INT  ploidy to infer sex chr phases for male (1 or 2) [2]\n");
+	fprintf(fp, "    -P INT        ploidy to infer sex chr phases for male (1 or 2) [2]\n");
 	fprintf(fp, "  TAD calling:\n");
 	fprintf(fp, "    -t            call and output TADs\n");
 	fprintf(fp, "    -a FLOAT      area weight (smaller for bigger TADs) [%.2f]\n", opt->area_weight);
@@ -71,11 +70,12 @@ int main_pair(int argc, char *argv[])
 	krng_t rng;
 
 	hk_opt_init(&opt);
-	while ((c = getopt_long(argc, argv, "s:q:d:Dm:ta:c:pr:n:k:GB:v:uS:", long_options_pair, &long_idx)) >= 0) {
+	while ((c = getopt_long(argc, argv, "s:q:d:DP:m:ta:c:pr:n:k:GB:v:uS:", long_options_pair, &long_idx)) >= 0) {
 		if (c == 's') opt.max_seg = atoi(optarg);
 		else if (c == 'q') opt.min_mapq = atoi(optarg);
 		else if (c == 'd') opt.min_dist = hk_parse_num(optarg);
 		else if (c == 'D') is_dedup = 0;
+		else if (c == 'P') ploidy = atoi(optarg);
 		else if (c == 'm') opt.min_flt_cnt = atoi(optarg);
 		else if (c == 't') is_tad_out = 1;
 		else if (c == 'a') opt.area_weight = atof(optarg);
@@ -94,7 +94,6 @@ int main_pair(int argc, char *argv[])
 		else if (c == 0 && long_idx == 4) hk_verbose = atoi(optarg);
 		else if (c == 0 && long_idx == 5) sel_phased = 1;
 		else if (c == 0 && long_idx == 7) mask_tad = 1;
-		else if (c == 0 && long_idx == 8) ploidy = atoi(optarg);
 	}
 	assert(ploidy >= 1 && ploidy <= 2);
 	if (argc - optind == 0) {
