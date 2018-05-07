@@ -166,10 +166,11 @@ int main_bin(int argc, char *argv[])
 	struct hk_map *m, *mp;
 	struct hk_bmap *bm;
 	struct hk_fdg_opt opt;
+	char *fn_in = 0;
 	krng_t rng;
 
 	hk_fdg_opt_init(&opt);
-	while ((c = getopt(argc, argv, "c:b:p:d:P:f:gk:r:e:n:s:")) >= 0) {
+	while ((c = getopt(argc, argv, "c:b:p:d:P:f:gk:r:e:n:s:i:")) >= 0) {
 		if (c == 'c') min_cnt = atoi(optarg);
 		else if (c == 'b') bin_size = hk_parse_num(optarg);
 		else if (c == 'p') phase_thres = atof(optarg);
@@ -181,6 +182,7 @@ int main_bin(int argc, char *argv[])
 		else if (c == 'e') opt.step = atof(optarg);
 		else if (c == 'n') opt.n_iter = atoi(optarg);
 		else if (c == 's') seed = atoi(optarg);
+		else if (c == 'i') fn_in = optarg;
 	}
 	if (optind == argc) {
 		fprintf(stderr, "Usage: hickit bin [options] <in.pairs>\n");
@@ -206,11 +208,17 @@ int main_bin(int argc, char *argv[])
 	mp = hk_pair_sep_phase(m, ploidy, n_multi_ploidy, phase_thres);
 	hk_map_destroy(m);
 	bm = hk_bmap_gen(mp->d, mp->n_pairs, mp->pairs, bin_size);
-	hk_map_destroy(mp);
 	if (fdg) {
+		if (fn_in) {
+			struct hk_bmap *in;
+			in = hk_3dg_read(fn_in);
+			hk_bmap_copy_x(bm, in, &rng);
+			hk_bmap_destroy(in);
+		}
 		hk_fdg(&opt, bm, &rng);
 		hk_print_3dg(stdout, bm);
 	} else hk_print_bmap(stdout, bm);
+	hk_map_destroy(mp);
 	hk_bmap_destroy(bm);
 	return 0;
 }

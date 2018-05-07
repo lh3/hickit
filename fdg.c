@@ -184,6 +184,7 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 
 	// update coordinate
 	for (i = 0; i < m->n_beads; ++i) {
+		assert(!isnan(sum));
 		sum += fv3_L2(f[i]); // TODO: check if precision is good enough
 		if (r) {
 			for (j = 0; j < 3; ++j) {

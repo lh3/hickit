@@ -306,7 +306,7 @@ struct hk_bmap *hk_3dg_read(const char *fn)
 	gzFile fp;
 	kstring_t str = {0,0,0};
 	kstream_t *ks;
-	int32_t dret, m_beads = 0, n_fields = 0, m_fields = 0, n_data_rows = 0;
+	int32_t i, dret, m_beads = 0, n_fields = 0, m_fields = 0, n_data_rows = 0;
 	char **fields = 0;
 	struct hk_bmap *m;
 
@@ -338,6 +338,11 @@ struct hk_bmap *hk_3dg_read(const char *fn)
 	free(str.s);
 	ks_destroy(ks);
 	gzclose(fp);
+	for (i = 1; i <= m->n_beads; ++i) {
+		if (i == m->n_beads || m->beads[i].chr != m->beads[i-1].chr)
+			m->beads[i-1].en = m->d->len[m->beads[i-1].chr];
+		else m->beads[i-1].en = m->beads[i].st;
+	}
 	hk_bmap_set_offcnt(m);
 	return m;
 }
