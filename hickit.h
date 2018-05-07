@@ -97,6 +97,7 @@ struct hk_fdg_opt {
 	float k_rep, r_rep;
 	int n_iter;
 	float step;
+	float max_f;
 };
 
 extern int hk_verbose;

@@ -35,7 +35,8 @@ void hk_fdg_opt_init(struct hk_fdg_opt *opt)
 	opt->k_rep = 1.0f;
 	opt->r_rep = 1.0f;
 	opt->n_iter = 1000;
-	opt->step = 0.02f;
+	opt->step = 0.01f;
+	opt->max_f = 50.0f;
 }
 
 static float fdg_optimal_dist(float target_radius, int n_beads)
@@ -184,8 +185,14 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 
 	// update coordinate
 	for (i = 0; i < m->n_beads; ++i) {
+		float t;
 		assert(!isnan(sum));
-		sum += fv3_L2(f[i]); // TODO: check if precision is good enough
+		t = fv3_L2(f[i]);
+		sum += t; // TODO: check if precision is good enough
+		t = sqrtf(t);
+		if (t > opt->max_f)
+			for (j = 0; j < 3; ++j)
+				f[i][j] = f[i][j] / t * opt->max_f;
 		if (r) {
 			for (j = 0; j < 3; ++j) {
 				r[i][j] = (1.0f - decay) * f[i][j] * f[i][j] + decay * r[i][j];
@@ -204,7 +211,8 @@ void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 {
 	int32_t iter, i, j, absent;
 	khash_t(set64) *h;
-	fvec3_t *r;
+	fvec3_t *r, *best_x;
+	double best = 1e30;
 
 	// collect attractive pairs
 	h = kh_init(set64);
@@ -223,16 +231,23 @@ void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 	}
 
 	// FDG
-	if (m->x == 0) m->x = hk_fdg_init(rng, m->n_beads, opt->target_radius * 2.0f);
+	if (m->x == 0) m->x = hk_fdg_init(rng, m->n_beads, opt->target_radius);
 	r = 0? CALLOC(fvec3_t, m->n_beads) : 0;
+	best_x = CALLOC(fvec3_t, m->n_beads);
 	for (iter = 0; iter < opt->n_iter; ++iter) {
 		double s;
 		s = hk_fdg1(opt, m, h, r);
+		if (s < best) {
+			memcpy(best_x, m->x, sizeof(fvec3_t) * m->n_beads);
+			best = s;
+		}
 		if (iter && iter%10 == 0 && hk_verbose >= 3)
 			fprintf(stderr, "[M::%s] %d iterations done (RMS force: %.4f)\n", __func__, iter+1, s);
 	}
-	free(r);
 	kh_destroy(set64, h);
+	free(r);
+	memcpy(m->x, best_x, sizeof(fvec3_t) * m->n_beads);
+	free(best_x);
 }
 
 void hk_fdg_normalize(struct hk_bmap *m)
