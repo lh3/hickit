@@ -73,30 +73,69 @@ int32_t hk_sd_put(struct hk_sdict *d, const char *s, int32_t len)
 	return kh_val(h, k);
 }
 
-struct hk_sdict *hk_sd_dup(const struct hk_sdict *d, int ploidy, int n_full)
+struct hk_sdict *hk_sd_sep_phase(const struct hk_sdict *d, int32_t *ploidy_XY)
 {
 	struct hk_sdict *dp;
-	int i, j;
-	assert(d->n >= n_full);
+	int i;
 	dp = hk_sd_init();
-	for (i = 0; i < n_full; ++i) {
-		char *s;
-		int l;
-		l = strlen(d->name[i]);
-		s = CALLOC(char, l + 2);
-		strcpy(s, d->name[i]);
-		if (ploidy > 1) {
+	for (i = 0; i < d->n; ++i) {
+		int ploidy = ploidy_XY? ploidy_XY[i] >> 8 : 1;
+		if (ploidy <= 1) {
+			hk_sd_put(dp, d->name[i], d->len[i]);
+		} else {
+			int l, j;
+			char *s;
+			l = strlen(d->name[i]);
+			s = CALLOC(char, l + 2);
+			strcpy(s, d->name[i]);
 			s[l+1] = 0;
 			for (j = 0; j < ploidy; ++j) {
 				s[l] = 'a' + j;
 				hk_sd_put(dp, s, d->len[i]);
 			}
+			free(s);
 		}
-		free(s);
 	}
-	for (i = n_full; i < d->n; ++i)
-		hk_sd_put(dp, d->name[i], d->len[i]);
 	return dp;
+}
+
+struct hk_sdict *hk_sd_dup(const struct hk_sdict *d)
+{
+	return hk_sd_sep_phase(d, 0);
+}
+
+int32_t *hk_sd_ploidy_XY(const struct hk_sdict *d, int32_t *sex_flag)
+{
+	int32_t i, *ploidy, n_X = 0, n_Y = 0;
+	if (sex_flag) *sex_flag = 0;
+	for (i = 0; i < d->n; ++i) {
+		int32_t is_X, is_Y;
+		is_X = (strchr(d->name[i], 'X') != 0);
+		is_Y = (strchr(d->name[i], 'Y') != 0);
+		if (is_X && is_Y) continue;
+		if (is_X) ++n_X;
+		if (is_Y) ++n_Y;
+	}
+	if (n_X == 0 && n_Y == 0)
+		fprintf(stderr, "[W::%s] no sex chromosomes (identified by 'X' or 'Y' in chr names)\n", __func__);
+	if (n_X > 1 || n_Y > 1) {
+		fprintf(stderr, "[E::%s] multiple chr contain 'X' or 'Y' in names\n", __func__);
+		exit(1);
+	}
+	if (n_X > 0 && sex_flag) *sex_flag |= 1;
+	if (n_Y > 0 && sex_flag) *sex_flag |= 2;
+	ploidy = CALLOC(int32_t, d->n);
+	for (i = 0; i < d->n; ++i) {
+		int32_t is_X, is_Y;
+		is_X = (strchr(d->name[i], 'X') != 0);
+		is_Y = (strchr(d->name[i], 'Y') != 0);
+		if (is_X && is_Y) continue;
+		if (n_Y == 0) ploidy[i] = 2 << 8;
+		else ploidy[i] = (is_X || is_Y? 1 : 2) << 8;
+		if (is_X) ploidy[i] |= 1;
+		if (is_Y) ploidy[i] |= 2;
+	}
+	return ploidy;
 }
 
 /*************************
@@ -345,4 +384,32 @@ struct hk_bmap *hk_3dg_read(const char *fn)
 	}
 	hk_bmap_set_offcnt(m);
 	return m;
+}
+
+void hk_map_phase_male_XY(struct hk_map *m)
+{
+	int32_t i, sex_flag, *ploidy_XY;
+	ploidy_XY = hk_sd_ploidy_XY(m->d, &sex_flag);
+	if (sex_flag & 2) { // chrY present, a male
+		if (m->pairs) {
+			for (i = 0; i < m->n_pairs; ++i) {
+				struct hk_pair *p = &m->pairs[i];
+				int32_t chr[2];
+				chr[0] = p->chr >> 32;
+				chr[1] = (int32_t)p->chr;
+				if (ploidy_XY[chr[0]]&1) p->phase[0] = 1;
+				else if (ploidy_XY[chr[0]]&2) p->phase[0] = 0;
+				if (ploidy_XY[chr[1]]&1) p->phase[1] = 1;
+				else if (ploidy_XY[chr[1]]&2) p->phase[1] = 0;
+			}
+		}
+		if (m->segs) {
+			for (i = 0; i < m->n_segs; ++i) {
+				struct hk_seg *p = &m->segs[i];
+				if (ploidy_XY[p->chr]&1) p->phase = 1;
+				else if (ploidy_XY[p->chr]&2) p->phase = 0;
+			}
+		}
+	}
+	free(ploidy_XY);
 }

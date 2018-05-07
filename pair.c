@@ -144,34 +144,39 @@ void hk_mask_by_tad(int32_t n_tads, const struct hk_pair *tads, int32_t n_pairs,
 		fprintf(stderr, "[M::%s] masked %d out of %d pairs\n", __func__, n_masked, n_pairs);
 }
 
-static inline int32_t chr_old2new(int32_t chr, int32_t ploidy, int32_t n_dup, int32_t phase)
+struct hk_map *hk_pair_sep_phase(const struct hk_map *m, float phase_thres)
 {
-	return chr < n_dup? chr * ploidy + phase : n_dup * ploidy + (chr - n_dup);
-}
-
-struct hk_map *hk_pair_sep_phase(const struct hk_map *m, int32_t ploidy, int32_t n_dup, float phase_thres)
-{
-	int32_t i, m_ppairs = 0;
+	int32_t i, m_ppairs = 0, *ploidy_XY, *old2new;
 	struct hk_map *p;
+
+	ploidy_XY = hk_sd_ploidy_XY(m->d, 0);
+	old2new = CALLOC(int32_t, m->d->n);
+	for (i = 1; i < m->d->n; ++i)
+		old2new[i] = old2new[i-1] + (ploidy_XY[i-1]>>8);
+
 	p = CALLOC(struct hk_map, 1);
-	p->d = hk_sd_dup(m->d, ploidy, n_dup);
+	p->d = hk_sd_sep_phase(m->d, ploidy_XY);
 	for (i = 0; i < m->n_pairs; ++i) {
 		const struct hk_pair *q = &m->pairs[i];
 		struct hk_pair *r;
-		int32_t j, max_j = -1;
+		int32_t j, max_j = -1, chr[2];
 		float max = -1e30f;
 		for (j = 0; j < 4; ++j)
 			if (q->_.p4[j] > max)
 				max = q->_.p4[j], max_j = j;
 		if (max < phase_thres) continue;
+		chr[0] = q->chr>>32, chr[1] = (int32_t)q->chr;
+		chr[0] = old2new[chr[0]] + (ploidy_XY[chr[0]]>>8 == 1? 0 : max_j>>1&1);
+		chr[1] = old2new[chr[1]] + (ploidy_XY[chr[1]]>>8 == 1? 0 : max_j&1);
 		if (p->n_pairs == m_ppairs)
 			EXPAND(p->pairs, m_ppairs);
 		r = &p->pairs[p->n_pairs++];
 		*r = *q;
-		r->chr = (uint64_t)chr_old2new(q->chr>>32, ploidy, n_dup, max_j>>1&1) << 32
-				 | chr_old2new((int32_t)q->chr, ploidy, n_dup, max_j&1);
+		r->chr = (uint64_t)chr[0] << 32 | chr[1];
 		r->_.phased_prob = max;
 	}
+	free(old2new);
+	free(ploidy_XY);
 	hk_pair_sort(p->n_pairs, p->pairs);
 	return p;
 }

@@ -103,17 +103,20 @@ extern int hk_verbose;
 
 void hk_opt_init(struct hk_opt *opt);
 
-struct hk_sdict *hk_sd_dup(const struct hk_sdict *d, int ploidy, int n_full);
+int32_t *hk_sd_ploidy_XY(const struct hk_sdict *d, int32_t *sex_flag);
+struct hk_sdict *hk_sd_dup(const struct hk_sdict *d);
+struct hk_sdict *hk_sd_sep_phase(const struct hk_sdict *d, int32_t *ploidy_XY);
 
 struct hk_map *hk_map_read(const char *fn);
 void hk_map_destroy(struct hk_map *m);
+void hk_map_phase_male_XY(struct hk_map *m);
 
 struct hk_pair *hk_seg2pair(int32_t n_segs, const struct hk_seg *segs, int min_dist, int max_seg, int min_mapq, int32_t *n_pairs_);
 int32_t hk_pair_dedup(int n_pairs, struct hk_pair *pairs, int min_dist);
 int32_t hk_pair_filter(int32_t n_pairs, struct hk_pair *pairs, int32_t max_radius, int32_t min_cnt);
 int32_t hk_pair_select_phased(int n_pairs, struct hk_pair *pairs);
 void hk_pair_count(int32_t n_pairs, struct hk_pair *pairs);
-struct hk_map *hk_pair_sep_phase(const struct hk_map *m, int32_t ploidy, int32_t n_dup, float phase_thres);
+struct hk_map *hk_pair_sep_phase(const struct hk_map *m, float phase_thres);
 
 struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int min_tad_size, float area_weight, int32_t *n_tads_);
 void hk_mask_by_tad(int32_t n_tads, const struct hk_pair *tads, int32_t n_pairs, struct hk_pair *pairs);

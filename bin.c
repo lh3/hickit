@@ -143,7 +143,7 @@ struct hk_bmap *hk_bmap_gen(const struct hk_sdict *d, int32_t n_pairs, const str
 	khint_t k;
 
 	m = CALLOC(struct hk_bmap, 1);
-	m->d = hk_sd_dup(d, 1, 0);
+	m->d = hk_sd_dup(d);
 
 	hk_bmap_gen_beads_uniform(m, size);
 	if (hk_verbose >= 3)

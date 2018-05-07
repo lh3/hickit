@@ -6,7 +6,7 @@
 #include <getopt.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r122"
+#define HICKIT_VERSION "r123"
 
 static struct option long_options_pair[] = {
 	{ "out-phase",      no_argument,       0, 0 }, // 0
@@ -17,6 +17,7 @@ static struct option long_options_pair[] = {
 	{ "select-phased",  no_argument,       0, 0 }, // 5: only imput pairs containing at least one phased leg
 	{ "no-spacial",     no_argument,       0, 'u' },
 	{ "tad-flag",       no_argument,       0, 0 }, // 7
+	{ "ploidy",         required_argument, 0, 0 }, // 8
 	{ 0, 0, 0, 0}
 };
 
@@ -42,6 +43,7 @@ static void print_usage_pair(FILE *fp, const struct hk_opt *opt)
 	fprintf(fp, "    -r NUM        max radius (affecting imputation as well) [10m]\n");
 	fprintf(fp, "    -m INT        min count within max radius [%d]\n", opt->min_flt_cnt);
 	fprintf(fp, "    -D            don't remove duplicates\n");
+	fprintf(fp, "    --ploidy=INT  ploidy to infer sex chr phases for male (1 or 2) [2]\n");
 	fprintf(fp, "  TAD calling:\n");
 	fprintf(fp, "    -t            call and output TADs\n");
 	fprintf(fp, "    -a FLOAT      area weight (smaller for bigger TADs) [%.2f]\n", opt->area_weight);
@@ -64,7 +66,7 @@ int main_pair(int argc, char *argv[])
 	struct hk_opt opt;
 	struct hk_map *m = 0;
 	int c, long_idx, ret = 0, is_seg_out = 0, is_impute = 0, is_dedup = 1, is_tad_out = 0, is_gibbs = 0, sel_phased = 0, mask_tad = 0, use_spacial = 1;
-	int seed = 1;
+	int ploidy = 2, seed = 1;
 	float val_frac = -1.0f;
 	krng_t rng;
 
@@ -92,7 +94,9 @@ int main_pair(int argc, char *argv[])
 		else if (c == 0 && long_idx == 4) hk_verbose = atoi(optarg);
 		else if (c == 0 && long_idx == 5) sel_phased = 1;
 		else if (c == 0 && long_idx == 7) mask_tad = 1;
+		else if (c == 0 && long_idx == 8) ploidy = atoi(optarg);
 	}
+	assert(ploidy >= 1 && ploidy <= 2);
 	if (argc - optind == 0) {
 		print_usage_pair(stderr, &opt);
 		return 1;
@@ -103,6 +107,7 @@ int main_pair(int argc, char *argv[])
 		fprintf(stderr, "[W::%s] option --tad-flag is ignored\n", __func__);
 
 	m = hk_map_read(argv[optind]);
+	if (ploidy == 2) hk_map_phase_male_XY(m);
 
 	if (is_seg_out) {
 		if (m->segs) {
@@ -161,21 +166,20 @@ main_return:
 
 int main_bin(int argc, char *argv[])
 {
-	int c, bin_size = 1000000, min_cnt = 1, ploidy = 2, n_multi_ploidy = 23, seed = 1, fdg = 0;
+	int c, bin_size = 1000000, min_cnt = 1, ploidy = 2, seed = 1, fdg = 0;
 	float phase_thres = 0.51f;
-	struct hk_map *m, *mp;
+	struct hk_map *m;
 	struct hk_bmap *bm;
 	struct hk_fdg_opt opt;
 	char *fn_in = 0;
 	krng_t rng;
 
 	hk_fdg_opt_init(&opt);
-	while ((c = getopt(argc, argv, "c:b:p:d:P:f:gk:r:e:n:s:i:")) >= 0) {
+	while ((c = getopt(argc, argv, "c:b:p:d:P:gk:r:e:n:s:i:")) >= 0) {
 		if (c == 'c') min_cnt = atoi(optarg);
 		else if (c == 'b') bin_size = hk_parse_num(optarg);
 		else if (c == 'p') phase_thres = atof(optarg);
 		else if (c == 'P') ploidy = atoi(optarg);
-		else if (c == 'f') n_multi_ploidy = atoi(optarg);
 		else if (c == 'g') fdg = 1;
 		else if (c == 'k') opt.k_rep = atof(optarg);
 		else if (c == 'r') opt.r_rep = atof(optarg);
@@ -184,6 +188,7 @@ int main_bin(int argc, char *argv[])
 		else if (c == 's') seed = atoi(optarg);
 		else if (c == 'i') fn_in = optarg;
 	}
+	assert(ploidy >= 1 && ploidy <= 2);
 	if (optind == argc) {
 		fprintf(stderr, "Usage: hickit bin [options] <in.pairs>\n");
 		fprintf(stderr, "Options:\n");
@@ -191,8 +196,7 @@ int main_bin(int argc, char *argv[])
 		fprintf(stderr, "    -b NUM        bin size [1m]\n");
 		fprintf(stderr, "    -c INT        min count [%d]\n", min_cnt);
 		fprintf(stderr, "    -p FLOAT      phase threshold [%g]\n", phase_thres);
-		fprintf(stderr, "    -P INT        ploidy [%d]\n", ploidy);
-		fprintf(stderr, "    -f INT        first INT chr have multiple ploidy [%d]\n", n_multi_ploidy);
+		fprintf(stderr, "    -P INT        ploidy (1 or 2) [%d]\n", ploidy);
 		fprintf(stderr, "  FDG:\n");
 		fprintf(stderr, "    -g            perform FDG\n");
 		fprintf(stderr, "    -k FLOAT      relative repulsive stiffness [%g]\n", opt.k_rep);
@@ -205,9 +209,14 @@ int main_bin(int argc, char *argv[])
 	kr_srand_r(&rng, seed);
 	m = hk_map_read(argv[optind]);
 	assert(m && m->pairs);
-	mp = hk_pair_sep_phase(m, ploidy, n_multi_ploidy, phase_thres);
+	if (ploidy == 2) {
+		struct hk_map *tmp;
+		tmp = hk_pair_sep_phase(m, phase_thres);
+		hk_map_destroy(m);
+		m = tmp;
+	}
+	bm = hk_bmap_gen(m->d, m->n_pairs, m->pairs, bin_size);
 	hk_map_destroy(m);
-	bm = hk_bmap_gen(mp->d, mp->n_pairs, mp->pairs, bin_size);
 	if (fdg) {
 		if (fn_in) {
 			struct hk_bmap *in;
@@ -218,7 +227,6 @@ int main_bin(int argc, char *argv[])
 		hk_fdg(&opt, bm, &rng);
 		hk_print_3dg(stdout, bm);
 	} else hk_print_bmap(stdout, bm);
-	hk_map_destroy(mp);
 	hk_bmap_destroy(bm);
 	return 0;
 }
