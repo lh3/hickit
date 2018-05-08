@@ -10,21 +10,24 @@
 
 struct {
 	struct hk_bmap *m;
-} global = { 0 };
+	fvec3_t *color;
+	krng_t rng;
+} global;
+
+static void prep_color(const struct hk_sdict *d);
 
 static void cb_draw(void)
 {
 	struct hk_bmap *m = global.m;
 	int32_t i;
 
-	srand48(1);
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 	glMatrixMode(GL_MODELVIEW);
 	glLineWidth(2);
 	for (i = 0; i < m->d->n; ++i) {
 		int32_t j, cnt = (int32_t)m->offcnt[i];
 		int32_t off = m->offcnt[i] >> 32;
-		glColor3f(drand48(), drand48(), drand48());
+		glColor3f(global.color[i][0], global.color[i][1], global.color[i][2]);
 		glBegin(GL_LINE_STRIP);
 		for (j = 0; j < cnt; ++j)
 			glVertex3f(m->x[off+j][0], m->x[off+j][1], m->x[off+j][2]);
@@ -37,7 +40,11 @@ static void cb_key(unsigned char key, int x, int y)
 {
 	if (key == 27 || key == 'q' || key == 'Q') {
 		hk_bmap_destroy(global.m);
+		free(global.color);
 		exit(0);
+	} else if (key == 'c' || key == 'C') {
+		prep_color(global.m->d);
+		cb_draw();
 	}
 }
 
@@ -68,10 +75,23 @@ void hk_v3d_prep(int *argc, char *argv[])
 	glutInitDisplayMode(GLUT_RGB|GLUT_DEPTH);
 }
 
-void hk_v3d_view(struct hk_bmap *m, int width)
+static void prep_color(const struct hk_sdict *d)
+{
+	int i;
+	global.color = CALLOC(fvec3_t, d->n);
+	for (i = 0; i < d->n; ++i) {
+		global.color[i][0] = kr_drand_r(&global.rng);
+		global.color[i][1] = kr_drand_r(&global.rng);
+		global.color[i][2] = kr_drand_r(&global.rng);
+	}
+}
+
+void hk_v3d_view(struct hk_bmap *m, int width, int color_seed)
 {
 	global.m = m;
+	kr_srand_r(&global.rng, color_seed);
 	hk_fdg_normalize(m);
+	prep_color(m->d);
 	glutInitWindowSize(width, width);
 	glutCreateWindow("View3D");
 	glutDisplayFunc(cb_draw);
