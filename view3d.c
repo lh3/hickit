@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include <math.h>
 #include "hkpriv.h"
 
 #ifdef HAVE_GL
@@ -11,8 +10,7 @@
 
 struct {
 	struct hk_bmap *m;
-	double angleXZ;
-} global = { 0, 0.0 };
+} global = { 0 };
 
 static void cb_draw(void)
 {
@@ -22,8 +20,6 @@ static void cb_draw(void)
 	srand48(1);
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-	glRotatef(global.angleXZ, 0.0f, 1.0f, 0.0f);
 	glLineWidth(2);
 	for (i = 0; i < m->d->n; ++i) {
 		int32_t j, cnt = (int32_t)m->offcnt[i];
@@ -47,25 +43,22 @@ static void cb_key(unsigned char key, int x, int y)
 
 static void cb_special_key(int key, int x, int y)
 {
-	if (key == GLUT_KEY_RIGHT) {
-		global.angleXZ -= 5.0;
+	const float step = 5.0f;
+	if (key == GLUT_KEY_UP || key == GLUT_KEY_DOWN || key == GLUT_KEY_RIGHT || key == GLUT_KEY_LEFT) {
+		double mat_modview[16], mat_proj[16];
+		double xx, yy, zz, s;
+		int view_point[4];
+		glGetDoublev(GL_MODELVIEW_MATRIX, mat_modview);
+		glGetDoublev(GL_PROJECTION_MATRIX, mat_proj);
+		glGetIntegerv(GL_VIEWPORT, view_point);
+		gluProject(0.0, 0.0, 0.0, mat_modview, mat_proj, view_point, &xx, &yy, &zz);
+		s = key == GLUT_KEY_LEFT || key == GLUT_KEY_UP? step : -step;
+		if (key == GLUT_KEY_RIGHT || key == GLUT_KEY_LEFT)
+			gluUnProject(xx, yy + 10.0, zz, mat_modview, mat_proj, view_point, &xx, &yy, &zz);
+		else
+			gluUnProject(xx + 10.0, yy, zz, mat_modview, mat_proj, view_point, &xx, &yy, &zz);
+		glRotatef(s, xx, yy, zz);
 		cb_draw();
-	} else if (key == GLUT_KEY_LEFT) {
-		global.angleXZ += 5.0;
-		cb_draw();
-	}
-}
-
-static void cb_mouse(int bn, int state, int x, int y)
-{
-	double mat_modview[16], mat_proj[16];
-	double xx, yy, zz;
-	int view_point[4];
-	glGetDoublev(GL_MODELVIEW_MATRIX, mat_modview);
-	glGetDoublev(GL_PROJECTION_MATRIX, mat_proj);
-	glGetIntegerv(GL_VIEWPORT, view_point);
-	gluUnProject(x, y, 0.0, mat_modview, mat_proj, view_point, &xx, &yy, &zz);
-	if (bn == GLUT_LEFT_BUTTON) {
 	}
 }
 
@@ -84,7 +77,6 @@ void hk_v3d_view(struct hk_bmap *m, int width)
 	glutDisplayFunc(cb_draw);
 	glutKeyboardFunc(cb_key);
 	glutSpecialFunc(cb_special_key);
-	glutMouseFunc(cb_mouse);
 
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
