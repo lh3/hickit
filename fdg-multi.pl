@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Getopt::Std;
 
-my %opts = (k=>1.0, r=>1.0);
+my %opts = (k=>0.125, r=>2.0);
 getopts('k:r:', \%opts);
 die "Usage: fdg-multi.pl [-k repCoef] [-r refRadius] <in.pairs>\n" if @ARGV == 0;
 
