@@ -264,17 +264,19 @@ int main_image2d(int argc, char *argv[])
 
 int main_view3d(int argc, char *argv[])
 {
-	int c, width = 780;
+	int c, width = 780, seed = 1;
 	struct hk_bmap *m;
 
 	hk_v3d_prep(&argc, argv);
-	while ((c = getopt(argc, argv, "w:")) >= 0) {
+	while ((c = getopt(argc, argv, "w:s:")) >= 0) {
 		if (c == 'w') width = atoi(optarg);
+		else if (c == 's') seed = atoi(optarg);
 	}
 	if (optind == argc) {
 		fprintf(stderr, "Usage: hickit view3d [options] <in.3dg>\n");
 		return 1;
 	}
+	srand48(seed);
 	m = hk_3dg_read(argv[optind]);
 	assert(m);
 	hk_v3d_view(m, width);
