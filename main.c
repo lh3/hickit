@@ -267,19 +267,29 @@ int main_view3d(int argc, char *argv[])
 {
 	int c, width = 780, color_seed = 1;;
 	struct hk_bmap *m;
+	char *hl = 0;
 
 	hk_v3d_prep(&argc, argv);
-	while ((c = getopt(argc, argv, "w:s:")) >= 0) {
+	while ((c = getopt(argc, argv, "w:s:u:")) >= 0) {
 		if (c == 'w') width = atoi(optarg);
 		else if (c == 's') color_seed = atoi(optarg);
+		else if (c == 'u') hl = optarg;
 	}
 	if (optind == argc) {
 		fprintf(stderr, "Usage: hickit view3d [options] <in.3dg>\n");
+		fprintf(stderr, "Options:\n");
+		fprintf(stderr, "  -w INT      viewer width [%d]\n", width);
+		fprintf(stderr, "  -s INT      seed for RNG to generate random colors [%d]\n", color_seed);
+		fprintf(stderr, "  -u STR      comma-delimited list of chr to highlight []\n");
+		fprintf(stderr, "\n");
+		fprintf(stderr, "Key bindings:\n");
+		fprintf(stderr, "  arrows: rotate\n");
+		fprintf(stderr, "  c:      change colors\n");
 		return 1;
 	}
 	m = hk_3dg_read(argv[optind]);
 	assert(m);
-	hk_v3d_view(m, width, color_seed);
+	hk_v3d_view(m, width, color_seed, hl);
 	hk_bmap_destroy(m);
 	return 0;
 }
@@ -293,6 +303,9 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "  pair       filtering, TAD calling and phase imputation\n");
 		fprintf(stderr, "  bin        binning\n");
 		fprintf(stderr, "  image2d    generate 2D contact map in PNG\n");
+#ifdef HAVE_GL
+		fprintf(stderr, "  view3d     view 3D structure\n");
+#endif
 		fprintf(stderr, "  version    print version number\n");
 		return 1;
 	}

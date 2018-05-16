@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include "hkpriv.h"
 
 #ifdef HAVE_GL
@@ -11,7 +12,10 @@
 struct {
 	struct hk_bmap *m;
 	fvec3_t *color;
+	float *alpha;
 	krng_t rng;
+	int n_hl;
+	char **hl;
 } global;
 
 static void prep_color(const struct hk_sdict *d);
@@ -22,12 +26,24 @@ static void cb_draw(void)
 	int32_t i;
 
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glMatrixMode(GL_MODELVIEW);
 	glLineWidth(2);
 	for (i = 0; i < m->d->n; ++i) {
 		int32_t j, cnt = (int32_t)m->offcnt[i];
 		int32_t off = m->offcnt[i] >> 32;
-		glColor3f(global.color[i][0], global.color[i][1], global.color[i][2]);
+		if (global.alpha[i] < 0.9) continue;
+		glColor4f(global.color[i][0], global.color[i][1], global.color[i][2], global.alpha[i]);
+		glBegin(GL_LINE_STRIP);
+		for (j = 0; j < cnt; ++j)
+			glVertex3f(m->x[off+j][0], m->x[off+j][1], m->x[off+j][2]);
+		glEnd();
+	}
+	for (i = 0; i < m->d->n; ++i) {
+		int32_t j, cnt = (int32_t)m->offcnt[i];
+		int32_t off = m->offcnt[i] >> 32;
+		if (global.alpha[i] > 0.9) continue;
+		glColor4f(global.color[i][0], global.color[i][1], global.color[i][2], global.alpha[i]);
 		glBegin(GL_LINE_STRIP);
 		for (j = 0; j < cnt; ++j)
 			glVertex3f(m->x[off+j][0], m->x[off+j][1], m->x[off+j][2]);
@@ -72,32 +88,63 @@ static void cb_special_key(int key, int x, int y)
 void hk_v3d_prep(int *argc, char *argv[])
 {
 	glutInit(argc, argv);
-	glutInitDisplayMode(GLUT_RGB|GLUT_DEPTH);
+	glutInitDisplayMode(GLUT_RGB|GLUT_DEPTH|GLUT_ALPHA);
 }
 
 static void prep_color(const struct hk_sdict *d)
 {
-	int i;
+	int i, j;
 	global.color = CALLOC(fvec3_t, d->n);
+	global.alpha = CALLOC(float, d->n);
 	for (i = 0; i < d->n; ++i) {
 		global.color[i][0] = kr_drand_r(&global.rng);
 		global.color[i][1] = kr_drand_r(&global.rng);
 		global.color[i][2] = kr_drand_r(&global.rng);
+		if (global.n_hl > 0) {
+			global.alpha[i] = 0.15f;
+			for (j = 0; j < global.n_hl; ++j)
+				if (strcmp(d->name[i], global.hl[j]) == 0)
+					global.alpha[i] = 1.0f;
+		} else global.alpha[i] = 1.0f;
 	}
 }
 
-void hk_v3d_view(struct hk_bmap *m, int width, int color_seed)
+static void split_hl(const char *hl)
 {
+	const char *p, *q;
+	int k;
+	for (q = hl, k = 0; *q; ++q)
+		if (*q == ',') ++k;
+	global.n_hl = k + 1;
+	global.hl = CALLOC(char*, global.n_hl);
+	for (p = q = hl, k = 0;; ++q) {
+		if (*q == 0 || *q == ',') {
+			global.hl[k] = CALLOC(char, q - p + 1);
+			memcpy(global.hl[k], p, q - p);
+			++k;
+			p = q + 1;
+			if (*q == 0) break;
+		}
+	}
+}
+
+void hk_v3d_view(struct hk_bmap *m, int width, int color_seed, const char *hl)
+{
+	memset(&global, 0, sizeof(global));
 	global.m = m;
 	kr_srand_r(&global.rng, color_seed);
 	hk_fdg_normalize(m);
+	if (hl) split_hl(hl);
 	prep_color(m->d);
+
 	glutInitWindowSize(width, width);
 	glutCreateWindow("View3D");
 	glutDisplayFunc(cb_draw);
 	glutKeyboardFunc(cb_key);
 	glutSpecialFunc(cb_special_key);
 
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
 
