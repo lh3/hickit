@@ -172,7 +172,10 @@ struct hk_map *hk_pair_sep_phase(const struct hk_map *m, float phase_thres)
 			EXPAND(p->pairs, m_ppairs);
 		r = &p->pairs[p->n_pairs++];
 		*r = *q;
-		r->chr = (uint64_t)chr[0] << 32 | chr[1];
+		if (chr[0] > chr[1]) {
+			r->chr = (uint64_t)chr[1] << 32 | chr[0];
+			r->pos = r->pos<<32 | r->pos>>32;
+		} else r->chr = (uint64_t)chr[0] << 32 | chr[1];
 		r->_.phased_prob = max;
 	}
 	free(old2new);

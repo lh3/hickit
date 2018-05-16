@@ -152,5 +152,5 @@ void hk_v3d_view(struct hk_bmap *m, int width, int color_seed, const char *hl)
 }
 #else
 void hk_v3d_prep(int *argc, char *argv[]) {}
-void hk_v3d_view(struct hk_bmap *m, int width, int color_seed) {}
+void hk_v3d_view(struct hk_bmap *m, int width, int color_seed, const char *hl) {}
 #endif
