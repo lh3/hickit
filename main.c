@@ -174,18 +174,18 @@ int main_bin(int argc, char *argv[])
 	krng_t rng;
 
 	hk_fdg_opt_init(&opt);
-	while ((c = getopt(argc, argv, "c:b:p:d:P:gk:r:e:n:s:i:")) >= 0) {
+	while ((c = getopt(argc, argv, "c:b:p:d:P:gi:k:r:e:n:S:")) >= 0) {
 		if (c == 'c') min_cnt = atoi(optarg);
 		else if (c == 'b') bin_size = hk_parse_num(optarg);
 		else if (c == 'p') phase_thres = atof(optarg);
 		else if (c == 'P') ploidy = atoi(optarg);
 		else if (c == 'g') fdg = 1;
+		else if (c == 'i') fn_in = optarg;
 		else if (c == 'k') opt.k_rep = atof(optarg);
 		else if (c == 'r') opt.r_rep = atof(optarg);
 		else if (c == 'e') opt.step = atof(optarg);
 		else if (c == 'n') opt.n_iter = atoi(optarg);
-		else if (c == 's') seed = atoi(optarg);
-		else if (c == 'i') fn_in = optarg;
+		else if (c == 'S') seed = atoi(optarg);
 	}
 	assert(ploidy >= 1 && ploidy <= 2);
 	if (optind == argc) {
@@ -196,13 +196,14 @@ int main_bin(int argc, char *argv[])
 		fprintf(stderr, "    -c INT        min count [%d]\n", min_cnt);
 		fprintf(stderr, "    -p FLOAT      phase threshold [%g]\n", phase_thres);
 		fprintf(stderr, "    -P INT        ploidy (1 or 2) [%d]\n", ploidy);
-		fprintf(stderr, "  FDG:\n");
+		fprintf(stderr, "  3D modeling with FDG:\n");
 		fprintf(stderr, "    -g            perform FDG\n");
+		fprintf(stderr, "    -i FILE       previous FDG output []\n");
 		fprintf(stderr, "    -k FLOAT      relative repulsive stiffness [%g]\n", opt.k_rep);
 		fprintf(stderr, "    -r FLOAT      relative repulsive radius [%g]\n", opt.r_rep);
 		fprintf(stderr, "    -e FLOAT      step size [%g]\n", opt.step);
 		fprintf(stderr, "    -n INT        max iteration [%d]\n", opt.n_iter);
-		fprintf(stderr, "    -s INT        seed for initialization [%d]\n", seed);
+		fprintf(stderr, "    -S INT        seed for initialization [%d]\n", seed);
 		return 1;
 	}
 	kr_srand_r(&rng, seed);
