@@ -41,7 +41,7 @@ fdg.o: hkpriv.h hickit.h krng.h ksort.h kavl.h khash.h
 image.o: hkpriv.h hickit.h krng.h ksort.h stb_image_write.h
 main.o: hickit.h krng.h
 map.o: hickit.h krng.h hkpriv.h khash.h kseq.h
-neighbor.o: hkpriv.h hickit.h krng.h ksort.h
+neighbor.o: hkpriv.h hickit.h krng.h kavl.h ksort.h
 pair.o: hkpriv.h hickit.h krng.h ksort.h
 phase.o: hkpriv.h hickit.h krng.h
 tad.o: hkpriv.h hickit.h krng.h klist.h kavl.h

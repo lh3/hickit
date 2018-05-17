@@ -17,6 +17,7 @@ static struct option long_options_pair[] = {
 	{ "select-phased",  no_argument,       0, 0 }, // 5: only imput pairs containing at least one phased leg
 	{ "no-spacial",     no_argument,       0, 'u' },
 	{ "tad-flag",       no_argument,       0, 0 }, // 7
+	{ "radius",         required_argument, 0, 0 }, // 8
 	{ 0, 0, 0, 0}
 };
 
@@ -65,7 +66,7 @@ int main_pair(int argc, char *argv[])
 	struct hk_opt opt;
 	struct hk_map *m = 0;
 	int c, long_idx, ret = 0, is_seg_out = 0, is_impute = 0, is_dedup = 1, is_tad_out = 0, is_gibbs = 0, sel_phased = 0, mask_tad = 0, use_spacial = 1;
-	int ploidy = 2, seed = 1;
+	int cnt_radius = 0, ploidy = 2, seed = 1;
 	float val_frac = -1.0f;
 	krng_t rng;
 
@@ -91,9 +92,10 @@ int main_pair(int argc, char *argv[])
 		else if (c == 'S') seed = atoi(optarg);
 		else if (c == 0 && long_idx == 0) opt.flag |= HK_OUT_PHASE;
 		else if (c == 0 && long_idx == 1) is_seg_out = 1;
-		else if (c == 0 && long_idx == 4) hk_verbose = atoi(optarg);
+		else if (c == 0 && long_idx == 4) hk_verbose = atoi(optarg); // --verbose
 		else if (c == 0 && long_idx == 5) sel_phased = 1;
-		else if (c == 0 && long_idx == 7) mask_tad = 1;
+		else if (c == 0 && long_idx == 7) mask_tad = 1; // --tad-flag
+		else if (c == 0 && long_idx == 8) cnt_radius = hk_parse_num(optarg), opt.flag |= HK_OUT_CNT; // --radius
 	}
 	assert(ploidy >= 1 && ploidy <= 2);
 	if (argc - optind == 0) {
@@ -125,6 +127,11 @@ int main_pair(int argc, char *argv[])
 		m->n_pairs = hk_pair_dedup(m->n_pairs, m->pairs, opt.min_dist);
 	if (opt.min_flt_cnt > 0)
 		m->n_pairs = hk_pair_filter(m->n_pairs, m->pairs, opt.max_radius, opt.min_flt_cnt);
+	if (cnt_radius > 0) {
+		hk_pair_count_nei(m->n_pairs, m->pairs, cnt_radius);
+		hk_print_pair(stdout, opt.flag, m->d, m->n_pairs, m->pairs);
+		goto main_return;
+	}
 	if (is_tad_out || mask_tad) {
 		int32_t n_tads;
 		struct hk_pair *tads;

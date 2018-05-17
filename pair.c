@@ -265,6 +265,7 @@ void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs
 	fprintf(fp, "#shape: upper triangle\n");
 	hk_print_chr(fp, d);
 	fprintf(fp, "#columns: readID chr1 pos1 chr2 pos2 strand1 strand2");
+	if (flag & HK_OUT_CNT) fprintf(fp, " count");
 	if (flag & HK_OUT_P4) fprintf(fp, " p00 p01 p10 p11");
 	if (flag & HK_OUT_PHASE) fprintf(fp, " phase1 phase2");
 	fputc('\n', fp);
@@ -274,6 +275,7 @@ void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs
 				d->name[(int32_t)p->chr], (int32_t)p->pos,
 				p->strand[0] > 0? '+' : p->strand[0] < 0? '-' : '.',
 				p->strand[1] > 0? '+' : p->strand[1] < 0? '-' : '.');
+		if (flag & HK_OUT_CNT) fprintf(fp, "\t%d", p->n);
 		if (flag & HK_OUT_P4) fprintf(fp, "\t%.3f\t%.3f\t%.3f\t%.3f", p->_.p4[0], p->_.p4[1], p->_.p4[2], p->_.p4[3]);
 		if (flag & HK_OUT_PHASE) fprintf(fp, "\t%c\t%c", p->phase[0] < 0? '.' : '0' + p->phase[0], p->phase[1] < 0? '.' : '0' + p->phase[1]);
 		fputc('\n', fp);
