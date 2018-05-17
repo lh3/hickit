@@ -6,7 +6,7 @@
 #include <getopt.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r147"
+#define HICKIT_VERSION "r153"
 
 static struct option long_options_pair[] = {
 	{ "out-phase",      no_argument,       0, 0 }, // 0
@@ -173,7 +173,7 @@ main_return:
 
 int main_bin(int argc, char *argv[])
 {
-	int c, bin_size = 1000000, min_cnt = 1, ploidy = 2, seed = 1, fdg = 0;
+	int c, bin_size = 1000000, min_cnt = 2, ploidy = 2, seed = 1, fdg = 0, flt_radius = 1000000;
 	float phase_thres = 0.65f;
 	struct hk_map *m;
 	struct hk_bmap *bm;
@@ -182,8 +182,9 @@ int main_bin(int argc, char *argv[])
 	krng_t rng;
 
 	hk_fdg_opt_init(&opt);
-	while ((c = getopt(argc, argv, "c:b:p:d:P:gi:k:r:e:n:S:")) >= 0) {
+	while ((c = getopt(argc, argv, "c:R:b:p:d:P:gi:k:r:e:n:S:")) >= 0) {
 		if (c == 'c') min_cnt = atoi(optarg);
+		else if (c == 'R') flt_radius = hk_parse_num(optarg);
 		else if (c == 'b') bin_size = hk_parse_num(optarg);
 		else if (c == 'p') phase_thres = atof(optarg);
 		else if (c == 'P') ploidy = atoi(optarg);
@@ -201,6 +202,7 @@ int main_bin(int argc, char *argv[])
 		fprintf(stderr, "Options:\n");
 		fprintf(stderr, "  Binning:\n");
 		fprintf(stderr, "    -b NUM        bin size [1m]\n");
+		fprintf(stderr, "    -R NUM        radius for filtering [1m]\n");
 		fprintf(stderr, "    -c INT        min count [%d]\n", min_cnt);
 		fprintf(stderr, "    -p FLOAT      phase threshold [%g]\n", phase_thres);
 		fprintf(stderr, "    -P INT        ploidy (1 or 2) [%d]\n", ploidy);
@@ -223,6 +225,8 @@ int main_bin(int argc, char *argv[])
 		hk_map_destroy(m);
 		m = tmp;
 	}
+	if (min_cnt > 0)
+		m->n_pairs = hk_pair_filter(m->n_pairs, m->pairs, flt_radius, min_cnt);
 	bm = hk_bmap_gen(m->d, m->n_pairs, m->pairs, bin_size);
 	hk_map_destroy(m);
 	if (fdg) {
