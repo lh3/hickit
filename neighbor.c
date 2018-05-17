@@ -104,13 +104,14 @@ struct cnt_nei_aux {
 #define cnt_nei_key(x) ((x).pos1)
 KRADIX_SORT_INIT(nei, struct cnt_nei_aux, cnt_nei_key, 8)
 
-#define cnt_nei_cmp(x, y) (((x)->pos2 > (y)->pos2) - ((x)->pos2 < (y)->pos2))
+#define cnt_nei_cmp(x, y) ((x)->pos2 > (y)->pos2? 1 : (x)->pos2 < (y)->pos2? -1 : (x)->i - (y)->i)
 KAVL_INIT(nei, struct cnt_nei_aux, head, cnt_nei_cmp)
 
 static inline int32_t count_in_tree(const struct cnt_nei_aux *root, uint64_t pos, int radius)
 {
 	struct cnt_nei_aux t;
 	unsigned cl, cr;
+	if (root == 0) return 0;
 	t.pos2 = pos >> 32 << 32 | ((int32_t)pos > radius? (int32_t)pos - radius : 0);
 	kavl_find(nei, root, &t, &cl);
 	t.pos2 = pos + radius;
@@ -138,11 +139,11 @@ void hk_pair_count_nei(int32_t n_pairs, struct hk_pair *pairs, int radius)
 		for (j = left; j < i; ++j) {
 			if (a[i].pos1 - a[j].pos1 < radius) break;
 			kavl_erase(nei, &root, &a[j]);
-			if (root == 0) break;
 			a[j].n += count_in_tree(root, a[j].pos2, radius);
 		}
 		left = j;
-		if (root) a[i].n = count_in_tree(root, a[i].pos2, radius);
+		assert(i - left == kavl_size(head, root));
+		a[i].n = count_in_tree(root, a[i].pos2, radius);
 		kavl_insert(nei, &root, &a[i], 0);
 	}
 	for (j = left; j < n_pairs; ++j)
@@ -176,7 +177,7 @@ void hk_pair_count_nei_slow(int32_t n_pairs, struct hk_pair *pairs, int radius)
 		lo = a[i].pos2 >> 32 << 32 | ((int32_t)a[i].pos2 > radius? a[i].pos2 - radius : 0);
 		hi = a[i].pos2 + radius;
 		for (j = left; j < i; ++j)
-			if (a[j].pos2 >= lo && a[j].pos2 <= hi)
+			if (a[j].pos2 > lo && a[j].pos2 < hi)
 				++a[i].n, ++a[j].n;
 	}
 	for (i = 0; i < n_pairs; ++i)
