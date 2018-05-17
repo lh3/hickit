@@ -186,40 +186,13 @@ struct hk_map *hk_pair_sep_phase(const struct hk_map *m, float phase_thres)
 	return p;
 }
 
-struct cnt_aux {
-	int32_t n;
-	int32_t d;
-};
-
 int32_t hk_pair_filter(int32_t n_pairs, struct hk_pair *pairs, int32_t max_radius, int32_t min_cnt)
 {
 	int32_t i, k;
-	struct cnt_aux *a;
-	a = CALLOC(struct cnt_aux, n_pairs);
-	for (i = 0; i < n_pairs; ++i) a[i].d = INT32_MAX;
-	for (i = 1; i < n_pairs; ++i) {
-		struct hk_pair *q = &pairs[i];
-		int32_t j, q1 = hk_ppos1(q), q2 = hk_ppos2(q);
-		for (j = i - 1; j >= 0; --j) {
-			struct hk_pair *p = &pairs[j];
-			int32_t p1 = hk_ppos1(p), p2 = hk_ppos2(p), y, z, d;
-			if (q->chr != p->chr) break;
-			y = q1 - p1;
-			z = q2 > p2? q2 - p2 : p2 - q2;
-			if (y > max_radius) break;
-			if (z > max_radius) continue;
-			d = y > z? y : z;
-			++a[j].n;
-			if (d < a[j].d) a[j].d = d;
-			++a[i].n;
-			if (d < a[i].d) a[i].d = d;
-			if (a[i].n > min_cnt * 10) break;
-		}
-	}
+	hk_pair_count_nei(n_pairs, pairs, max_radius);
 	for (i = k = 0; i < n_pairs; ++i)
-		if (a[i].n >= min_cnt && a[i].d <= max_radius/10)
+		if (pairs[i].n >= min_cnt)
 			pairs[k++] = pairs[i];
-	free(a);
 	if (hk_verbose >= 3)
 		fprintf(stderr, "[M::%s] filtered out %d isolated pairs\n", __func__, n_pairs - k);
 	return k;
