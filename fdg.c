@@ -41,9 +41,7 @@ void hk_fdg_opt_init(struct hk_fdg_opt *opt)
 
 static float fdg_optimal_dist(float target_radius, int n_beads)
 {
-	double v;
-	v = 4.0 / 3.0 * M_PI * pow(target_radius, 3.0) / n_beads;
-	return pow(v, 1.0 / 3.0);
+	return target_radius / pow(n_beads, 1.0 / 3.0);
 }
 
 fvec3_t *hk_fdg_init(krng_t *rng, int n_beads, float max)
