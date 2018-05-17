@@ -151,3 +151,35 @@ void hk_pair_count_nei(int32_t n_pairs, struct hk_pair *pairs, int radius)
 		pairs[a[i].i].n = a[i].n;
 	free(a);
 }
+
+void hk_pair_count_nei_slow(int32_t n_pairs, struct hk_pair *pairs, int radius)
+{
+	struct cnt_nei_aux *a;
+	int32_t i, j, left;
+
+	a = CALLOC(struct cnt_nei_aux, n_pairs);
+	for (i = 0; i < n_pairs; ++i) {
+		struct hk_pair *p = &pairs[i];
+		a[i].pos1 = p->chr >> 32 << 32 | p->pos >> 32;
+		a[i].pos2 = p->chr << 32 | p->pos << 32 >> 32;
+		a[i].i = i;
+	}
+	radix_sort_nei(a, a + n_pairs);
+
+	left = 0;
+	for (i = 1; i < n_pairs; ++i) {
+		uint64_t lo, hi;
+		for (j = left; j < i; ++j)
+			if (a[i].pos1 - a[j].pos1 < radius)
+				break;
+		left = j;
+		lo = a[i].pos2 >> 32 << 32 | ((int32_t)a[i].pos2 > radius? a[i].pos2 - radius : 0);
+		hi = a[i].pos2 + radius;
+		for (j = left; j < i; ++j)
+			if (a[j].pos2 >= lo && a[j].pos2 <= hi)
+				++a[i].n, ++a[j].n;
+	}
+	for (i = 0; i < n_pairs; ++i)
+		pairs[a[i].i].n = a[i].n;
+	free(a);
+}

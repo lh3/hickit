@@ -129,6 +129,7 @@ int main_pair(int argc, char *argv[])
 		m->n_pairs = hk_pair_filter(m->n_pairs, m->pairs, opt.max_radius, opt.min_flt_cnt);
 	if (cnt_radius > 0) {
 		hk_pair_count_nei(m->n_pairs, m->pairs, cnt_radius);
+		//hk_pair_count_nei_slow(m->n_pairs, m->pairs, cnt_radius);
 		hk_print_pair(stdout, opt.flag, m->d, m->n_pairs, m->pairs);
 		goto main_return;
 	}

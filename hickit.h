@@ -119,6 +119,7 @@ int32_t hk_pair_filter(int32_t n_pairs, struct hk_pair *pairs, int32_t max_radiu
 int32_t hk_pair_select_phased(int n_pairs, struct hk_pair *pairs);
 void hk_pair_count(int32_t n_pairs, struct hk_pair *pairs);
 void hk_pair_count_nei(int32_t n_pairs, struct hk_pair *pairs, int radius);
+void hk_pair_count_nei_slow(int32_t n_pairs, struct hk_pair *pairs, int radius);
 struct hk_map *hk_pair_sep_phase(const struct hk_map *m, float phase_thres);
 
 struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int min_tad_size, float area_weight, int32_t *n_tads_);
