@@ -112,9 +112,9 @@ static inline int32_t count_in_tree(const struct cnt_nei_aux *root, uint64_t pos
 	struct cnt_nei_aux t;
 	unsigned cl, cr;
 	if (root == 0) return 0;
-	t.pos2 = pos >> 32 << 32 | ((int32_t)pos > radius? (int32_t)pos - radius : 0);
+	t.i = 0x3fffffff, t.pos2 = pos >> 32 << 32 | ((int32_t)pos > radius? (int32_t)pos - radius : 0);
 	kavl_find(nei, root, &t, &cl);
-	t.pos2 = pos + radius;
+	t.i = -1, t.pos2 = pos + radius;
 	kavl_find(nei, root, &t, &cr);
 	return cr - cl;
 }
@@ -146,8 +146,10 @@ void hk_pair_count_nei(int32_t n_pairs, struct hk_pair *pairs, int radius)
 		a[i].n = count_in_tree(root, a[i].pos2, radius);
 		kavl_insert(nei, &root, &a[i], 0);
 	}
-	for (j = left; j < n_pairs; ++j)
+	for (j = left; j < n_pairs; ++j) {
+		kavl_erase(nei, &root, &a[j]);
 		a[j].n += count_in_tree(root, a[j].pos2, radius);
+	}
 	for (i = 0; i < n_pairs; ++i)
 		pairs[a[i].i].n = a[i].n;
 	free(a);
