@@ -32,7 +32,7 @@ KSORT_INIT(cx, struct avl_coor, cx_lt)
 void hk_fdg_opt_init(struct hk_fdg_opt *opt)
 {
 	opt->target_radius = 10.0f;
-	opt->k_rep = 0.125f;
+	opt->k_rep = 1.0f;
 	opt->r_rep = 2.0f;
 	opt->n_iter = 1000;
 	opt->step = 0.01f;
@@ -106,7 +106,8 @@ static inline void update_force(fvec3_t *x, int32_t i, int32_t j, float k, float
 	assert(i != j);
 	dist = fv3_sub_normalize(x[i], x[j], delta);
 	if (repel && dist >= radius) return;
-	force = k * (radius - dist);
+	if (repel) force = k / radius * (radius - dist) * (radius - dist);
+	else force = k * (radius - dist);
 	fv3_scale(force, delta);
 	fv3_addto(delta, f[i]);
 	fv3_subfrom(delta, f[j]);
