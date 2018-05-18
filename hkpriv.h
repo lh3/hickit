@@ -23,6 +23,7 @@ extern "C" {
 
 struct hk_sdict *hk_sd_init(void);
 int32_t hk_sd_put(struct hk_sdict *d, const char *s, int32_t len);
+struct hk_sdict *hk_sd_split_phase(const struct hk_sdict *d, int32_t *ploidy_XY);
 void hk_sd_destroy(struct hk_sdict *d);
 
 int hk_pair_is_sorted(int32_t n_pairs, const struct hk_pair *pairs);

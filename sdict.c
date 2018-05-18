@@ -40,7 +40,7 @@ int32_t hk_sd_put(struct hk_sdict *d, const char *s, int32_t len)
 	return kh_val(h, k);
 }
 
-struct hk_sdict *hk_sd_sep_phase(const struct hk_sdict *d, int32_t *ploidy_XY)
+struct hk_sdict *hk_sd_split_phase(const struct hk_sdict *d, int32_t *ploidy_XY)
 {
 	struct hk_sdict *dp;
 	int i;
@@ -68,7 +68,7 @@ struct hk_sdict *hk_sd_sep_phase(const struct hk_sdict *d, int32_t *ploidy_XY)
 
 struct hk_sdict *hk_sd_dup(const struct hk_sdict *d)
 {
-	return hk_sd_sep_phase(d, 0);
+	return hk_sd_split_phase(d, 0);
 }
 
 int32_t *hk_sd_ploidy_XY(const struct hk_sdict *d, int32_t *sex_flag)

@@ -210,7 +210,7 @@ int main_bin(int argc, char *argv[])
 	assert(m && m->pairs);
 	if (ploidy == 2) {
 		struct hk_map *tmp;
-		tmp = hk_pair_sep_phase(m, phase_thres);
+		tmp = hk_pair_split_phase(m, phase_thres);
 		hk_map_destroy(m);
 		m = tmp;
 	}

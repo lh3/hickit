@@ -51,6 +51,10 @@ void hk_map_phase_male_XY(struct hk_map *m)
 	free(ploidy_XY);
 }
 
+/***************************************
+ * Assorted utilities to process pairs *
+ ***************************************/
+
 void hk_pair_sort(int32_t n_pairs, struct hk_pair *pairs)
 {
 	ks_introsort_pair(n_pairs, pairs);
@@ -173,7 +177,7 @@ void hk_mark_by_tad(int32_t n_tads, const struct hk_pair *tads, int32_t n_pairs,
 		fprintf(stderr, "[M::%s] masked %d out of %d pairs\n", __func__, n_masked, n_pairs);
 }
 
-struct hk_map *hk_pair_sep_phase(const struct hk_map *m, float phase_thres)
+struct hk_map *hk_pair_split_phase(const struct hk_map *m, float phase_thres)
 {
 	int32_t i, m_ppairs = 0, *ploidy_XY, *old2new;
 	struct hk_map *p;
@@ -184,7 +188,7 @@ struct hk_map *hk_pair_sep_phase(const struct hk_map *m, float phase_thres)
 		old2new[i] = old2new[i-1] + (ploidy_XY[i-1]>>8);
 
 	p = CALLOC(struct hk_map, 1);
-	p->d = hk_sd_sep_phase(m->d, ploidy_XY);
+	p->d = hk_sd_split_phase(m->d, ploidy_XY);
 	for (i = 0; i < m->n_pairs; ++i) {
 		const struct hk_pair *q = &m->pairs[i];
 		struct hk_pair *r;
@@ -234,6 +238,10 @@ int32_t hk_pair_filter(int32_t n_pairs, struct hk_pair *pairs, int32_t max_radiu
 		fprintf(stderr, "[M::%s] filtered out %d isolated pairs\n", __func__, n_pairs - k);
 	return k;
 }
+
+/***************
+ * TAD calling *
+ ***************/
 
 struct tad_aux {
 	float mmax_f;
