@@ -186,12 +186,20 @@ struct hk_map *hk_pair_sep_phase(const struct hk_map *m, float phase_thres)
 	return p;
 }
 
-int32_t hk_pair_filter(int32_t n_pairs, struct hk_pair *pairs, int32_t max_radius, int32_t min_cnt)
+int32_t hk_pair_filter(int32_t n_pairs, struct hk_pair *pairs, int32_t max_radius, int32_t min_cnt, float drop_frac)
 {
-	int32_t i, k;
+	int32_t i, k, *cnt, min;
 	hk_pair_count_nei(n_pairs, pairs, max_radius);
+	cnt = CALLOC(int32_t, n_pairs);
+	for (i = 0; i < n_pairs; ++i)
+		cnt[i] = pairs[i].n;
+	min = ks_ksmall_int32_t(n_pairs, cnt, n_pairs * drop_frac);
+	min = min > min_cnt? min : min_cnt;
+	free(cnt);
+	if (hk_verbose >= 3)
+		fprintf(stderr, "[M::%s] threshold: %d\n", __func__, min);
 	for (i = k = 0; i < n_pairs; ++i)
-		if (pairs[i].n >= min_cnt)
+		if (pairs[i].n >= min)
 			pairs[k++] = pairs[i];
 	if (hk_verbose >= 3)
 		fprintf(stderr, "[M::%s] filtered out %d isolated pairs\n", __func__, n_pairs - k);

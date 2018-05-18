@@ -115,7 +115,7 @@ void hk_map_phase_male_XY(struct hk_map *m);
 
 struct hk_pair *hk_seg2pair(int32_t n_segs, const struct hk_seg *segs, int min_dist, int max_seg, int min_mapq, int32_t *n_pairs_);
 int32_t hk_pair_dedup(int n_pairs, struct hk_pair *pairs, int min_dist);
-int32_t hk_pair_filter(int32_t n_pairs, struct hk_pair *pairs, int32_t max_radius, int32_t min_cnt);
+int32_t hk_pair_filter(int32_t n_pairs, struct hk_pair *pairs, int32_t max_radius, int32_t min_cnt, float drop_frac);
 int32_t hk_pair_select_phased(int n_pairs, struct hk_pair *pairs);
 void hk_pair_count(int32_t n_pairs, struct hk_pair *pairs);
 void hk_pair_count_nei(int32_t n_pairs, struct hk_pair *pairs, int radius);

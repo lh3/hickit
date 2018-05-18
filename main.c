@@ -125,8 +125,8 @@ int main_pair(int argc, char *argv[])
 		m->pairs = hk_seg2pair(m->n_segs, m->segs, opt.min_dist, opt.max_seg, opt.min_mapq, &m->n_pairs);
 	if (is_dedup)
 		m->n_pairs = hk_pair_dedup(m->n_pairs, m->pairs, opt.min_dist);
-	if (opt.min_flt_cnt > 0)
-		m->n_pairs = hk_pair_filter(m->n_pairs, m->pairs, opt.max_radius, opt.min_flt_cnt);
+//	if (opt.min_flt_cnt > 0)
+//		m->n_pairs = hk_pair_filter(m->n_pairs, m->pairs, opt.max_radius, opt.min_flt_cnt);
 	if (cnt_radius > 0) {
 		hk_pair_count_nei(m->n_pairs, m->pairs, cnt_radius);
 		//hk_pair_count_nei_slow(m->n_pairs, m->pairs, cnt_radius);
@@ -173,8 +173,8 @@ main_return:
 
 int main_bin(int argc, char *argv[])
 {
-	int c, bin_size = 1000000, min_cnt = 2, ploidy = 2, seed = 1, fdg = 0, flt_radius = 1000000;
-	float phase_thres = 0.65f;
+	int c, bin_size = 1000000, min_cnt = 2, ploidy = 2, seed = 1, fdg = 0, flt_radius = 10000000;
+	float phase_thres = 0.65f, drop_frac = 0.2f;
 	struct hk_map *m;
 	struct hk_bmap *bm;
 	struct hk_fdg_opt opt;
@@ -182,10 +182,11 @@ int main_bin(int argc, char *argv[])
 	krng_t rng;
 
 	hk_fdg_opt_init(&opt);
-	while ((c = getopt(argc, argv, "c:R:b:p:d:P:gi:k:r:e:n:S:")) >= 0) {
-		if (c == 'c') min_cnt = atoi(optarg);
+	while ((c = getopt(argc, argv, "b:R:c:f:p:d:P:gi:k:r:e:n:S:")) >= 0) {
+		if (c == 'b') bin_size = hk_parse_num(optarg);
 		else if (c == 'R') flt_radius = hk_parse_num(optarg);
-		else if (c == 'b') bin_size = hk_parse_num(optarg);
+		else if (c == 'c') min_cnt = atoi(optarg);
+		else if (c == 'f') drop_frac = atof(optarg);
 		else if (c == 'p') phase_thres = atof(optarg);
 		else if (c == 'P') ploidy = atoi(optarg);
 		else if (c == 'g') fdg = 1;
@@ -204,6 +205,7 @@ int main_bin(int argc, char *argv[])
 		fprintf(stderr, "    -b NUM        bin size [1m]\n");
 		fprintf(stderr, "    -R NUM        radius for filtering [1m]\n");
 		fprintf(stderr, "    -c INT        min count [%d]\n", min_cnt);
+		fprintf(stderr, "    -f FLOAT      drop FLOAT fraction of contacts [%g]\n", drop_frac);
 		fprintf(stderr, "    -p FLOAT      phase threshold [%g]\n", phase_thres);
 		fprintf(stderr, "    -P INT        ploidy (1 or 2) [%d]\n", ploidy);
 		fprintf(stderr, "  3D modeling with FDG:\n");
@@ -225,8 +227,8 @@ int main_bin(int argc, char *argv[])
 		hk_map_destroy(m);
 		m = tmp;
 	}
-	if (min_cnt > 0)
-		m->n_pairs = hk_pair_filter(m->n_pairs, m->pairs, flt_radius, min_cnt);
+	if (min_cnt > 0 || drop_frac > 0.0f)
+		m->n_pairs = hk_pair_filter(m->n_pairs, m->pairs, flt_radius, min_cnt, drop_frac);
 	bm = hk_bmap_gen(m->d, m->n_pairs, m->pairs, bin_size);
 	hk_map_destroy(m);
 	if (fdg) {
