@@ -24,6 +24,10 @@ void hk_map_destroy(struct hk_map *m)
 	free(m);
 }
 
+/******************
+ * Format parsers *
+ ******************/
+
 static int64_t hk_parse_64(const char *s, char **t, int *has_digit)
 {
 	const char *p = s;
@@ -244,6 +248,10 @@ struct hk_bmap *hk_3dg_read(const char *fn)
 	hk_bmap_set_offcnt(m);
 	return m;
 }
+
+/*****************
+ * Format output *
+ *****************/
 
 static void hk_print_chr(FILE *fp, const struct hk_sdict *d)
 {
