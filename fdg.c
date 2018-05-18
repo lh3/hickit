@@ -241,6 +241,46 @@ void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 	free(best_x);
 }
 
+void hk_check_dist(struct hk_bmap *m)
+{
+	int32_t i, n;
+	double sum, avg;
+	fvec3_t tmp;
+	float dist;
+	for (i = 1, sum = 0.0, n = 0; i < m->n_beads; ++i) {
+		if (m->beads[i].chr == m->beads[i-1].chr) {
+			dist = fv3_sub_normalize(m->x[i], m->x[i-1], tmp);
+			sum += dist, ++n;
+		}
+	}
+	avg = sum / n;
+	fprintf(stderr, "[M::%s] averge backbone distance: %f\n", __func__, avg);
+	for (i = 1, n = 0; i < m->n_beads; ++i) {
+		if (m->beads[i].chr == m->beads[i-1].chr) {
+			dist = fv3_sub_normalize(m->x[i], m->x[i-1], tmp);
+			if (dist > avg * 5.0) ++n;
+		}
+	}
+	fprintf(stderr, "[M::%s] bad backbone: %d\n", __func__, n);
+	for (i = 0, sum = 0.0, n = 0; i < m->n_pairs; ++i) {
+		struct hk_bpair *p = &m->pairs[i];
+		if (p->bid[0] != p->bid[1]) {
+			dist = fv3_sub_normalize(m->x[p->bid[0]], m->x[p->bid[1]], tmp);
+			sum += dist, ++n;
+		}
+	}
+	avg = sum / n;
+	fprintf(stderr, "[M::%s] averge contact distance: %f\n", __func__, avg);
+	for (i = 0, n = 0; i < m->n_pairs; ++i) {
+		struct hk_bpair *p = &m->pairs[i];
+		if (p->bid[0] != p->bid[1]) {
+			dist = fv3_sub_normalize(m->x[p->bid[0]], m->x[p->bid[1]], tmp);
+			if (dist > avg * 5.0) ++n;
+		}
+	}
+	fprintf(stderr, "[M::%s] bad contacts: %d\n", __func__, n);
+}
+
 void hk_fdg_normalize(struct hk_bmap *m)
 {
 	int32_t i, j, n_d = 0;

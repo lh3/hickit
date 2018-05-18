@@ -237,6 +237,7 @@ int main_bin(int argc, char *argv[])
 			in = hk_3dg_read(fn_in);
 			hk_bmap_copy_x(bm, in, &rng);
 			hk_bmap_destroy(in);
+			hk_check_dist(bm);
 		}
 		hk_fdg(&opt, bm, &rng);
 		hk_print_3dg(stdout, bm);

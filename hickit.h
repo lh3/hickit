@@ -141,6 +141,7 @@ void hk_bmap_destroy(struct hk_bmap *m);
 
 void hk_fdg_opt_init(struct hk_fdg_opt *opt);
 void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng);
+void hk_check_dist(struct hk_bmap *m);
 
 void hk_print_seg(FILE *fp, const struct hk_sdict *d, int32_t n_segs, const struct hk_seg *segs);
 void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs);
