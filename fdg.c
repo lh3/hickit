@@ -113,7 +113,7 @@ static inline void update_force(fvec3_t *x, int32_t i, int32_t j, float k, float
 	fv3_subfrom(delta, f[j]);
 }
 
-static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(set64) *h)
+static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(set64) *h, int max_nei)
 {
 	int32_t i, j, n_y, left;
 	struct avl_coor *y, *root = 0;
@@ -137,8 +137,10 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 	}
 	for (i = 0; i < m->n_pairs; ++i) { // contact
 		const struct hk_bpair *p = &m->pairs[i];
+		float k;
 		if (p->bid[0] == p->bid[1]) continue;
-		update_force(x, p->bid[0], p->bid[1], 1.0f, att_radius, 0, f);
+		k = p->max_nei >= max_nei? 1.0f : powf((float)p->max_nei / max_nei, 1.0f / 3.0f);
+		update_force(x, p->bid[0], p->bid[1], k, att_radius, 0, f);
 	}
 
 	// repulsive forces: generate y[]
@@ -202,7 +204,7 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 
 void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 {
-	int32_t iter, i, j, absent;
+	int32_t iter, i, j, absent, *n_nei, max_nei;
 	khash_t(set64) *h;
 	fvec3_t *best_x;
 	double best = 1e30;
@@ -223,12 +225,20 @@ void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 		kh_put(set64, h, (uint64_t)p->bid[1] << 32 | p->bid[0], &absent);
 	}
 
+	// figure out max_nei
+	n_nei = CALLOC(int32_t, m->n_pairs);
+	for (i = 0; i < m->n_pairs; ++i)
+		n_nei[i] = m->pairs[i].max_nei;
+	max_nei = ks_ksmall_int32_t(m->n_pairs, n_nei, (int)(m->n_pairs * 0.95));
+	free(n_nei);
+	if (hk_verbose >= 3) fprintf(stderr, "[M::%s] max_nei = %d\n", __func__, max_nei);
+
 	// FDG
 	if (m->x == 0) m->x = hk_fdg_init(rng, m->n_beads, opt->target_radius);
 	best_x = CALLOC(fvec3_t, m->n_beads);
 	for (iter = 0; iter < opt->n_iter; ++iter) {
 		double s;
-		s = hk_fdg1(opt, m, h);
+		s = hk_fdg1(opt, m, h, max_nei);
 		if (s < best) {
 			memcpy(best_x, m->x, sizeof(fvec3_t) * m->n_beads);
 			best = s;
