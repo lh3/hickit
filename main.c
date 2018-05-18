@@ -32,7 +32,7 @@ static inline int64_t hk_parse_num(const char *str)
 	return (int64_t)(x + .499);
 }
 
-static void print_usage_pair(FILE *fp, const struct hk_opt *opt)
+static void print_usage_pair(FILE *fp, const struct hk_popt *opt)
 {
 	fprintf(fp, "Usage: hickit pair [options] <in.seg>|<in.pairs>\n");
 	fprintf(fp, "Options:\n");
@@ -61,14 +61,14 @@ static void print_usage_pair(FILE *fp, const struct hk_opt *opt)
 
 int main_pair(int argc, char *argv[])
 {
-	struct hk_opt opt;
+	struct hk_popt opt;
 	struct hk_map *m = 0;
 	int c, long_idx, ret = 0, is_seg_out = 0, is_impute = 0, is_dedup = 1, is_tad_out = 0, mask_tad = 0, use_spacial = 1;
 	int cnt_radius = 0, ploidy = 2, seed = 1;
 	float val_frac = -1.0f;
 	krng_t rng;
 
-	hk_opt_init(&opt);
+	hk_popt_init(&opt);
 	while ((c = getopt_long(argc, argv, "s:q:d:DP:m:ta:c:pr:n:k:v:uS:", long_options_pair, &long_idx)) >= 0) {
 		if (c == 's') opt.max_seg = atoi(optarg);
 		else if (c == 'q') opt.min_mapq = atoi(optarg);
@@ -135,7 +135,7 @@ int main_pair(int argc, char *argv[])
 		if (is_tad_out)
 			hk_print_pair(stdout, opt.flag, m->d, n_tads, tads);
 		else if (mask_tad)
-			hk_mask_by_tad(n_tads, tads, m->n_pairs, m->pairs);
+			hk_mark_by_tad(n_tads, tads, m->n_pairs, m->pairs);
 		free(tads);
 		if (is_tad_out)
 			goto main_return;

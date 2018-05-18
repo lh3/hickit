@@ -15,7 +15,7 @@
 extern "C" {
 #endif
 
-struct hk_opt {
+struct hk_popt {
 	int flag;
 	int min_dist, max_seg, min_mapq, min_flt_cnt;
 	int min_tad_size;
@@ -43,7 +43,7 @@ struct hk_pair {      // a contact pair
 	uint64_t pos;     // pos1<<32 | pos2
 	int8_t strand[2]; // strand
 	int8_t phase[2];  // phase
-	uint32_t n:31, tad_masked:1;
+	uint32_t n:31, tad_marked:1;
 	union {
 		float p4[4];
 		float phased_prob;
@@ -89,7 +89,7 @@ struct hk_fdg_opt {
 
 extern int hk_verbose;
 
-void hk_opt_init(struct hk_opt *opt);
+void hk_popt_init(struct hk_popt *opt);
 
 int32_t *hk_sd_ploidy_XY(const struct hk_sdict *d, int32_t *sex_flag);
 struct hk_sdict *hk_sd_dup(const struct hk_sdict *d);
@@ -107,7 +107,7 @@ void hk_pair_count_nei(int32_t n_pairs, struct hk_pair *pairs, int radius);
 struct hk_map *hk_pair_sep_phase(const struct hk_map *m, float phase_thres);
 
 struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int min_tad_size, float area_weight, int32_t *n_tads_);
-void hk_mask_by_tad(int32_t n_tads, const struct hk_pair *tads, int32_t n_pairs, struct hk_pair *pairs);
+void hk_mark_by_tad(int32_t n_tads, const struct hk_pair *tads, int32_t n_pairs, struct hk_pair *pairs);
 
 void hk_impute(int32_t n_pairs, struct hk_pair *pairs, int max_radius, int min_radius, int max_nei, int n_iter, float pseudo_cnt, int use_spacial);
 

@@ -1,13 +1,55 @@
 #include <assert.h>
+#include <string.h>
 #include "hkpriv.h"
-
-/*********
- * Pairs *
- *********/
-
 #include "ksort.h"
 #define pair_lt(a, b) ((a).chr < (b).chr || ((a).chr == (b).chr && (a).pos < (b).pos))
 KSORT_INIT(pair, struct hk_pair, pair_lt)
+
+int hk_verbose = 3;
+
+void hk_popt_init(struct hk_popt *c)
+{
+	memset(c, 0, sizeof(struct hk_popt));
+	c->min_dist = 1000;
+	c->max_seg = 3;
+	c->min_mapq = 20;
+	c->min_flt_cnt = 0;
+	c->min_tad_size = 10;
+	c->area_weight = 5.0f;
+	c->min_radius = 50000;
+	c->max_radius = 10000000;
+	c->max_nei = 50;
+	c->pseudo_cnt = 0.4f;
+	c->n_iter = 1000;
+}
+
+void hk_map_phase_male_XY(struct hk_map *m)
+{
+	int32_t i, sex_flag, *ploidy_XY;
+	ploidy_XY = hk_sd_ploidy_XY(m->d, &sex_flag);
+	if (sex_flag & 2) { // chrY present, a male
+		if (m->pairs) {
+			for (i = 0; i < m->n_pairs; ++i) {
+				struct hk_pair *p = &m->pairs[i];
+				int32_t chr[2];
+				chr[0] = p->chr >> 32;
+				chr[1] = (int32_t)p->chr;
+				if (ploidy_XY[chr[0]]&1) p->phase[0] = 1;
+				else if (ploidy_XY[chr[0]]&2) p->phase[0] = 0;
+				if (ploidy_XY[chr[1]]&1) p->phase[1] = 1;
+				else if (ploidy_XY[chr[1]]&2) p->phase[1] = 0;
+			}
+		}
+		if (m->segs) {
+			for (i = 0; i < m->n_segs; ++i) {
+				struct hk_seg *p = &m->segs[i];
+				if (ploidy_XY[p->chr]&1) p->phase = 1;
+				else if (ploidy_XY[p->chr]&2) p->phase = 0;
+			}
+		}
+	}
+	free(ploidy_XY);
+}
 
 void hk_pair_sort(int32_t n_pairs, struct hk_pair *pairs)
 {
@@ -53,7 +95,7 @@ struct hk_pair *hk_seg2pair(int32_t n_segs, const struct hk_seg *segs, int min_d
 						p->phase[0]  = s->phase,  p->phase[1]  = t->phase;
 						p->strand[0] = s->strand, p->strand[1] = t->strand;
 					}
-					p->n = 0, p->tad_masked = 0;
+					p->n = 0, p->tad_marked = 0;
 					if (p->strand[0] * p->strand[1] >= 0 && t->chr == s->chr && (int32_t)p->pos - (int32_t)(p->pos>>32) < min_dist) {
 						--n_pairs;
 						continue;
@@ -93,7 +135,7 @@ int32_t hk_pair_dedup(int n_pairs, struct hk_pair *pairs, int min_dist)
 	return n;
 }
 
-void hk_mask_by_tad(int32_t n_tads, const struct hk_pair *tads, int32_t n_pairs, struct hk_pair *pairs)
+void hk_mark_by_tad(int32_t n_tads, const struct hk_pair *tads, int32_t n_pairs, struct hk_pair *pairs)
 {
 	int32_t i, j, n_a, n_masked = 0;
 	struct hk_pair *a;
@@ -123,7 +165,7 @@ void hk_mask_by_tad(int32_t n_tads, const struct hk_pair *tads, int32_t n_pairs,
 			if (p->chr == t->chr && hk_ppos1(t) <= p1 && hk_ppos2(p) <= hk_ppos2(t)) // contained in TAD
 				kept = 0;
 		}
-		pairs[i].tad_masked = !kept;
+		pairs[i].tad_marked = !kept;
 		if (!kept) ++n_masked;
 	}
 	free(a);
@@ -193,87 +235,102 @@ int32_t hk_pair_filter(int32_t n_pairs, struct hk_pair *pairs, int32_t max_radiu
 	return k;
 }
 
-/********************
- * Print segs/pairs *
- ********************/
+struct tad_aux {
+	float mmax_f;
+	int32_t i, mmax_i;
+};
 
-static void hk_print_chr(FILE *fp, const struct hk_sdict *d)
+static struct hk_pair *hk_tad_call1(int32_t n_pairs, struct hk_pair *pairs, int min_tad_size, float area_weight, int32_t *n_tads_, int32_t *in_tads_)
 {
-	int32_t i;
-	for (i = 0; i < d->n; ++i)
-		if (d->len[i] > 0)
-			fprintf(fp, "#chromosome: %s %d\n", d->name[i], d->len[i]);
-}
+	int32_t i, min_pos, max_pos, mmax_i, n_tads;
+	float mmax_f, avg_density;
+	struct tad_aux *a;
+	struct hk_pair *tads;
 
-void hk_print_seg(FILE *fp, const struct hk_sdict *d, int32_t n_segs, const struct hk_seg *segs)
-{
-	int32_t i, last_frag = -1;
-	hk_print_chr(fp, d);
-	for (i = 0; i < n_segs; ++i) {
-		const struct hk_seg *s = &segs[i];
-		if (s->frag_id != last_frag) {
-			if (last_frag >= 0) fputc('\n', fp);
-			fputc('.', fp);
-			last_frag = s->frag_id;
-		}
-		fprintf(fp, "\t%s%c%d%c", d->name[s->chr], HK_SUB_DELIM, s->st, HK_SUB_DELIM);
-		if (s->en > s->st) fprintf(fp, "%d", s->en);
-		fprintf(fp, "%c%c%c%c%c%d", HK_SUB_DELIM, s->strand > 0? '+' : s->strand < 0? '-' : '.',
-				HK_SUB_DELIM, s->phase == 0? '0' : s->phase == 1? '1' : '.',
-				HK_SUB_DELIM, s->mapq);
-	}
-	fputc('\n', fp);
-}
-
-void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs)
-{
-	int32_t i;
-	fprintf(fp, "## pairs format v1.0\n");
-	fprintf(fp, "#sorted: chr1-chr2-pos1-pos2\n");
-	fprintf(fp, "#shape: upper triangle\n");
-	hk_print_chr(fp, d);
-	fprintf(fp, "#columns: readID chr1 pos1 chr2 pos2 strand1 strand2");
-	if (flag & HK_OUT_CNT) fprintf(fp, " count");
-	if (flag & HK_OUT_P4) fprintf(fp, " p00 p01 p10 p11");
-	if (flag & HK_OUT_PHASE) fprintf(fp, " phase1 phase2");
-	fputc('\n', fp);
+	min_pos = INT32_MAX, max_pos = INT32_MIN;
 	for (i = 0; i < n_pairs; ++i) {
-		const struct hk_pair *p = &pairs[i];
-		fprintf(fp, ".\t%s\t%d\t%s\t%d\t%c\t%c", d->name[p->chr>>32], (int32_t)(p->pos>>32),
-				d->name[(int32_t)p->chr], (int32_t)p->pos,
-				p->strand[0] > 0? '+' : p->strand[0] < 0? '-' : '.',
-				p->strand[1] > 0? '+' : p->strand[1] < 0? '-' : '.');
-		if (flag & HK_OUT_CNT) fprintf(fp, "\t%d", p->n);
-		if (flag & HK_OUT_P4) fprintf(fp, "\t%.3f\t%.3f\t%.3f\t%.3f", p->_.p4[0], p->_.p4[1], p->_.p4[2], p->_.p4[3]);
-		if (flag & HK_OUT_PHASE) fprintf(fp, "\t%c\t%c", p->phase[0] < 0? '.' : '0' + p->phase[0], p->phase[1] < 0? '.' : '0' + p->phase[1]);
-		fputc('\n', fp);
+		struct hk_pair *p = &pairs[i];
+		int32_t p1 = hk_ppos1(p), p2 = hk_ppos2(p);
+		min_pos = min_pos < p1? min_pos : p1;
+		max_pos = max_pos > p2? max_pos : p2;
 	}
+	avg_density = n_pairs / (0.5e-12f * (max_pos - min_pos) * (max_pos - min_pos));
+
+	a = CALLOC(struct tad_aux, n_pairs + 1);
+	a[n_pairs].mmax_f = mmax_f = 0.0f;
+	a[n_pairs].mmax_i = mmax_i = n_pairs;
+	for (i = n_pairs - 1; i >= 0; --i) {
+		struct hk_pair *p = &pairs[i];
+		int32_t p1 = hk_ppos1(p), p2 = hk_ppos2(p);
+		float f, area = 0.5e-12f * (p2 - p1) * (p2 - p1);
+		int32_t j = n_pairs, lo = i + 1, hi = n_pairs - 1;
+		while (lo <= hi) { // binary search for the nearest pair that starts at or after _p2_
+			int32_t mid = (lo + hi) / 2;
+			if (hk_ppos1(&pairs[mid]) < p2) {
+				lo = mid + 1;
+				if (lo >= n_pairs || hk_ppos1(&pairs[lo]) >= p2) {
+					j = mid;
+					break;
+				}
+			} else {
+				hi = mid - 1;
+				if (hi < i + 1 || hk_ppos1(&pairs[hi]) < p2) {
+					j = mid;
+					break;
+				}
+			}
+		}
+		a[i].i = a[j].mmax_i;
+		f = a[j].mmax_f + ((int32_t)p->n - min_tad_size - area_weight * avg_density * area);
+		if (f >= mmax_f)
+			mmax_f = f, mmax_i = i;
+		a[i].mmax_f = mmax_f;
+		a[i].mmax_i = mmax_i;
+	}
+
+	for (i = mmax_i, n_tads = 0; i < n_pairs; i = a[i].i)
+		++n_tads;
+	*n_tads_ = n_tads;
+	tads = CALLOC(struct hk_pair, n_tads);
+	for (i = mmax_i, n_tads = 0i, *in_tads_ = 0; i < n_pairs; i = a[i].i) {
+		*in_tads_ += pairs[i].n;
+		tads[n_tads++] = pairs[i];
+	}
+
+	free(a);
+	return tads;
 }
 
-void hk_print_bmap(FILE *fp, const struct hk_bmap *m)
+struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int min_tad_size, float area_weight, int32_t *n_tads_)
 {
-	int32_t i;
-	fprintf(fp, "## pairs format v1.0\n");
-	fprintf(fp, "#sorted: chr1-pos1-chr2-pos2\n");
-	fprintf(fp, "#shape: upper triangle\n");
-	hk_print_chr(fp, m->d);
-	for (i = 0; i < m->n_pairs; ++i) {
-		const struct hk_bpair *p = &m->pairs[i];
-		const struct hk_bead *b[2];
-		b[0] = &m->beads[p->bid[0]];
-		b[1] = &m->beads[p->bid[1]];
-		fprintf(fp, ".\t%s\t%d\t%s\t%d\t%d\t%.4f\n", m->d->name[b[0]->chr], b[0]->st,
-				m->d->name[b[1]->chr], b[1]->st, p->n, p->p);
+	int32_t i, st, *n_tadss, n_tads = 0, tot_in_tads = 0;
+	struct hk_pair *tads = 0, **tadss;
+	tadss = CALLOC(struct hk_pair*, d->n);
+	n_tadss = CALLOC(int32_t, d->n);
+	for (st = 0, i = 1; i <= n_pairs; ++i) {
+		if (i == n_pairs || pairs[i].chr != pairs[i-1].chr) {
+			if (pairs[st].chr>>32 == (int32_t)pairs[st].chr) {
+				int32_t chr = (int32_t)pairs[st].chr, in_tads;
+				tadss[chr] = hk_tad_call1(i - st, &pairs[st], min_tad_size, area_weight, &n_tadss[chr], &in_tads);
+				n_tads += n_tadss[chr];
+				tot_in_tads += in_tads;
+			}
+			st = i;
+		}
 	}
-}
-
-void hk_print_3dg(FILE *fp, const struct hk_bmap *m)
-{
-	int32_t i;
-	hk_print_chr(fp, m->d);
-	for (i = 0; i < m->n_beads; ++i) {
-		const struct hk_bead *b = &m->beads[i];
-		fprintf(fp, "%s\t%d\t%f\t%f\t%f\n", m->d->name[b->chr], b->st,
-				m->x[i][0], m->x[i][1], m->x[i][2]);
+	tads = MALLOC(struct hk_pair, n_tads);
+	for (i = 0, n_tads = 0; i < d->n; ++i) {
+		if (n_tadss[i] > 0) {
+			memcpy(&tads[n_tads], tadss[i], n_tadss[i] * sizeof(struct hk_pair));
+			n_tads += n_tadss[i];
+			free(tadss[i]);
+		}
 	}
+	free(tadss);
+	free(n_tadss);
+	*n_tads_ = n_tads;
+	if (hk_verbose >= 3)
+		fprintf(stderr, "[M::%s] %d pairs (%.2f%%) in %d TADs\n", __func__,
+				tot_in_tads, 100.0 * tot_in_tads / n_pairs, n_tads);
+	return tads;
 }

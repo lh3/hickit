@@ -294,7 +294,7 @@ void hk_validate_roc(int32_t n_pairs, struct hk_pair *pairs)
 		float max = -1.0f;
 		int32_t w, max_j = -1, off_diag;
 		if (p->chr>>32 != (int32_t)p->chr) off_diag = 1;
-		else off_diag = !p->tad_masked;
+		else off_diag = !p->tad_marked;
 		for (j = 0; j < 4; ++j)
 			if (max < p->_.p4[j])
 				max = p->_.p4[j], max_j = j;

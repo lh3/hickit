@@ -5,141 +5,8 @@
 #include <zlib.h>
 #include "hickit.h"
 #include "hkpriv.h"
-
-/**********************
- * Default parameters *
- **********************/
-
-int hk_verbose = 3;
-
-void hk_opt_init(struct hk_opt *c)
-{
-	memset(c, 0, sizeof(struct hk_opt));
-	c->min_dist = 1000;
-	c->max_seg = 3;
-	c->min_mapq = 20;
-	c->min_flt_cnt = 0;
-	c->min_tad_size = 10;
-	c->area_weight = 5.0f;
-	c->min_radius = 50000;
-	c->max_radius = 10000000;
-	c->max_nei = 50;
-	c->pseudo_cnt = 0.4f;
-	c->n_iter = 1000;
-}
-
-/*********************
- * String dictionary *
- *********************/
-
-#include "khash.h"
-KHASH_MAP_INIT_STR(str, int32_t)
-typedef khash_t(str) sdict_t;
-
-struct hk_sdict *hk_sd_init(void)
-{
-	struct hk_sdict *d;
-	d = CALLOC(struct hk_sdict, 1);
-	d->h = kh_init(str);
-	return d;
-}
-
-void hk_sd_destroy(struct hk_sdict *d)
-{
-	int32_t i;
-	for (i = 0; i < d->n; ++i)
-		free(d->name[i]);
-	free(d->name);
-	free(d->len);
-	kh_destroy(str, (sdict_t*)d->h);
-}
-
-int32_t hk_sd_put(struct hk_sdict *d, const char *s, int32_t len)
-{
-	sdict_t *h = (sdict_t*)d->h;
-	khint_t k;
-	int absent;
-	k = kh_put(str, h, s, &absent);
-	if (absent) {
-		if (d->n == d->m) {
-			EXPAND(d->name, d->m);
-			REALLOC(d->len, d->m);
-		}
-		d->len[d->n] = len;
-		kh_key(h, k) = d->name[d->n] = strdup(s);
-		kh_val(h, k) = d->n++;
-	}
-	return kh_val(h, k);
-}
-
-struct hk_sdict *hk_sd_sep_phase(const struct hk_sdict *d, int32_t *ploidy_XY)
-{
-	struct hk_sdict *dp;
-	int i;
-	dp = hk_sd_init();
-	for (i = 0; i < d->n; ++i) {
-		int ploidy = ploidy_XY? ploidy_XY[i] >> 8 : 1;
-		if (ploidy <= 1) {
-			hk_sd_put(dp, d->name[i], d->len[i]);
-		} else {
-			int l, j;
-			char *s;
-			l = strlen(d->name[i]);
-			s = CALLOC(char, l + 2);
-			strcpy(s, d->name[i]);
-			s[l+1] = 0;
-			for (j = 0; j < ploidy; ++j) {
-				s[l] = 'a' + j;
-				hk_sd_put(dp, s, d->len[i]);
-			}
-			free(s);
-		}
-	}
-	return dp;
-}
-
-struct hk_sdict *hk_sd_dup(const struct hk_sdict *d)
-{
-	return hk_sd_sep_phase(d, 0);
-}
-
-int32_t *hk_sd_ploidy_XY(const struct hk_sdict *d, int32_t *sex_flag)
-{
-	int32_t i, *ploidy, n_X = 0, n_Y = 0;
-	if (sex_flag) *sex_flag = 0;
-	for (i = 0; i < d->n; ++i) {
-		int32_t is_X, is_Y;
-		is_X = (strchr(d->name[i], 'X') != 0);
-		is_Y = (strchr(d->name[i], 'Y') != 0);
-		if (is_X && is_Y) continue;
-		if (is_X) ++n_X;
-		if (is_Y) ++n_Y;
-	}
-	if (n_X == 0 && n_Y == 0)
-		fprintf(stderr, "[W::%s] no sex chromosomes (identified by 'X' or 'Y' in chr names)\n", __func__);
-	if (n_X > 1 || n_Y > 1) {
-		fprintf(stderr, "[E::%s] multiple chr contain 'X' or 'Y' in names\n", __func__);
-		exit(1);
-	}
-	if (n_X > 0 && sex_flag) *sex_flag |= 1;
-	if (n_Y > 0 && sex_flag) *sex_flag |= 2;
-	ploidy = CALLOC(int32_t, d->n);
-	for (i = 0; i < d->n; ++i) {
-		int32_t is_X, is_Y;
-		is_X = (strchr(d->name[i], 'X') != 0);
-		is_Y = (strchr(d->name[i], 'Y') != 0);
-		if (is_X && is_Y) continue;
-		if (n_Y == 0) ploidy[i] = 2 << 8;
-		else ploidy[i] = (is_X || is_Y? 1 : 2) << 8;
-		if (is_X) ploidy[i] |= 1;
-		if (is_Y) ploidy[i] |= 2;
-	}
-	return ploidy;
-}
-
-/*************************
- * Contact alloc/dealloc *
- *************************/
+#include "kseq.h"
+KSTREAM_INIT(gzFile, gzread, 0x10000)
 
 struct hk_map *hk_map_init(void)
 {
@@ -156,13 +23,6 @@ void hk_map_destroy(struct hk_map *m)
 	hk_sd_destroy(m->d);
 	free(m);
 }
-
-/*************************
- * Seg/pairs file parser *
- *************************/
-
-#include "kseq.h"
-KSTREAM_INIT(gzFile, gzread, 0x10000)
 
 static int64_t hk_parse_64(const char *s, char **t, int *has_digit)
 {
@@ -385,30 +245,83 @@ struct hk_bmap *hk_3dg_read(const char *fn)
 	return m;
 }
 
-void hk_map_phase_male_XY(struct hk_map *m)
+static void hk_print_chr(FILE *fp, const struct hk_sdict *d)
 {
-	int32_t i, sex_flag, *ploidy_XY;
-	ploidy_XY = hk_sd_ploidy_XY(m->d, &sex_flag);
-	if (sex_flag & 2) { // chrY present, a male
-		if (m->pairs) {
-			for (i = 0; i < m->n_pairs; ++i) {
-				struct hk_pair *p = &m->pairs[i];
-				int32_t chr[2];
-				chr[0] = p->chr >> 32;
-				chr[1] = (int32_t)p->chr;
-				if (ploidy_XY[chr[0]]&1) p->phase[0] = 1;
-				else if (ploidy_XY[chr[0]]&2) p->phase[0] = 0;
-				if (ploidy_XY[chr[1]]&1) p->phase[1] = 1;
-				else if (ploidy_XY[chr[1]]&2) p->phase[1] = 0;
-			}
+	int32_t i;
+	for (i = 0; i < d->n; ++i)
+		if (d->len[i] > 0)
+			fprintf(fp, "#chromosome: %s %d\n", d->name[i], d->len[i]);
+}
+
+void hk_print_seg(FILE *fp, const struct hk_sdict *d, int32_t n_segs, const struct hk_seg *segs)
+{
+	int32_t i, last_frag = -1;
+	hk_print_chr(fp, d);
+	for (i = 0; i < n_segs; ++i) {
+		const struct hk_seg *s = &segs[i];
+		if (s->frag_id != last_frag) {
+			if (last_frag >= 0) fputc('\n', fp);
+			fputc('.', fp);
+			last_frag = s->frag_id;
 		}
-		if (m->segs) {
-			for (i = 0; i < m->n_segs; ++i) {
-				struct hk_seg *p = &m->segs[i];
-				if (ploidy_XY[p->chr]&1) p->phase = 1;
-				else if (ploidy_XY[p->chr]&2) p->phase = 0;
-			}
-		}
+		fprintf(fp, "\t%s%c%d%c", d->name[s->chr], HK_SUB_DELIM, s->st, HK_SUB_DELIM);
+		if (s->en > s->st) fprintf(fp, "%d", s->en);
+		fprintf(fp, "%c%c%c%c%c%d", HK_SUB_DELIM, s->strand > 0? '+' : s->strand < 0? '-' : '.',
+				HK_SUB_DELIM, s->phase == 0? '0' : s->phase == 1? '1' : '.',
+				HK_SUB_DELIM, s->mapq);
 	}
-	free(ploidy_XY);
+	fputc('\n', fp);
+}
+
+void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs)
+{
+	int32_t i;
+	fprintf(fp, "## pairs format v1.0\n");
+	fprintf(fp, "#sorted: chr1-chr2-pos1-pos2\n");
+	fprintf(fp, "#shape: upper triangle\n");
+	hk_print_chr(fp, d);
+	fprintf(fp, "#columns: readID chr1 pos1 chr2 pos2 strand1 strand2");
+	if (flag & HK_OUT_CNT) fprintf(fp, " count");
+	if (flag & HK_OUT_P4) fprintf(fp, " p00 p01 p10 p11");
+	if (flag & HK_OUT_PHASE) fprintf(fp, " phase1 phase2");
+	fputc('\n', fp);
+	for (i = 0; i < n_pairs; ++i) {
+		const struct hk_pair *p = &pairs[i];
+		fprintf(fp, ".\t%s\t%d\t%s\t%d\t%c\t%c", d->name[p->chr>>32], (int32_t)(p->pos>>32),
+				d->name[(int32_t)p->chr], (int32_t)p->pos,
+				p->strand[0] > 0? '+' : p->strand[0] < 0? '-' : '.',
+				p->strand[1] > 0? '+' : p->strand[1] < 0? '-' : '.');
+		if (flag & HK_OUT_CNT) fprintf(fp, "\t%d", p->n);
+		if (flag & HK_OUT_P4) fprintf(fp, "\t%.3f\t%.3f\t%.3f\t%.3f", p->_.p4[0], p->_.p4[1], p->_.p4[2], p->_.p4[3]);
+		if (flag & HK_OUT_PHASE) fprintf(fp, "\t%c\t%c", p->phase[0] < 0? '.' : '0' + p->phase[0], p->phase[1] < 0? '.' : '0' + p->phase[1]);
+		fputc('\n', fp);
+	}
+}
+
+void hk_print_bmap(FILE *fp, const struct hk_bmap *m)
+{
+	int32_t i;
+	fprintf(fp, "## pairs format v1.0\n");
+	fprintf(fp, "#sorted: chr1-pos1-chr2-pos2\n");
+	fprintf(fp, "#shape: upper triangle\n");
+	hk_print_chr(fp, m->d);
+	for (i = 0; i < m->n_pairs; ++i) {
+		const struct hk_bpair *p = &m->pairs[i];
+		const struct hk_bead *b[2];
+		b[0] = &m->beads[p->bid[0]];
+		b[1] = &m->beads[p->bid[1]];
+		fprintf(fp, ".\t%s\t%d\t%s\t%d\t%d\t%.4f\n", m->d->name[b[0]->chr], b[0]->st,
+				m->d->name[b[1]->chr], b[1]->st, p->n, p->p);
+	}
+}
+
+void hk_print_3dg(FILE *fp, const struct hk_bmap *m)
+{
+	int32_t i;
+	hk_print_chr(fp, m->d);
+	for (i = 0; i < m->n_beads; ++i) {
+		const struct hk_bead *b = &m->beads[i];
+		fprintf(fp, "%s\t%d\t%f\t%f\t%f\n", m->d->name[b->chr], b->st,
+				m->x[i][0], m->x[i][1], m->x[i][2]);
+	}
 }

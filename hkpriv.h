@@ -21,7 +21,10 @@
 extern "C" {
 #endif
 
+struct hk_sdict *hk_sd_init(void);
+int32_t hk_sd_put(struct hk_sdict *d, const char *s, int32_t len);
 void hk_sd_destroy(struct hk_sdict *d);
+
 int hk_pair_is_sorted(int32_t n_pairs, const struct hk_pair *pairs);
 void hk_pair_sort(int32_t n_pairs, struct hk_pair *pairs);
 void hk_bmap_set_offcnt(struct hk_bmap *m);
