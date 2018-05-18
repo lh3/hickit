@@ -113,9 +113,8 @@ static inline void update_force(fvec3_t *x, int32_t i, int32_t j, float k, float
 	fv3_subfrom(delta, f[j]);
 }
 
-static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(set64) *h, fvec3_t *r)
+static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(set64) *h)
 {
-	const float decay = 0.9f;
 	int32_t i, j, n_y, left;
 	struct avl_coor *y, *root = 0;
 	fvec3_t *f, *x = m->x;
@@ -192,12 +191,7 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 		if (t > opt->max_f)
 			for (j = 0; j < 3; ++j)
 				f[i][j] = f[i][j] / t * opt->max_f;
-		if (r) {
-			for (j = 0; j < 3; ++j) {
-				r[i][j] = (1.0f - decay) * f[i][j] * f[i][j] + decay * r[i][j];
-				m->x[i][j] += step / sqrtf(1e-6f + r[i][j]) * f[i][j];
-			}
-		} else fv3_axpy(step, f[i], m->x[i]);
+		fv3_axpy(step, f[i], m->x[i]);
 	}
 
 	// free
@@ -210,7 +204,7 @@ void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 {
 	int32_t iter, i, j, absent;
 	khash_t(set64) *h;
-	fvec3_t *r, *best_x;
+	fvec3_t *best_x;
 	double best = 1e30;
 
 	// collect attractive pairs
@@ -231,11 +225,10 @@ void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 
 	// FDG
 	if (m->x == 0) m->x = hk_fdg_init(rng, m->n_beads, opt->target_radius);
-	r = 0? CALLOC(fvec3_t, m->n_beads) : 0;
 	best_x = CALLOC(fvec3_t, m->n_beads);
 	for (iter = 0; iter < opt->n_iter; ++iter) {
 		double s;
-		s = hk_fdg1(opt, m, h, r);
+		s = hk_fdg1(opt, m, h);
 		if (s < best) {
 			memcpy(best_x, m->x, sizeof(fvec3_t) * m->n_beads);
 			best = s;
@@ -244,7 +237,6 @@ void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 			fprintf(stderr, "[M::%s] %d iterations done (RMS force: %.4f)\n", __func__, iter+1, s);
 	}
 	kh_destroy(set64, h);
-	free(r);
 	memcpy(m->x, best_x, sizeof(fvec3_t) * m->n_beads);
 	free(best_x);
 }
