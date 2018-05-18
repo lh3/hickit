@@ -161,19 +161,20 @@ main_return:
 int main_bin(int argc, char *argv[])
 {
 	int c, bin_size = 1000000, min_cnt = 2, ploidy = 2, seed = 1, fdg = 0, flt_radius = 10000000;
-	float phase_thres = 0.65f, drop_frac = 0.2f;
+	float phase_thres = 0.65f, drop_frac = 0.1f, max_dist = 0.0f;
 	struct hk_map *m;
-	struct hk_bmap *bm;
+	struct hk_bmap *bm, *in = 0;
 	struct hk_fdg_opt opt;
 	char *fn_in = 0;
 	krng_t rng;
 
 	hk_fdg_opt_init(&opt);
-	while ((c = getopt(argc, argv, "b:R:c:f:p:d:P:gi:k:r:e:n:S:")) >= 0) {
+	while ((c = getopt(argc, argv, "b:R:c:f:d:p:P:gi:k:r:e:n:S:")) >= 0) {
 		if (c == 'b') bin_size = hk_parse_num(optarg);
 		else if (c == 'R') flt_radius = hk_parse_num(optarg);
 		else if (c == 'c') min_cnt = atoi(optarg);
 		else if (c == 'f') drop_frac = atof(optarg);
+		else if (c == 'd') max_dist = atof(optarg);
 		else if (c == 'p') phase_thres = atof(optarg);
 		else if (c == 'P') ploidy = atoi(optarg);
 		else if (c == 'g') fdg = 1;
@@ -193,6 +194,7 @@ int main_bin(int argc, char *argv[])
 		fprintf(stderr, "    -R NUM        radius for filtering [1m]\n");
 		fprintf(stderr, "    -c INT        min count [%d]\n", min_cnt);
 		fprintf(stderr, "    -f FLOAT      drop FLOAT fraction of contacts [%g]\n", drop_frac);
+		fprintf(stderr, "    -d FLOAT      distance to drop faraway pairs (effective with -i) [0]\n");
 		fprintf(stderr, "    -p FLOAT      phase threshold [%g]\n", phase_thres);
 		fprintf(stderr, "    -P INT        ploidy (1 or 2) [%d]\n", ploidy);
 		fprintf(stderr, "  3D modeling with FDG:\n");
@@ -208,28 +210,27 @@ int main_bin(int argc, char *argv[])
 	kr_srand_r(&rng, seed);
 	m = hk_map_read(argv[optind]);
 	assert(m && m->pairs);
+	if (fn_in) in = hk_3dg_read(fn_in);
 	if (ploidy == 2) {
 		struct hk_map *tmp;
 		tmp = hk_pair_split_phase(m, phase_thres);
 		hk_map_destroy(m);
 		m = tmp;
 	}
-	if (min_cnt > 0 || drop_frac > 0.0f) {
+	if (min_cnt > 0 || drop_frac > 0.0f)
 		m->n_pairs = hk_pair_filter(m->n_pairs, m->pairs, flt_radius, min_cnt, drop_frac);
-	} else hk_pair_count_nei(m->n_pairs, m->pairs, flt_radius);
+	else hk_pair_count_nei(m->n_pairs, m->pairs, flt_radius);
+	if (in && max_dist > 1.01f)
+		m->n_pairs = hk_pair_flt_3d(in, m->n_pairs, m->pairs, max_dist);
 	bm = hk_bmap_gen(m->d, m->n_pairs, m->pairs, bin_size);
 	hk_map_destroy(m);
 	if (fdg) {
-		if (fn_in) {
-			struct hk_bmap *in;
-			in = hk_3dg_read(fn_in);
-			hk_bmap_copy_x(bm, in, &rng);
-			hk_bmap_destroy(in);
-		}
+		if (in) hk_bmap_copy_x(bm, in, &rng);
 		hk_fdg(&opt, bm, &rng);
 		hk_print_3dg(stdout, bm);
 	} else hk_print_bmap(stdout, bm);
 	hk_bmap_destroy(bm);
+	if (in) hk_bmap_destroy(in);
 	return 0;
 }
 

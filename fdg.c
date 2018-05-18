@@ -241,6 +241,33 @@ void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 	free(best_x);
 }
 
+int32_t hk_pair_flt_3d(const struct hk_bmap *m, int32_t n_pairs, struct hk_pair *pairs, float max_factor)
+{
+	int32_t i, n;
+	fvec3_t tmp;
+	double sum, avg_bb;
+
+	assert(m->x);
+	for (i = 1, sum = 0.0, n = 0; i < m->n_beads; ++i)
+		if (m->beads[i-1].chr == m->beads[i].chr)
+			sum += fv3_sub_normalize(m->x[i-1], m->x[i], tmp), ++n;
+	avg_bb = sum / n;
+
+	for (i = n = 0; i < n_pairs; ++i) {
+		struct hk_pair *p = &pairs[i];
+		int bid[2];
+		float d;
+		bid[0] = hk_bmap_pos2bid(m, p->chr>>32,      hk_ppos1(p));
+		bid[1] = hk_bmap_pos2bid(m, (int32_t)p->chr, hk_ppos2(p));
+		d = fv3_sub_normalize(m->x[bid[0]], m->x[bid[1]], tmp);
+		if (d < avg_bb * max_factor) pairs[n++] = pairs[i];
+		// else fprintf(stderr, "%s\t%d\t%s\t%d\t%f\t%d\n", m->d->name[p->chr>>32], hk_ppos1(p), m->d->name[(int32_t)p->chr], hk_ppos2(p), d / avg_bb, p->n);
+	}
+	if (hk_verbose >= 3)
+		fprintf(stderr, "[M::%s] filtered %d (out of %d) pairs\n", __func__, n_pairs - n, n_pairs);
+	return n;
+}
+
 void hk_fdg_normalize(struct hk_bmap *m)
 {
 	int32_t i, j, n_d = 0;
