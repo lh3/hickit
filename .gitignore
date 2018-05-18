@@ -1,4 +1,7 @@
 .*.swp
 *.o
 *.a
+*.dSYM
 Makefile.bak
+hickit
+a.out
