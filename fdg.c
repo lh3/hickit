@@ -281,24 +281,19 @@ int32_t hk_pair_flt_3d(const struct hk_bmap *m, int32_t n_pairs, struct hk_pair 
 void hk_fdg_normalize(struct hk_bmap *m)
 {
 	int32_t i, j, n_d = 0;
-	fvec3_t max, min, tmp;
-	float scale, d;
+	fvec3_t center, tmp;
+	float d, max_radius = 0.0f;
 	double sum[3], sum_d = 0.0, sum_d2 = 0.0;
 
-	max[0] = max[1] = max[2] = -1e30f;
-	min[0] = min[1] = min[2] = 1e30f;
 	sum[0] = sum[1] = sum[2] = 0.0;
 	for (i = 0; i < m->n_beads; ++i) {
-		for (j = 0; j < 3; ++j) {
-			max[j] = max[j] > m->x[i][j]? max[j] : m->x[i][j];
-			min[j] = min[j] < m->x[i][j]? min[j] : m->x[i][j];
-			sum[j] += m->x[i][j];
-		}
+		for (j = 0; j < 3; ++j) sum[j] += m->x[i][j];
 		if (i > 0 && m->beads[i].chr == m->beads[i-1].chr) {
 			d = fv3_sub_normalize(m->x[i], m->x[i-1], tmp);
 			sum_d += d, ++n_d;
 		}
 	}
+	for (j = 0; j < 3; ++j) center[j] = sum[j] / m->n_beads;
 	sum_d /= n_d;
 	for (i = 1; i < m->n_beads; ++i) {
 		if (i > 0 && m->beads[i].chr == m->beads[i-1].chr) {
@@ -307,18 +302,15 @@ void hk_fdg_normalize(struct hk_bmap *m)
 		}
 	}
 	sum_d2 = sqrt(sum_d2 / n_d) / sum_d;
-	for (j = 0, scale = -1e30f; j < 3; ++j) {
-		double x;
-		sum[j] /= m->n_beads;
-		x = max[j] - sum[j] > sum[j] - min[j]? max[j] - sum[j] : sum[j] - min[j];
-		scale = scale > x? scale : x;
+	for (i = 0; i < m->n_beads; ++i) {
+		d = fv3_sub_normalize(m->x[i], center, tmp);
+		max_radius = max_radius > d? max_radius : d;
 	}
 	if (hk_verbose >= 3)
-		fprintf(stderr, "[M::%s] avg = %f; cv = %f; scale = %f\n", __func__, sum_d, sum_d2, scale);
-	scale = 1.0f / scale;
+		fprintf(stderr, "[M::%s] avg = %f; cv = %.4f; max_radius = %.4f\n", __func__, sum_d, sum_d2, max_radius);
 	if (hk_verbose >= 3)
-		fprintf(stderr, "[M::%s] center: (%.4f,%.4f,%.4f)\n", __func__, sum[0], sum[1], sum[2]);
+		fprintf(stderr, "[M::%s] center: (%.4f,%.4f,%.4f)\n", __func__, center[0], center[1], center[2]);
 	for (i = 0; i < m->n_beads; ++i)
 		for (j = 0; j < 3; ++j)
-			m->x[i][j] = (m->x[i][j] - sum[j]) * scale;
+			m->x[i][j] = (m->x[i][j] - center[j]) / max_radius;
 }
