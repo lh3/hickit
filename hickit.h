@@ -73,7 +73,7 @@ struct hk_map {
 
 struct hk_bpair {
 	int32_t bid[2];
-	int32_t n;
+	int32_t n, n_nei;
 	int8_t phase[2];
 	float p;
 };
@@ -137,6 +137,7 @@ void hk_validate_roc(int32_t n_pairs, struct hk_pair *pairs);
 struct hk_bmap *hk_3dg_read(const char *fn);
 struct hk_bmap *hk_bmap_gen(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int size);
 void hk_bmap_copy_x(struct hk_bmap *dst, const struct hk_bmap *src, krng_t *rng);
+void hk_bmap_count_nei(struct hk_bmap *m, int radius);
 void hk_bmap_destroy(struct hk_bmap *m);
 
 void hk_fdg_opt_init(struct hk_fdg_opt *opt);

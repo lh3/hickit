@@ -104,6 +104,7 @@ struct cnt_nei_aux {
 #define cnt_nei_key(x) ((x).pos1)
 KRADIX_SORT_INIT(nei, struct cnt_nei_aux, cnt_nei_key, 8)
 
+#if 1
 #define cnt_nei_cmp(x, y) ((x)->pos2 > (y)->pos2? 1 : (x)->pos2 < (y)->pos2? -1 : (x)->i - (y)->i)
 KAVL_INIT(nei, struct cnt_nei_aux, head, cnt_nei_cmp)
 
@@ -119,20 +120,10 @@ static inline int32_t count_in_tree(const struct cnt_nei_aux *root, uint64_t pos
 	return cr - cl;
 }
 
-void hk_pair_count_nei(int32_t n_pairs, struct hk_pair *pairs, int radius)
+static void hk_count_nei_core(int32_t n_pairs, struct cnt_nei_aux *a, int radius)
 {
-	struct cnt_nei_aux *a, *root = 0;
+	struct cnt_nei_aux *root = 0;
 	int32_t i, j, left;
-
-	a = CALLOC(struct cnt_nei_aux, n_pairs);
-	for (i = 0; i < n_pairs; ++i) {
-		struct hk_pair *p = &pairs[i];
-		a[i].pos1 = p->chr >> 32 << 32 | p->pos >> 32;
-		a[i].pos2 = p->chr << 32 | p->pos << 32 >> 32;
-		a[i].i = i;
-	}
-	radix_sort_nei(a, a + n_pairs);
-
 	left = 0;
 	kavl_insert(nei, &root, &a[0], 0);
 	for (i = 1; i < n_pairs; ++i) {
@@ -150,25 +141,11 @@ void hk_pair_count_nei(int32_t n_pairs, struct hk_pair *pairs, int radius)
 		kavl_erase(nei, &root, &a[j]);
 		a[j].n += count_in_tree(root, a[j].pos2, radius);
 	}
-	for (i = 0; i < n_pairs; ++i)
-		pairs[a[i].i].n = a[i].n;
-	free(a);
 }
-
-void hk_pair_count_nei_slow(int32_t n_pairs, struct hk_pair *pairs, int radius)
+#else
+static void hk_count_nei_core(int32_t n_pairs, struct cnt_nei_aux *a, int radius) // simpler but much slower algorithm
 {
-	struct cnt_nei_aux *a;
 	int32_t i, j, left;
-
-	a = CALLOC(struct cnt_nei_aux, n_pairs);
-	for (i = 0; i < n_pairs; ++i) {
-		struct hk_pair *p = &pairs[i];
-		a[i].pos1 = p->chr >> 32 << 32 | p->pos >> 32;
-		a[i].pos2 = p->chr << 32 | p->pos << 32 >> 32;
-		a[i].i = i;
-	}
-	radix_sort_nei(a, a + n_pairs);
-
 	left = 0;
 	for (i = 1; i < n_pairs; ++i) {
 		uint64_t lo, hi;
@@ -182,7 +159,39 @@ void hk_pair_count_nei_slow(int32_t n_pairs, struct hk_pair *pairs, int radius)
 			if (a[j].pos2 > lo && a[j].pos2 < hi)
 				++a[i].n, ++a[j].n;
 	}
+}
+#endif
+
+void hk_pair_count_nei(int32_t n_pairs, struct hk_pair *pairs, int radius)
+{
+	struct cnt_nei_aux *a;
+	int32_t i;
+	a = CALLOC(struct cnt_nei_aux, n_pairs);
+	for (i = 0; i < n_pairs; ++i) {
+		struct hk_pair *p = &pairs[i];
+		a[i].pos1 = p->chr >> 32 << 32 | p->pos >> 32;
+		a[i].pos2 = p->chr << 32 | p->pos << 32 >> 32;
+		a[i].i = i;
+	}
+	radix_sort_nei(a, a + n_pairs);
+	hk_count_nei_core(n_pairs, a, radius);
 	for (i = 0; i < n_pairs; ++i)
 		pairs[a[i].i].n = a[i].n;
+	free(a);
+}
+
+void hk_bmap_count_nei(struct hk_bmap *m, int radius)
+{
+	struct cnt_nei_aux *a;
+	int32_t i;
+	a = CALLOC(struct cnt_nei_aux, m->n_pairs);
+	for (i = 0; i < m->n_pairs; ++i) {
+		struct hk_bpair *p = &m->pairs[i];
+		a[i].pos1 = (uint64_t)m->beads[p->bid[0]].chr << 32 | m->beads[p->bid[0]].st;
+		a[i].pos2 = (uint64_t)m->beads[p->bid[1]].chr << 32 | m->beads[p->bid[1]].st;
+	}
+	hk_count_nei_core(m->n_pairs, a, radius);
+	for (i = 0; i < m->n_pairs; ++i)
+		m->pairs[a[i].i].n_nei = a[i].n;
 	free(a);
 }
