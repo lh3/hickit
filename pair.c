@@ -93,19 +93,6 @@ int32_t hk_pair_dedup(int n_pairs, struct hk_pair *pairs, int min_dist)
 	return n;
 }
 
-int32_t hk_pair_select_phased(int n_pairs, struct hk_pair *pairs)
-{
-	int32_t i, n;
-	for (i = n = 0; i < n_pairs; ++i) {
-		struct hk_pair *p = &pairs[i];
-		if (p->phase[0] < 0 && p->phase[1] < 0) continue;
-		pairs[n++] = pairs[i];
-	}
-	if (hk_verbose >= 3)
-		fprintf(stderr, "[M::%s] %d pairs remain\n", __func__, n);
-	return n;
-}
-
 void hk_mask_by_tad(int32_t n_tads, const struct hk_pair *tads, int32_t n_pairs, struct hk_pair *pairs)
 {
 	int32_t i, j, n_a, n_masked = 0;

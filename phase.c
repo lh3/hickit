@@ -1,7 +1,115 @@
 #include <math.h>
 #include <string.h>
+#include <assert.h>
 #include "hkpriv.h"
 #include "krng.h"
+#include "ksort.h"
+
+/************************************
+ * Collect neighbors for imputation *
+ ************************************/
+
+struct hk_nei1 {
+	union {
+		int32_t d;
+		float w;
+	} _;
+	int32_t i;
+};
+
+struct hk_nei {
+	int32_t n_pairs;
+	uint64_t *offcnt;
+	struct hk_nei1 *nei;
+};
+
+#define nei_lt(a, b) ((a)._.d < (b)._.d)
+KSORT_INIT(nei, struct hk_nei1, nei_lt)
+
+static void hk_nei_destroy(struct hk_nei *n)
+{
+	free(n->nei);
+	free(n->offcnt);
+	free(n);
+}
+
+static inline void nei_add(struct hk_nei *n, int max_nei, int i, int j, int d)
+{
+	struct hk_nei1 *n1 = &n->nei[n->offcnt[i] >> 16];
+	int32_t c0 = n->offcnt[i]&0xffff;
+	if (c0 < max_nei) {
+		n1[c0]._.d = d;
+		n1[c0].i = j;
+		++n->offcnt[i];
+		ks_heapup_nei(c0 + 1, n1);
+	} else if (n1->_.d > d) {
+		n1->_.d = d, n1->i = j;
+		ks_heapdown_nei(0, c0, n1);
+	}
+}
+
+static struct hk_nei *hk_pair2nei(int n_pairs, const struct hk_pair *pairs, int max_radius, int max_nei)
+{
+	int32_t i;
+	int64_t offset;
+	struct hk_nei *n;
+
+	assert(max_nei < 0x10000);
+	n = CALLOC(struct hk_nei, 1);
+	n->n_pairs = n_pairs;
+
+	n->offcnt = CALLOC(uint64_t, n_pairs + 1);
+	for (i = 1; i < n_pairs; ++i) {
+		const struct hk_pair *q = &pairs[i];
+		int32_t j, q1 = hk_ppos1(q), q2 = hk_ppos2(q);
+		for (j = i - 1; j >= 0; --j) {
+			const struct hk_pair *p = &pairs[j];
+			int32_t p1 = hk_ppos1(p), p2 = hk_ppos2(p), y, z;
+			if (q->chr != p->chr) break;
+			y = q1 - p1;
+			z = q2 > p2? q2 - p2 : p2 - q2;
+			if (y > max_radius) break;
+			if (z > max_radius) continue;
+			++n->offcnt[j];
+			++n->offcnt[i];
+			if (n->offcnt[i] > max_nei * 2) break;
+		}
+	}
+	for (i = 0, offset = 0; i < n_pairs; ++i) {
+		int32_t c = n->offcnt[i] < max_nei? n->offcnt[i] : max_nei;
+		n->offcnt[i] = offset << 16;
+		offset += c;
+	}
+	n->offcnt[i] = offset; // this is to avoid edge case below
+	n->nei = CALLOC(struct hk_nei1, offset);
+	if (hk_verbose >= 3)
+		fprintf(stderr, "[M::%s] up to %ld neighbor pairs\n", __func__, (long)offset);
+
+	for (i = 1; i < n_pairs; ++i) {
+		const struct hk_pair *q = &pairs[i];
+		int32_t j, q1 = hk_ppos1(q), q2 = hk_ppos2(q);
+		int32_t max_i = (n->offcnt[i+1]>>16) - (n->offcnt[i]>>16);
+		for (j = i - 1; j >= 0; --j) {
+			const struct hk_pair *p = &pairs[j];
+			int32_t p1 = hk_ppos1(p), p2 = hk_ppos2(p), y, z, d, max_j;
+			if (q->chr != p->chr) break;
+			y = q1 - p1;
+			z = q2 > p2? q2 - p2 : p2 - q2;
+			if (y > max_radius) break;
+			if ((n->offcnt[i]&0xffff) == max_i && y > n->nei[n->offcnt[i]>>16]._.d)
+				break;
+			if (z > max_radius) continue;
+			max_j = (n->offcnt[j+1]>>16) - (n->offcnt[j]>>16);
+			d = y > z? y : z;
+			nei_add(n, max_i, i, j, d);
+			nei_add(n, max_j, j, i, d);
+		}
+	}
+	for (i = 0; i < n_pairs; ++i)
+		if (n->offcnt[i]&0xffff)
+			ks_heapsort_nei(n->offcnt[i]&0xffff, &n->nei[n->offcnt[i]>>16]);
+	return n;
+}
 
 static inline float dist2weight(int32_t d, int32_t max)
 {
@@ -19,7 +127,7 @@ static float hk_pseudo_weight(int32_t max_radius)
 	return sum;
 }
 
-void hk_nei_weight(struct hk_nei *n, const struct hk_pair *pairs, int32_t min_radius, int32_t max_radius)
+static void hk_nei_weight(struct hk_nei *n, const struct hk_pair *pairs, int32_t min_radius, int32_t max_radius)
 {
 	int32_t i;
 	float coef;
@@ -36,6 +144,10 @@ void hk_nei_weight(struct hk_nei *n, const struct hk_pair *pairs, int32_t min_ra
 		}
 	}
 }
+
+/**********************
+ * Imputation with EM *
+ **********************/
 
 struct phase_aux {
 	float p[4];
@@ -59,18 +171,22 @@ static inline void spacial_adj(const struct hk_pair *p1, float p[4])
 	memcpy(p, q, 4 * sizeof(float));
 }
 
-void hk_nei_impute(struct hk_nei *n, struct hk_pair *pairs, int n_iter, float pseudo_cnt, int use_spacial)
+void hk_impute(int32_t n_pairs, struct hk_pair *pairs, int max_radius, int min_radius, int max_nei, int n_iter, float pseudo_cnt, int use_spacial)
 {
+	struct hk_nei *n;
 	struct phase_aux *a[2], *cur, *pre, *tmp;
 	int32_t i, iter, n_phased_legs = 0;
 
-	for (i = 0; i < n->n_pairs; ++i)
+	for (i = 0; i < n_pairs; ++i)
 		n_phased_legs += (pairs[i].phase[0] >= 0) + (pairs[i].phase[1] >= 0);
 	if (n_phased_legs < 2) {
 		if (hk_verbose >= 2)
 			fprintf(stderr, "[W::%s] too few phased legs for imputation\n", __func__);
 		return;
 	}
+
+	n = hk_pair2nei(n_pairs, pairs, max_radius, max_nei);
+	hk_nei_weight(n, pairs, min_radius, max_radius);
 
 	a[0] = CALLOC(struct phase_aux, n->n_pairs * 2);
 	a[1] = a[0] + n->n_pairs;
@@ -135,7 +251,12 @@ void hk_nei_impute(struct hk_nei *n, struct hk_pair *pairs, int n_iter, float ps
 	for (i = 0; i < n->n_pairs; ++i)
 		memcpy(pairs[i]._.p4, pre[i].p, 4 * sizeof(float));
 	free(a[0]);
+	hk_nei_destroy(n);
 }
+/*
+// The following implements Gibbs sampling. With the same model, it is less
+// accurate than EM above and takes more computing resources. Furthermore, it
+// implements less features as the focus has been shifted to EM.
 
 struct gibbs_aux {
 	struct { uint32_t c1:31, x:1; } p[4];
@@ -215,6 +336,11 @@ void hk_nei_gibbs(krng_t *r, struct hk_nei *n, struct hk_pair *pairs, int n_burn
 			pairs[i]._.p4[j] = (float)a[i].p[j].c1 / tot;
 	free(a);
 }
+*/
+
+/**************************
+ * Validation by holdback *
+ **************************/
 
 void hk_validate_holdback(krng_t *r, float ratio, int32_t n_pairs, struct hk_pair *pairs)
 {

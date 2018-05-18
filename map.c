@@ -26,7 +26,6 @@ void hk_opt_init(struct hk_opt *c)
 	c->max_nei = 50;
 	c->pseudo_cnt = 0.4f;
 	c->n_iter = 1000;
-	c->n_burnin = 1000;
 }
 
 /*********************

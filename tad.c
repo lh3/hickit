@@ -61,7 +61,7 @@ void hk_pair_count_1chr(int32_t n_pairs, struct hk_pair *pairs)
 	kmp_destroy(cnt, mp);
 }
 
-void hk_pair_count(int32_t n_pairs, struct hk_pair *pairs)
+void hk_pair_count_contained(int32_t n_pairs, struct hk_pair *pairs)
 {
 	int32_t st, i;
 	for (st = 0, i = 1; i <= n_pairs; ++i) {

@@ -43,6 +43,6 @@ main.o: hickit.h krng.h
 map.o: hickit.h krng.h hkpriv.h khash.h kseq.h
 neighbor.o: hkpriv.h hickit.h krng.h kavl.h ksort.h
 pair.o: hkpriv.h hickit.h krng.h ksort.h
-phase.o: hkpriv.h hickit.h krng.h
+phase.o: hkpriv.h hickit.h krng.h ksort.h
 tad.o: hkpriv.h hickit.h krng.h klist.h kavl.h
 view3d.o: hkpriv.h hickit.h krng.h

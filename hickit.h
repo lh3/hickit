@@ -22,7 +22,7 @@ struct hk_opt {
 	float area_weight;
 	int min_radius, max_radius, max_nei;
 	float pseudo_cnt;
-	int n_burnin, n_iter;
+	int n_iter;
 };
 
 struct hk_sdict {     // sequence dictionary
@@ -48,20 +48,6 @@ struct hk_pair {      // a contact pair
 		float p4[4];
 		float phased_prob;
 	} _;
-};
-
-struct hk_nei1 {
-	union {
-		int32_t d;
-		float w;
-	} _;
-	int32_t i;
-};
-
-struct hk_nei {
-	int32_t n_pairs;
-	uint64_t *offcnt;
-	struct hk_nei1 *nei;
 };
 
 struct hk_map {
@@ -116,20 +102,14 @@ void hk_map_phase_male_XY(struct hk_map *m);
 struct hk_pair *hk_seg2pair(int32_t n_segs, const struct hk_seg *segs, int min_dist, int max_seg, int min_mapq, int32_t *n_pairs_);
 int32_t hk_pair_dedup(int n_pairs, struct hk_pair *pairs, int min_dist);
 int32_t hk_pair_filter(int32_t n_pairs, struct hk_pair *pairs, int32_t max_radius, int32_t min_cnt, float drop_frac);
-int32_t hk_pair_select_phased(int n_pairs, struct hk_pair *pairs);
-void hk_pair_count(int32_t n_pairs, struct hk_pair *pairs);
+void hk_pair_count_contained(int32_t n_pairs, struct hk_pair *pairs);
 void hk_pair_count_nei(int32_t n_pairs, struct hk_pair *pairs, int radius);
-void hk_pair_count_nei_slow(int32_t n_pairs, struct hk_pair *pairs, int radius);
 struct hk_map *hk_pair_sep_phase(const struct hk_map *m, float phase_thres);
 
 struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int min_tad_size, float area_weight, int32_t *n_tads_);
 void hk_mask_by_tad(int32_t n_tads, const struct hk_pair *tads, int32_t n_pairs, struct hk_pair *pairs);
 
-struct hk_nei *hk_pair2nei(int n_pairs, const struct hk_pair *pairs, int max_radius, int max_nei);
-void hk_nei_weight(struct hk_nei *n, const struct hk_pair *pairs, int min_radius, int32_t max_radius);
-void hk_nei_impute(struct hk_nei *n, struct hk_pair *pairs, int n_iter, float pseudo_cnt, int use_spacial);
-void hk_nei_gibbs(krng_t *r, struct hk_nei *n, struct hk_pair *pairs, int n_burnin, int n_iter, float pseudo_cnt);
-void hk_nei_destroy(struct hk_nei *n);
+void hk_impute(int32_t n_pairs, struct hk_pair *pairs, int max_radius, int min_radius, int max_nei, int n_iter, float pseudo_cnt, int use_spacial);
 
 void hk_validate_holdback(krng_t *r, float ratio, int32_t n_pairs, struct hk_pair *pairs);
 void hk_validate_roc(int32_t n_pairs, struct hk_pair *pairs);

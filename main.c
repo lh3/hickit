@@ -14,7 +14,7 @@ static struct option long_options_pair[] = {
 	{ "seed",           required_argument, 0, 'S' },
 	{ "no-dedup",       no_argument,       0, 'D' },
 	{ "verbose",        required_argument, 0, 0 },
-	{ "select-phased",  no_argument,       0, 0 }, // 5: only imput pairs containing at least one phased leg
+	{ "select-phased",  no_argument,       0, 0 }, // 5: unused!!!
 	{ "no-spacial",     no_argument,       0, 'u' },
 	{ "tad-flag",       no_argument,       0, 0 }, // 7
 	{ "radius",         required_argument, 0, 0 }, // 8
@@ -52,8 +52,6 @@ static void print_usage_pair(FILE *fp, const struct hk_opt *opt)
 	fprintf(fp, "    -p            impute phases with EM\n");
 	fprintf(fp, "    -n INT        max neighbors within max radius [%d]\n", opt->max_nei);
 	fprintf(fp, "    -k INT        number of iterations [%d]\n", opt->n_iter);
-	fprintf(fp, "    -G            impute with Gibbs sampling (NOT recommended)\n");
-	fprintf(fp, "    -B INT        number of burn-in iterations (Gibbs only) [%d]\n", opt->n_burnin);
 	fprintf(fp, "    -v FLOAT      fraction of phased legs held out for validation [0]\n");
 	fprintf(fp, "    -u            disable the spacial heuristic (EM-only so far)\n");
 	fprintf(fp, "  Miscellaneous:\n");
@@ -65,13 +63,13 @@ int main_pair(int argc, char *argv[])
 {
 	struct hk_opt opt;
 	struct hk_map *m = 0;
-	int c, long_idx, ret = 0, is_seg_out = 0, is_impute = 0, is_dedup = 1, is_tad_out = 0, is_gibbs = 0, sel_phased = 0, mask_tad = 0, use_spacial = 1;
+	int c, long_idx, ret = 0, is_seg_out = 0, is_impute = 0, is_dedup = 1, is_tad_out = 0, mask_tad = 0, use_spacial = 1;
 	int cnt_radius = 0, ploidy = 2, seed = 1;
 	float val_frac = -1.0f;
 	krng_t rng;
 
 	hk_opt_init(&opt);
-	while ((c = getopt_long(argc, argv, "s:q:d:DP:m:ta:c:pr:n:k:GB:v:uS:", long_options_pair, &long_idx)) >= 0) {
+	while ((c = getopt_long(argc, argv, "s:q:d:DP:m:ta:c:pr:n:k:v:uS:", long_options_pair, &long_idx)) >= 0) {
 		if (c == 's') opt.max_seg = atoi(optarg);
 		else if (c == 'q') opt.min_mapq = atoi(optarg);
 		else if (c == 'd') opt.min_dist = hk_parse_num(optarg);
@@ -85,15 +83,12 @@ int main_pair(int argc, char *argv[])
 		else if (c == 'r') opt.max_radius = hk_parse_num(optarg);
 		else if (c == 'n') opt.max_nei = atoi(optarg);
 		else if (c == 'k') opt.n_iter = atoi(optarg);
-		else if (c == 'G') is_gibbs = is_impute = 1;
-		else if (c == 'B') opt.n_burnin = atoi(optarg);
 		else if (c == 'v') val_frac = atof(optarg), is_impute = 1;
 		else if (c == 'u') use_spacial = 0;
 		else if (c == 'S') seed = atoi(optarg);
 		else if (c == 0 && long_idx == 0) opt.flag |= HK_OUT_PHASE;
 		else if (c == 0 && long_idx == 1) is_seg_out = 1;
 		else if (c == 0 && long_idx == 4) hk_verbose = atoi(optarg); // --verbose
-		else if (c == 0 && long_idx == 5) sel_phased = 1;
 		else if (c == 0 && long_idx == 7) mask_tad = 1; // --tad-flag
 		else if (c == 0 && long_idx == 8) cnt_radius = hk_parse_num(optarg), opt.flag |= HK_OUT_CNT; // --radius
 	}
@@ -135,7 +130,7 @@ int main_pair(int argc, char *argv[])
 	if (is_tad_out || mask_tad) {
 		int32_t n_tads;
 		struct hk_pair *tads;
-		hk_pair_count(m->n_pairs, m->pairs);
+		hk_pair_count_contained(m->n_pairs, m->pairs);
 		tads = hk_pair2tad(m->d, m->n_pairs, m->pairs, opt.min_tad_size, opt.area_weight, &n_tads);
 		if (is_tad_out)
 			hk_print_pair(stdout, opt.flag, m->d, n_tads, tads);
@@ -147,16 +142,9 @@ int main_pair(int argc, char *argv[])
 	}
 
 	if (is_impute) { // phasing
-		struct hk_nei *n;
-		if (sel_phased)
-			m->n_pairs = hk_pair_select_phased(m->n_pairs, m->pairs);
-		n = hk_pair2nei(m->n_pairs, m->pairs, opt.max_radius, opt.max_nei);
-		hk_nei_weight(n, m->pairs, opt.min_radius, opt.max_radius);
 		if (val_frac > 0.0f && val_frac < 1.0f)
 			hk_validate_holdback(&rng, val_frac, m->n_pairs, m->pairs);
-		if (!is_gibbs) hk_nei_impute(n, m->pairs, opt.n_iter, opt.pseudo_cnt, use_spacial);
-		else hk_nei_gibbs(&rng, n, m->pairs, opt.n_burnin, opt.n_iter, opt.pseudo_cnt);
-		hk_nei_destroy(n);
+		hk_impute(m->n_pairs, m->pairs, opt.max_radius, opt.min_radius, opt.max_nei, opt.n_iter, opt.pseudo_cnt, use_spacial);
 		if (val_frac > 0.0f && val_frac < 1.0f)
 			hk_validate_roc(m->n_pairs, m->pairs);
 		else
