@@ -145,20 +145,3 @@ void hk_pair_count_nei(int32_t n_pairs, struct hk_pair *pairs, int radius)
 		pairs[a[i].i].n = a[i].n;
 	free(a);
 }
-
-void hk_bmap_count_nei(struct hk_bmap *m, int radius)
-{
-	struct cnt_nei_aux *a;
-	int32_t i;
-	a = CALLOC(struct cnt_nei_aux, m->n_pairs);
-	for (i = 0; i < m->n_pairs; ++i) {
-		struct hk_bpair *p = &m->pairs[i];
-		a[i].pos1 = (uint64_t)m->beads[p->bid[0]].chr << 32 | m->beads[p->bid[0]].st;
-		a[i].pos2 = (uint64_t)m->beads[p->bid[1]].chr << 32 | m->beads[p->bid[1]].st;
-		a[i].i = i;
-	}
-	hk_count_nei_core(m->n_pairs, a, radius);
-	for (i = 0; i < m->n_pairs; ++i)
-		m->pairs[a[i].i].n_nei = a[i].n;
-	free(a);
-}

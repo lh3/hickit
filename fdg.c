@@ -241,52 +241,13 @@ void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 	free(best_x);
 }
 
-void hk_check_dist(struct hk_bmap *m)
-{
-	int32_t i, n;
-	double sum, avg;
-	fvec3_t tmp;
-	float dist;
-	for (i = 1, sum = 0.0, n = 0; i < m->n_beads; ++i) {
-		if (m->beads[i].chr == m->beads[i-1].chr) {
-			dist = fv3_sub_normalize(m->x[i], m->x[i-1], tmp);
-			sum += dist, ++n;
-		}
-	}
-	avg = sum / n;
-	fprintf(stderr, "[M::%s] averge backbone distance: %f\n", __func__, avg);
-	for (i = 1, n = 0; i < m->n_beads; ++i) {
-		if (m->beads[i].chr == m->beads[i-1].chr) {
-			dist = fv3_sub_normalize(m->x[i], m->x[i-1], tmp);
-			if (dist > avg * 5.0) ++n;
-		}
-	}
-	fprintf(stderr, "[M::%s] bad backbone: %d\n", __func__, n);
-	for (i = 0, sum = 0.0, n = 0; i < m->n_pairs; ++i) {
-		struct hk_bpair *p = &m->pairs[i];
-		if (p->bid[0] != p->bid[1]) {
-			dist = fv3_sub_normalize(m->x[p->bid[0]], m->x[p->bid[1]], tmp);
-			sum += dist, ++n;
-		}
-	}
-	avg = sum / n;
-	fprintf(stderr, "[M::%s] averge contact distance: %f\n", __func__, avg);
-	for (i = 0, n = 0; i < m->n_pairs; ++i) {
-		struct hk_bpair *p = &m->pairs[i];
-		if (p->bid[0] != p->bid[1]) {
-			dist = fv3_sub_normalize(m->x[p->bid[0]], m->x[p->bid[1]], tmp);
-			if (dist > avg * 5.0) ++n;
-		}
-	}
-	fprintf(stderr, "[M::%s] bad contacts: %d\n", __func__, n);
-}
-
 void hk_fdg_normalize(struct hk_bmap *m)
 {
 	int32_t i, j, n_d = 0;
-	fvec3_t max, min;
-	float scale;
+	fvec3_t max, min, tmp;
+	float scale, d;
 	double sum[3], sum_d = 0.0, sum_d2 = 0.0;
+
 	max[0] = max[1] = max[2] = -1e30f;
 	min[0] = min[1] = min[2] = 1e30f;
 	sum[0] = sum[1] = sum[2] = 0.0;
@@ -297,22 +258,14 @@ void hk_fdg_normalize(struct hk_bmap *m)
 			sum[j] += m->x[i][j];
 		}
 		if (i > 0 && m->beads[i].chr == m->beads[i-1].chr) {
-			float d;
-			fvec3_t x;
-			for (j = 0; j < 3; ++j)
-				x[j] = m->x[i-1][j] - m->x[i][j];
-			d = sqrtf(fv3_L2(x));
+			d = fv3_sub_normalize(m->x[i], m->x[i-1], tmp);
 			sum_d += d, ++n_d;
 		}
 	}
 	sum_d /= n_d;
 	for (i = 1; i < m->n_beads; ++i) {
 		if (i > 0 && m->beads[i].chr == m->beads[i-1].chr) {
-			float d;
-			fvec3_t x;
-			for (j = 0; j < 3; ++j)
-				x[j] = m->x[i-1][j] - m->x[i][j];
-			d = sqrtf(fv3_L2(x));
+			d = fv3_sub_normalize(m->x[i], m->x[i-1], tmp);
 			sum_d2 += (d - sum_d) * (d - sum_d);
 		}
 	}

@@ -16,7 +16,7 @@ void hk_bpair_sort(int32_t n_pairs, struct hk_bpair *pairs)
 
 struct cnt_aux {
 	int32_t bid[2];
-	int32_t n;
+	int32_t n, max_nei;
 	float p_sum;
 };
 
@@ -92,10 +92,12 @@ static khash_t(bin_cnt) *hash_count(struct hk_bmap *m, int32_t n_pairs, const st
 		c.bid[0] = hk_bmap_pos2bid(m, p->chr>>32,      hk_ppos1(p));
 		c.bid[1] = hk_bmap_pos2bid(m, (int32_t)p->chr, hk_ppos2(p));
 		c.n = 1, c.p_sum = p->_.phased_prob;
+		c.max_nei = p->n;
 		k = kh_put(bin_cnt, h, c, &absent);
 		if (!absent) {
 			struct cnt_aux *q = &kh_key(h, k);
 			++q->n, q->p_sum += c.p_sum;
+			q->max_nei = q->max_nei > c.max_nei? q->max_nei : c.max_nei;
 		}
 	}
 	return h;
@@ -161,7 +163,7 @@ struct hk_bmap *hk_bmap_gen(const struct hk_sdict *d, int32_t n_pairs, const str
 			EXPAND(m->pairs, m_pairs);
 		p = &m->pairs[m->n_pairs++];
 		p->bid[0] = q->bid[0], p->bid[1] = q->bid[1];
-		p->n = q->n, p->p = q->p_sum / q->n;
+		p->n = q->n, p->p = q->p_sum / q->n, p->max_nei = q->max_nei;
 	}
 	kh_destroy(bin_cnt, h);
 	hk_bpair_sort(m->n_pairs, m->pairs);

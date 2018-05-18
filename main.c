@@ -214,8 +214,9 @@ int main_bin(int argc, char *argv[])
 		hk_map_destroy(m);
 		m = tmp;
 	}
-	if (min_cnt > 0 || drop_frac > 0.0f)
+	if (min_cnt > 0 || drop_frac > 0.0f) {
 		m->n_pairs = hk_pair_filter(m->n_pairs, m->pairs, flt_radius, min_cnt, drop_frac);
+	} else hk_pair_count_nei(m->n_pairs, m->pairs, flt_radius);
 	bm = hk_bmap_gen(m->d, m->n_pairs, m->pairs, bin_size);
 	hk_map_destroy(m);
 	if (fdg) {
@@ -224,7 +225,6 @@ int main_bin(int argc, char *argv[])
 			in = hk_3dg_read(fn_in);
 			hk_bmap_copy_x(bm, in, &rng);
 			hk_bmap_destroy(in);
-			hk_check_dist(bm);
 		}
 		hk_fdg(&opt, bm, &rng);
 		hk_print_3dg(stdout, bm);
