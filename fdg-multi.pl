@@ -18,9 +18,9 @@ my $prefix = $in;
 $prefix =~ s/\.pairs(\.gz)?$//;
 
 my ($prev, $next);
-$next = "$prefix.$conf->[0][0].3dg.gz";
 for (my $i = 0; $i < @$conf; ++$i) {
 	my $cli_opts = qq/-b $conf->[$i][0] -k $conf->[$i][1] -n $conf->[$i][2] -e $conf->[$i][3] -f $conf->[$i][4] -d $conf->[$i][5]/;
+	$next = $i == @$conf - 1? "$prefix.3dg.gz" : "$prefix.$conf->[$i][0].3dg.gz";
 	if ($i == 0) {
 		print "$hickit bin -g -p $opts{p} $cli_opts $in 2> $prefix.3dg.log | gzip > $next\n";
 	} else {
