@@ -12,7 +12,6 @@ struct cnt_nei_aux {
 #define cnt_nei_key(x) ((x).pos1)
 KRADIX_SORT_INIT(nei, struct cnt_nei_aux, cnt_nei_key, 8)
 
-#if 1
 #define cnt_nei_cmp(x, y) ((x)->pos2 > (y)->pos2? 1 : (x)->pos2 < (y)->pos2? -1 : (x)->i - (y)->i)
 KAVL_INIT(nei, struct cnt_nei_aux, head, cnt_nei_cmp)
 
@@ -50,25 +49,6 @@ static void hk_count_nei_core(int32_t n_pairs, struct cnt_nei_aux *a, int radius
 		a[j].n += count_in_tree(root, a[j].pos2, radius);
 	}
 }
-#else
-static void hk_count_nei_core(int32_t n_pairs, struct cnt_nei_aux *a, int radius) // simpler but much slower algorithm
-{
-	int32_t i, j, left;
-	left = 0;
-	for (i = 1; i < n_pairs; ++i) {
-		uint64_t lo, hi;
-		for (j = left; j < i; ++j)
-			if (a[i].pos1 - a[j].pos1 < radius)
-				break;
-		left = j;
-		lo = a[i].pos2 >> 32 << 32 | ((int32_t)a[i].pos2 > radius? a[i].pos2 - radius : 0);
-		hi = a[i].pos2 + radius;
-		for (j = left; j < i; ++j)
-			if (a[j].pos2 > lo && a[j].pos2 < hi)
-				++a[i].n, ++a[j].n;
-	}
-}
-#endif
 
 void hk_pair_count_nei(int32_t n_pairs, struct hk_pair *pairs, int radius)
 {
