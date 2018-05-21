@@ -77,6 +77,7 @@ struct hk_bmap {
 	uint64_t *offcnt; // index into beads
 	struct hk_bpair *pairs;
 	fvec3_t *x;
+	float *feat;
 };
 
 struct hk_fdg_opt {
@@ -115,6 +116,7 @@ void hk_validate_roc(int32_t n_pairs, struct hk_pair *pairs);
 
 struct hk_bmap *hk_3dg_read(const char *fn);
 struct hk_bmap *hk_bmap_gen(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int size);
+int hk_bmap_seqcomp(const char *fn, struct hk_bmap *m, int min_size);
 void hk_bmap_copy_x(struct hk_bmap *dst, const struct hk_bmap *src, krng_t *rng);
 int32_t hk_pair_flt_3d(const struct hk_bmap *m, int32_t n_pairs, struct hk_pair *pairs, float max_factor);
 void hk_bmap_destroy(struct hk_bmap *m);
@@ -122,6 +124,8 @@ void hk_bmap_destroy(struct hk_bmap *m);
 void hk_fdg_opt_init(struct hk_fdg_opt *opt);
 void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng);
 void hk_check_dist(struct hk_bmap *m);
+
+int hk_gf_seqcomp(const char *fn, struct hk_bmap *m, int min_size);
 
 void hk_print_seg(FILE *fp, const struct hk_sdict *d, int32_t n_segs, const struct hk_seg *segs);
 void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs);

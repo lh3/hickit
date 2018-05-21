@@ -195,5 +195,6 @@ void hk_bmap_destroy(struct hk_bmap *m)
 	free(m->offcnt);
 	free(m->beads);
 	free(m->pairs);
+	free(m->feat);
 	free(m);
 }

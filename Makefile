@@ -1,7 +1,7 @@
 CFLAGS=		-g -Wall -O2 -Wc++-compat -ffast-math
 CPPFLAGS=
 INCLUDES=
-OBJS=		sdict.o io.o pair.o count.o phase.o bin.o fdg.o image.o view3d.o
+OBJS=		sdict.o io.o pair.o count.o phase.o bin.o fdg.o image.o view3d.o gfeat.o
 PROG=		hickit
 LIBS=		-lm -lz
 LIBS_GL=
@@ -39,6 +39,7 @@ depend:
 bin.o: hkpriv.h hickit.h krng.h khash.h ksort.h
 count.o: hkpriv.h hickit.h krng.h kavl.h klist.h ksort.h
 fdg.o: hkpriv.h hickit.h krng.h ksort.h kavl.h khash.h
+gfeat.o: hkpriv.h hickit.h krng.h kseq.h
 image.o: hkpriv.h hickit.h krng.h ksort.h stb_image_write.h
 io.o: hickit.h krng.h hkpriv.h kseq.h
 main.o: hickit.h krng.h

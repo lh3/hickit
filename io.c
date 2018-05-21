@@ -6,7 +6,7 @@
 #include "hickit.h"
 #include "hkpriv.h"
 #include "kseq.h"
-KSTREAM_INIT(gzFile, gzread, 0x10000)
+KSEQ_INIT2(, gzFile, gzread)
 
 struct hk_map *hk_map_init(void)
 {
@@ -208,7 +208,7 @@ struct hk_bmap *hk_3dg_read(const char *fn)
 	gzFile fp;
 	kstring_t str = {0,0,0};
 	kstream_t *ks;
-	int32_t i, dret, m_beads = 0, n_fields = 0, m_fields = 0, n_data_rows = 0;
+	int32_t i, dret, m_beads = 0, n_fields = 0, m_fields = 0, n_data_rows = 0, n_feat = 0;
 	char **fields = 0;
 	struct hk_bmap *m;
 
@@ -228,6 +228,7 @@ struct hk_bmap *hk_3dg_read(const char *fn)
 			if (m->n_beads == m_beads) {
 				EXPAND(m->beads, m_beads);
 				REALLOC(m->x, m_beads);
+				REALLOC(m->feat, m_beads);
 			}
 			m->x[m->n_beads][0] = atof(fields[2]);
 			m->x[m->n_beads][1] = atof(fields[3]);
@@ -235,11 +236,19 @@ struct hk_bmap *hk_3dg_read(const char *fn)
 			b = &m->beads[m->n_beads++];
 			b->chr = hk_sd_put(m->d, fields[0], 0);
 			b->st = b->en = atoi(fields[1]);
+			if (n_fields >= 6) {
+				m->feat[m->n_beads] = atof(fields[5]);
+				++n_feat;
+			}
 		}
 	}
 	free(str.s);
 	ks_destroy(ks);
 	gzclose(fp);
+	if (n_feat == 0) {
+		free(m->feat);
+		m->feat = 0;
+	}
 	for (i = 1; i <= m->n_beads; ++i) {
 		if (i == m->n_beads || m->beads[i].chr != m->beads[i-1].chr)
 			m->beads[i-1].en = m->d->len[m->beads[i-1].chr];
@@ -331,5 +340,7 @@ void hk_print_3dg(FILE *fp, const struct hk_bmap *m)
 		const struct hk_bead *b = &m->beads[i];
 		fprintf(fp, "%s\t%d\t%f\t%f\t%f\n", m->d->name[b->chr], b->st,
 				m->x[i][0], m->x[i][1], m->x[i][2]);
+		if (m->feat) fprintf(fp, "\t%f", m->feat[i]);
+		fputc('\n', fp);
 	}
 }

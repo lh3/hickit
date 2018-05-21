@@ -40,6 +40,14 @@ int32_t hk_sd_put(struct hk_sdict *d, const char *s, int32_t len)
 	return kh_val(h, k);
 }
 
+int32_t hk_sd_get(const struct hk_sdict *d, const char *s)
+{
+	sdict_t *h = (sdict_t*)d->h;
+	khint_t k;
+	k = kh_get(str, h, s);
+	return k == kh_end(h)? -1 : kh_val(h, k);
+}
+
 struct hk_sdict *hk_sd_split_phase(const struct hk_sdict *d, int32_t *ploidy_XY)
 {
 	struct hk_sdict *dp;
