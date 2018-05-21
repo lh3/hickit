@@ -32,7 +32,7 @@ KSORT_INIT(cx, struct avl_coor, cx_lt)
 void hk_fdg_opt_init(struct hk_fdg_opt *opt)
 {
 	opt->target_radius = 10.0f;
-	opt->k_rep = 1.0f;
+	opt->k_rep = 0.5f;
 	opt->r_rep = 2.0f;
 	opt->n_iter = 1000;
 	opt->step = 0.01f;

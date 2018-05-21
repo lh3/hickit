@@ -4,15 +4,15 @@ use strict;
 use warnings;
 use Getopt::Std;
 
-my %opts = (p=>0.65);
-getopts('p:', \%opts);
-die "Usage: fdg-multi.pl [-p probThres] <in.pairs>\n" if @ARGV == 0;
+my %opts = (p=>0.65, S=>1);
+getopts('p:S:', \%opts);
+die "Usage: fdg-multi.pl [-p probThres] [-S rngSeed] <in.phased.pairs>\n" if @ARGV == 0;
 
 my $conf = [["2m",  0.25, 3000, 0.01, 0.2, 0.0],
-			["250k",   1, 1500, 0.02, 0.1, 0.0],
-			["50k",    1 , 750, 0.03, 0.1, 5.0],
-			["20k",    1,  500, 0.04, 0.1, 5.0],
-			["20k",    1,  500, 0.04, 0.1, 5.0]];
+			["250k", 0.5, 1500, 0.02, 0.1, 0.0],
+			["50k",  0.5 , 750, 0.03, 0.1, 5.0],
+			["20k",  0.5,  500, 0.03, 0.1, 5.0],
+			["20k",  0.5,  500, 0.02, 0.1, 5.0]];
 
 my $hickit = (&dirname($0)) . '/hickit';
 die 'ERROR: failed to find executable "hickit"' unless -x $hickit;
@@ -23,7 +23,7 @@ $prefix =~ s/\.pairs(\.gz)?$//;
 
 my ($prev, $next);
 for (my $i = 0; $i < @$conf; ++$i) {
-	my $cli_opts = qq/-b $conf->[$i][0] -k $conf->[$i][1] -n $conf->[$i][2] -e $conf->[$i][3] -f $conf->[$i][4] -d $conf->[$i][5]/;
+	my $cli_opts = qq/-S $opts{S} -b $conf->[$i][0] -k $conf->[$i][1] -n $conf->[$i][2] -e $conf->[$i][3] -f $conf->[$i][4] -d $conf->[$i][5]/;
 	$next = $i == @$conf - 1? "$prefix.3dg.gz" : "$prefix.$conf->[$i][0].3dg.gz";
 	if ($i == 0) {
 		print "$hickit bin -g -p $opts{p} $cli_opts $in 2> $prefix.3dg.log | gzip > $next\n";
