@@ -314,7 +314,7 @@ int main_gfeat(int argc, char *argv[])
 	m = hk_3dg_read(argv[optind]);
 	assert(m);
 	if (cpg_fn) {
-		hk_gf_seqcomp(cpg_fn, m, min_size);
+		m->feat = hk_gf_cpg(cpg_fn, m->d, m->n_beads, m->beads, min_size);
 	}
 	hk_print_3dg(stdout, m);
 	hk_bmap_destroy(m);
