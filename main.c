@@ -297,30 +297,6 @@ int main_view3d(int argc, char *argv[])
 	return 0;
 }
 
-int main_gfeat(int argc, char *argv[])
-{
-	int c, min_size = 100000;
-	struct hk_bmap *m;
-	char *cpg_fn = 0;
-
-	while ((c = getopt(argc, argv, "c:w:")) >= 0) {
-		if (c == 'c') cpg_fn = optarg;
-		else if (c == 'w') min_size = atoi(optarg);
-	}
-	if (optind == argc) {
-		fprintf(stderr, "Usage: hickit gfeat [options] <in.3dg>\n");
-		return 1;
-	}
-	m = hk_3dg_read(argv[optind]);
-	assert(m);
-	if (cpg_fn) {
-		m->feat = hk_gf_cpg(cpg_fn, m->d, m->n_beads, m->beads, min_size);
-	}
-	hk_print_3dg(stdout, m);
-	hk_bmap_destroy(m);
-	return 0;
-}
-
 int main(int argc, char *argv[])
 {
 	int ret = 0;
@@ -329,7 +305,6 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Commands:\n");
 		fprintf(stderr, "  pair       filtering, TAD calling and phase imputation\n");
 		fprintf(stderr, "  bin        binning\n");
-		fprintf(stderr, "  gfeat      genomic features\n");
 		fprintf(stderr, "  image2d    generate 2D contact map in PNG\n");
 #ifdef HAVE_GL
 		fprintf(stderr, "  view3d     view 3D structure\n");
@@ -339,7 +314,6 @@ int main(int argc, char *argv[])
 	}
 	if (strcmp(argv[1], "pair") == 0) ret = main_pair(argc-1, argv+1);
 	else if (strcmp(argv[1], "bin") == 0) ret = main_bin(argc-1, argv+1);
-	else if (strcmp(argv[1], "gfeat") == 0) ret = main_gfeat(argc-1, argv+1);
 	else if (strcmp(argv[1], "image2d") == 0) ret = main_image2d(argc-1, argv+1);
 	else if (strcmp(argv[1], "view3d") == 0) ret = main_view3d(argc-1, argv+1);
 	else if (strcmp(argv[1], "version") == 0) {

@@ -6,7 +6,7 @@
 #include "hickit.h"
 #include "hkpriv.h"
 #include "kseq.h"
-KSEQ_INIT2(, gzFile, gzread)
+KSTREAM_INIT(gzFile, gzread, 0x10000)
 
 struct hk_map *hk_map_init(void)
 {
