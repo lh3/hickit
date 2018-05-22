@@ -497,6 +497,124 @@ function hic_bedflt(args)
 	buf.destroy();
 }
 
+var seq_nt4_table = [
+	0, 1, 2, 3,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+	4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, 4, 4,
+	4, 4, 4, 4,  3, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+	4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, 4, 4,
+	4, 4, 4, 4,  3, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4
+];
+
+function hic_gfeat(args)
+{
+	var c, fn_ref = null, conf = { action:1, ref:null, win:100000 };
+	while ((c = getopt(args, "c:r:w:")) != null) {
+		if (c == 'r') fn_ref = getopt.arg;
+		else if (c == 'w') conf.win = atoi(optarg);
+	}
+	if (getopt.ind == args.length) {
+		print("Usage: hickit.js gfeat [options] <in.3dg>");
+		print("Options:");
+		print("  -r FILE    FASTA of the reference genome []");
+		print("  -w INT     window size [" + conf.win + "]");
+		exit(1);
+	}
+	if (conf.action == 1 && fn_ref == null)
+		throw Error("option '-r' required to compute CpG density");
+
+	var file, buf = new Bytes();
+
+	if (fn_ref != null) {
+		var gt = '>'.charCodeAt(0);
+		conf.ref = {};
+		file = new File(fn_ref);
+		var name = null, seq = null;
+		warn("Reading the reference genome...");
+		while (file.readline(buf) >= 0) {
+			if (buf[0] == gt) {
+				var m, s = buf.toString();
+				if ((m = />(\S+)/.exec(s)) == null)
+					throw Error("malformated FASTA");
+				if (name != null) conf.ref[name] = seq;
+				name = m[1], seq = new Bytes();
+			} else seq.set(buf);
+		}
+		if (name != null) conf.ref[name] = seq;
+		file.close();
+		warn("Converting the base encoding...");
+		for (var name in conf.ref) {
+			var seq = conf.ref[name];
+			warn(name, seq.length);
+			for (var i = 0; i < seq.length; ++i)
+				seq[i] = seq_nt4_table[seq[i]];
+		}
+	}
+
+	function process_interval(chr, st0, en0, conf) {
+		var ref = null;
+		if (conf.ref[chr] == null) {
+			var alt = chr.replace(/[ab]$/, "").replace(/\(\S+\)$/, "");
+			if (conf.ref[alt] == null)
+				throw Error("unable to determine the chromosome name '" + alt + "'");
+			ref = conf.ref[alt];
+		} else ref = conf.ref[chr];
+		var st = st0, en = en0 != null? en0 : ref.length;
+		if (en - st < conf.win) {
+			var x = (conf.win - (en - st)) >> 1;
+			st = st - x > 0? st - x : 0;
+			en = en + x < ref.length? en + x : ref.length;
+		}
+		var n_cpg = 0, n_gc = 0, n_tot = 0;
+		for (var i = st; i < en; ++i) {
+			var c = ref[i];
+			if (c < 4) {
+				++n_tot;
+				if (c == 1 && i < en - 1 && ref[i+1] == 2)
+					++n_cpg;
+				if (c == 1 || c == 2)
+					++n_gc;
+			}
+		}
+		return n_tot? (n_cpg / n_tot).toFixed(6) : 0;
+	}
+
+	warn("Processing 3dg...");
+	file = new File(args[getopt.ind]);
+	var line0 = null, chr0 = null, pos0 = null;
+	while (file.readline(buf) >= 0) {
+		var line = buf.toString();
+		if (line[0] == '#') {
+			print(line);
+			continue;
+		}
+		var t = line.split("\t");
+		if (t.length < 5) continue;
+		t[1] = parseInt(t[1]);
+		if (chr0 != null)
+			print(line0, process_interval(chr0, pos0, chr0 == t[0]? t[1] : null, conf));
+		chr0 = t[0], pos0 = t[1], line0 = line;
+	}
+	if (line0 != null)
+		print(line0, process_interval(chr0, pos0, null, conf));
+	file.close();
+
+	if (conf.ref)
+		for (var name in conf.ref)
+			conf.ref[name].destroy();
+	buf.destroy();
+}
+
 function main(args)
 {
 	if (args.length == 0) {
@@ -506,6 +624,7 @@ function main(args)
 		print("  vcf2tsv        convert phased VCF to simple TSV (chr, pos1, al1, al2)");
 		print("  chronly        filter out non-chromosomal segments/pairs");
 		print("  bedflt         filter out segments overlapping a BED");
+		print("  gfeat          compute genomic features");
 		exit(1);
 	}
 
@@ -514,6 +633,7 @@ function main(args)
 	else if (cmd == 'vcf2tsv') hic_vcf2tsv(args);
 	else if (cmd == 'chronly') hic_chronly(args);
 	else if (cmd == 'bedflt') hic_bedflt(args);
+	else if (cmd == 'gfeat') hic_gfeat(args);
 	else throw Error("unrecognized command: " + cmd);
 }
 

@@ -338,7 +338,7 @@ void hk_print_3dg(FILE *fp, const struct hk_bmap *m)
 	hk_print_chr(fp, m->d);
 	for (i = 0; i < m->n_beads; ++i) {
 		const struct hk_bead *b = &m->beads[i];
-		fprintf(fp, "%s\t%d\t%f\t%f\t%f\n", m->d->name[b->chr], b->st,
+		fprintf(fp, "%s\t%d\t%f\t%f\t%f", m->d->name[b->chr], b->st,
 				m->x[i][0], m->x[i][1], m->x[i][2]);
 		if (m->feat) fprintf(fp, "\t%f", m->feat[i]);
 		fputc('\n', fp);
