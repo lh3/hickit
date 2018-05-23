@@ -134,7 +134,7 @@ static inline void update_force(fvec3_t *x, int32_t i, int32_t j, float k, float
 	fv3_subfrom(delta, f[j]);
 }
 
-static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(set64) *h, int max_nei, int mid_dist)
+static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(set64) *h, int max_nei, int mid_dist, float rel_rep_k)
 {
 	int32_t i, j, n_y, left;
 	struct avl_coor *y, *root = 0;
@@ -200,7 +200,7 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 				khint_t k;
 				k = kh_get(set64, h, (uint64_t)q->i << 32 | p->i);
 				if (k == kh_end(h))
-					update_force(x, q->i, p->i, opt->k_rep, unit, opt->r_rep, FORCE_REPEL, f);
+					update_force(x, q->i, p->i, opt->k_rep * rel_rep_k, unit, opt->r_rep, FORCE_REPEL, f);
 			}
 			if (!kavl_itr_next(cy, &itr)) break;
 		}
@@ -228,6 +228,7 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 
 void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 {
+	const float alpha = 10.0f;
 	int32_t iter, i, j, absent, *n_nei, max_nei, *bb_dist, mid_dist;
 	khash_t(set64) *h;
 	fvec3_t *best_x;
@@ -268,14 +269,15 @@ void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 	if (m->x == 0) m->x = hk_fdg_init(rng, m->n_beads, opt->target_radius);
 	best_x = CALLOC(fvec3_t, m->n_beads);
 	for (iter = 0; iter < opt->n_iter; ++iter) {
-		double s;
-		s = hk_fdg1(opt, m, h, max_nei, mid_dist);
+		double s, rel_rep_k;
+		rel_rep_k = 0.5 + atan(alpha * (2.0 * (iter + 1) / opt->n_iter - 1)) / M_PI;
+		s = hk_fdg1(opt, m, h, max_nei, mid_dist, rel_rep_k);
 		if (s < best) {
 			memcpy(best_x, m->x, sizeof(fvec3_t) * m->n_beads);
 			best = s;
 		}
 		if (iter && iter%10 == 0 && hk_verbose >= 3)
-			fprintf(stderr, "[M::%s] %d iterations done (RMS force: %.4f)\n", __func__, iter+1, s);
+			fprintf(stderr, "[M::%s] %d iterations done (RMS force: %.4f; repulsive coefficient: %.4f)\n", __func__, iter+1, s, rel_rep_k);
 	}
 	kh_destroy(set64, h);
 	memcpy(m->x, best_x, sizeof(fvec3_t) * m->n_beads);
