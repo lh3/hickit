@@ -16,9 +16,19 @@ struct {
 	krng_t rng;
 	int n_hl;
 	char **hl;
+	float feat_lo, feat_hi;
+	int feat_color;
 } global;
 
 static void prep_color(const struct hk_sdict *d);
+
+static inline void set_feat_color(float x, float alpha)
+{
+	if (x < global.feat_lo) x = global.feat_lo;
+	if (x > global.feat_hi) x = global.feat_hi;
+	x = (x - global.feat_lo) / (global.feat_hi - global.feat_lo);
+	glColor4f(1.0f - x, x, 0, alpha);
+}
 
 static void cb_draw(void)
 {
@@ -35,8 +45,10 @@ static void cb_draw(void)
 		if (global.alpha[i] < 0.9) continue;
 		glColor4f(global.color[i][0], global.color[i][1], global.color[i][2], global.alpha[i]);
 		glBegin(GL_LINE_STRIP);
-		for (j = 0; j < cnt; ++j)
+		for (j = 0; j < cnt; ++j) {
+			if (m->feat && global.feat_color) set_feat_color(m->feat[off+j], global.alpha[i]);
 			glVertex3f(m->x[off+j][0], m->x[off+j][1], m->x[off+j][2]);
+		}
 		glEnd();
 	}
 	for (i = 0; i < m->d->n; ++i) {
@@ -45,8 +57,10 @@ static void cb_draw(void)
 		if (global.alpha[i] > 0.9) continue;
 		glColor4f(global.color[i][0], global.color[i][1], global.color[i][2], global.alpha[i]);
 		glBegin(GL_LINE_STRIP);
-		for (j = 0; j < cnt; ++j)
+		for (j = 0; j < cnt; ++j) {
+			if (m->feat && global.feat_color) set_feat_color(m->feat[off+j], global.alpha[i]);
 			glVertex3f(m->x[off+j][0], m->x[off+j][1], m->x[off+j][2]);
+		}
 		glEnd();
 	}
 	glFlush();
@@ -60,6 +74,9 @@ static void cb_key(unsigned char key, int x, int y)
 		exit(0);
 	} else if (key == 'c' || key == 'C') {
 		prep_color(global.m->d);
+		cb_draw();
+	} else if (key == 'f' || key == 'F') {
+		global.feat_color = !global.feat_color;
 		cb_draw();
 	}
 }
@@ -136,6 +153,18 @@ void hk_v3d_view(struct hk_bmap *m, int width, int color_seed, const char *hl)
 	hk_fdg_normalize(m);
 	if (hl) split_hl(hl);
 	prep_color(m->d);
+	if (m->feat) {
+		float *a;
+		int i;
+		a = CALLOC(float, m->n_beads);
+		for (i = 0; i < m->n_beads; ++i)
+			a[i] = m->feat[i];
+		global.feat_lo = ks_ksmall_float(m->n_beads, a, (int)(m->n_beads * 0.05f));
+		global.feat_hi = ks_ksmall_float(m->n_beads, a, (int)(m->n_beads * 0.95f));
+		if (hk_verbose >= 3)
+			fprintf(stderr, "[M::%s] low = %f, high = %f\n", __func__, global.feat_lo, global.feat_hi);
+		global.feat_color = 1;
+	}
 
 	glutInitWindowSize(width, width);
 	glutCreateWindow("View3D");

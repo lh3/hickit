@@ -34,6 +34,7 @@ void hk_bmap_set_offcnt(struct hk_bmap *m);
 int hk_bmap_pos2bid(const struct hk_bmap *m, int32_t chr, int32_t pos);
 
 int32_t ks_ksmall_int32_t(size_t n, int32_t arr[], size_t kk);
+float ks_ksmall_float(size_t n, float arr[], size_t kk);
 
 static inline uint64_t hash64(uint64_t key)
 {
