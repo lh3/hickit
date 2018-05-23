@@ -6,7 +6,7 @@
 #include <getopt.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r176"
+#define HICKIT_VERSION "r177"
 
 static struct option long_options_pair[] = {
 	{ "out-phase",      no_argument,       0, 0 }, // 0
@@ -268,14 +268,17 @@ int main_image2d(int argc, char *argv[])
 
 int main_view3d(int argc, char *argv[])
 {
-	int c, width = 780, color_seed = 1;;
+	int c, width = 780, color_seed = 1, line_width = 2;
 	struct hk_bmap *m;
 	char *hl = 0;
 
+#ifdef HAVE_GL
 	hk_v3d_prep(&argc, argv);
-	while ((c = getopt(argc, argv, "w:s:u:")) >= 0) {
+#endif
+	while ((c = getopt(argc, argv, "w:s:u:l:")) >= 0) {
 		if (c == 'w') width = atoi(optarg);
 		else if (c == 's') color_seed = atoi(optarg);
+		else if (c == 'l') line_width = atoi(optarg);
 		else if (c == 'u') hl = optarg;
 	}
 	if (optind == argc) {
@@ -283,6 +286,7 @@ int main_view3d(int argc, char *argv[])
 		fprintf(stderr, "Options:\n");
 		fprintf(stderr, "  -w INT      viewer width [%d]\n", width);
 		fprintf(stderr, "  -s INT      seed for RNG to generate random colors [%d]\n", color_seed);
+		fprintf(stderr, "  -l INT      line width [%d]\n", line_width);
 		fprintf(stderr, "  -u STR      comma-delimited list of chr to highlight []\n");
 		fprintf(stderr, "\n");
 		fprintf(stderr, "Key bindings:\n");
@@ -292,7 +296,9 @@ int main_view3d(int argc, char *argv[])
 	}
 	m = hk_3dg_read(argv[optind]);
 	assert(m);
-	hk_v3d_view(m, width, color_seed, hl);
+#ifdef HAVE_GL
+	hk_v3d_view(m, width, line_width, color_seed, hl);
+#endif
 	hk_bmap_destroy(m);
 	return 0;
 }

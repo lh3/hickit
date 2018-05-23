@@ -14,6 +14,7 @@ struct {
 	fvec3_t *color;
 	float *alpha;
 	krng_t rng;
+	int line_width;
 	int n_hl;
 	char **hl;
 	float feat_lo, feat_hi;
@@ -38,7 +39,7 @@ static void cb_draw(void)
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glMatrixMode(GL_MODELVIEW);
-	glLineWidth(2);
+	glLineWidth(global.line_width);
 	for (i = 0; i < m->d->n; ++i) {
 		int32_t j, cnt = (int32_t)m->offcnt[i];
 		int32_t off = m->offcnt[i] >> 32;
@@ -145,10 +146,11 @@ static void split_hl(const char *hl)
 	}
 }
 
-void hk_v3d_view(struct hk_bmap *m, int width, int color_seed, const char *hl)
+void hk_v3d_view(struct hk_bmap *m, int width, int line_width, int color_seed, const char *hl)
 {
 	memset(&global, 0, sizeof(global));
 	global.m = m;
+	global.line_width = line_width;
 	kr_srand_r(&global.rng, color_seed);
 	hk_fdg_normalize(m);
 	if (hl) split_hl(hl);
@@ -179,7 +181,4 @@ void hk_v3d_view(struct hk_bmap *m, int width, int color_seed, const char *hl)
 
 	glutMainLoop();
 }
-#else
-void hk_v3d_prep(int *argc, char *argv[]) {}
-void hk_v3d_view(struct hk_bmap *m, int width, int color_seed, const char *hl) {}
 #endif
