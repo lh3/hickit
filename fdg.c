@@ -103,19 +103,19 @@ static inline void fv3_axpy(float a, const fvec3_t x, fvec3_t y)
 #define FORCE_CONTACT  2
 #define FORCE_REPEL    3
 
-static inline float update_force(fvec3_t *x, int32_t i, int32_t j, float k, float unit, float rep_factor, int force_type, fvec3_t *f, float *dist_)
+static inline float update_force(fvec3_t *x, int32_t i, int32_t j, float k, float unit, float d_scale, int force_type, fvec3_t *f, float *dist_)
 {
 	const float att_min = 0.1f, att_max = 1.1f, con_min = 0.8f, con_max = 1.2f, con_cut = 2.0f;
 	float dist, force, r;
 	fvec3_t delta;
 	assert(i != j);
 	*dist_ = dist = fv3_sub_normalize(x[i], x[j], delta) / unit;
+	r = dist / d_scale;
 	if (force_type == FORCE_REPEL) {
-		if (dist >= rep_factor) return 0.0f;
-		r = 1.0f - dist / rep_factor;
+		if (r >= 1.0f) return 0.0f;
+		r = 1.0f - r;
 		force = k * r * r;
 	} else if (force_type == FORCE_BACKBONE) {
-		r = dist;
 		if (r < att_min) {
 			r = 1.0f - r / att_min;
 			force = k * r * r;
@@ -126,7 +126,6 @@ static inline float update_force(fvec3_t *x, int32_t i, int32_t j, float k, floa
 			force = -k * r * r;
 		}
 	} else {
-		r = dist;
 		if (r < con_min) {
 			r = 1.0f - r / con_min;
 			force = k * r * r;
@@ -148,6 +147,7 @@ static inline float update_force(fvec3_t *x, int32_t i, int32_t j, float k, floa
 
 static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(set64) *h, int max_nei, int mid_dist, float rel_rep_k, int iter)
 {
+	const double a_third = 1.0 / 3.0;
 	int32_t i, j, n_y, left, n_rep = 0, n_con = 0;
 	struct avl_coor *y, *root = 0;
 	fvec3_t *f, *x = m->x;
@@ -165,18 +165,19 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 		for (j = 1; j < cnt; ++j) {
 			int32_t bid = off + j;
 			int32_t d = ((m->beads[bid-1].en - m->beads[bid-1].st) + (m->beads[bid].en - m->beads[bid].st)) / 2;
-			float k;
-			k = powf((float)d / mid_dist, 1.0f / 3.0f);
-			f_bb += update_force(x, bid - 1, bid, k, unit, opt->r_rep, FORCE_BACKBONE, f, &dist);
+			float d_opt;
+			d_opt = pow((double)d / mid_dist, a_third);
+			f_bb += update_force(x, bid - 1, bid, 1.0f, unit, d_opt, FORCE_BACKBONE, f, &dist);
 			d_bb += dist;
 		}
 	}
 	for (i = 0; i < m->n_pairs; ++i) { // contact
 		const struct hk_bpair *p = &m->pairs[i];
-		float k;
+		float k, d_scale;
 		if (p->bid[0] == p->bid[1]) continue;
-		k = p->max_nei >= max_nei? 1.0f : powf((float)p->max_nei / max_nei, 1.0f / 3.0f);
-		f_con += update_force(x, p->bid[0], p->bid[1], k, unit, opt->r_rep, FORCE_CONTACT, f, &dist);
+		k = p->max_nei >= max_nei? 1.0f : powf((double)p->max_nei / max_nei, a_third);
+		d_scale = pow(p->n, -a_third);
+		f_con += update_force(x, p->bid[0], p->bid[1], k, unit, d_scale, FORCE_CONTACT, f, &dist);
 		d_con += dist;
 		++n_con;
 	}
@@ -257,7 +258,7 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 {
 	const float alpha = 10.0f;
-	int32_t iter, i, j, absent, *n_nei, max_nei, *bb_dist, mid_dist;
+	int32_t iter, i, j, absent, max_nei, *tmp, mid_dist;
 	khash_t(set64) *h;
 	fvec3_t *best_x;
 	double best = 1e30;
@@ -278,20 +279,20 @@ void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 		kh_put(set64, h, (uint64_t)p->bid[1] << 32 | p->bid[0], &absent);
 	}
 
-	bb_dist = CALLOC(int32_t, m->n_beads);
+	// median backbone size
+	tmp = CALLOC(int32_t, m->n_beads);
 	for (i = 0; i < m->n_beads; ++i)
-		bb_dist[i] = m->beads[i].en - m->beads[i].st;
-	mid_dist = ks_ksmall_int32_t(m->n_beads, bb_dist, (int)(m->n_beads * 0.5));
-	if (hk_verbose >= 3) fprintf(stderr, "[M::%s] mid_dist = %d\n", __func__, mid_dist);
-	free(bb_dist);
+		tmp[i] = m->beads[i].en - m->beads[i].st;
+	mid_dist = ks_ksmall_int32_t(m->n_beads, tmp, (int)(m->n_beads * 0.5));
+	free(tmp);
 
 	// figure out max_nei
-	n_nei = CALLOC(int32_t, m->n_pairs);
+	tmp = CALLOC(int32_t, m->n_pairs);
 	for (i = 0; i < m->n_pairs; ++i)
-		n_nei[i] = m->pairs[i].max_nei;
-	max_nei = ks_ksmall_int32_t(m->n_pairs, n_nei, (int)(m->n_pairs * 0.95));
-	free(n_nei);
-	if (hk_verbose >= 3) fprintf(stderr, "[M::%s] max_nei = %d\n", __func__, max_nei);
+		tmp[i] = m->pairs[i].max_nei;
+	max_nei = ks_ksmall_int32_t(m->n_pairs, tmp, (int)(m->n_pairs * 0.95));
+	free(tmp);
+	if (hk_verbose >= 3) fprintf(stderr, "[M::%s] mid_dist:%d max_nei:%d\n", __func__, mid_dist, max_nei);
 
 	// FDG
 	if (m->x == 0) m->x = hk_fdg_init(rng, m->n_beads, opt->target_radius);
