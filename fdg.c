@@ -105,7 +105,7 @@ static inline void fv3_axpy(float a, const fvec3_t x, fvec3_t y)
 
 static inline float update_force(fvec3_t *x, int32_t i, int32_t j, float k, float unit, float rep_factor, int force_type, fvec3_t *f, float *dist_)
 {
-	const float att_min = 0.1f, att_max = 1.1f;
+	const float att_min = 0.1f, att_max = 1.1f, con_min = 0.8f, con_max = 1.2f, con_cut = 2.0f;
 	float dist, force, r;
 	fvec3_t delta;
 	assert(i != j);
@@ -122,12 +122,23 @@ static inline float update_force(fvec3_t *x, int32_t i, int32_t j, float k, floa
 		} else if (r < att_max) {
 			force = 0.0f;
 		} else {
-			r = 1.0f - r / att_max;
+			r = r / att_max - 1.0f;
 			force = -k * r * r;
 		}
 	} else {
-		r = 1.0f - dist;
-		force = k * r;
+		r = dist;
+		if (r < con_min) {
+			r = 1.0f - r / con_min;
+			force = k * r * r;
+		} else if (r < con_max) {
+			force = 0.0f;
+		} else if (r < con_cut) {
+			r = r / con_max - 1.0f;
+			force = -k * r * r;
+		} else {
+			r = r / con_cut - 1.0f;
+			force = -k * r - k * (con_cut / con_max - 1) * (con_cut / con_max - 1);
+		}
 	}
 	fv3_scale(force, delta);
 	fv3_addto(delta, f[i]);
