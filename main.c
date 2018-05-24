@@ -6,7 +6,7 @@
 #include <getopt.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r182"
+#define HICKIT_VERSION "r183"
 
 static struct option long_options_pair[] = {
 	{ "out-phase",      no_argument,       0, 0 }, // 0
@@ -160,7 +160,7 @@ main_return:
 
 int main_bin(int argc, char *argv[])
 {
-	int c, bin_size = 1000000, min_cnt = 2, ploidy = 2, seed = 1, fdg = 0, flt_radius = 10000000;
+	int c, bin_size = 1000000, min_cnt = 2, ploidy = 2, seed = 1, fdg = 0, flt_radius = 10000000, iso_radius = 1000000;
 	float phase_thres = 0.65f, drop_frac = 0.1f, max_dist = 0.0f;
 	struct hk_map *m;
 	struct hk_bmap *bm, *in = 0;
@@ -169,8 +169,9 @@ int main_bin(int argc, char *argv[])
 	krng_t rng;
 
 	hk_fdg_opt_init(&opt);
-	while ((c = getopt(argc, argv, "b:R:c:f:d:p:P:gi:k:r:e:n:S:")) >= 0) {
+	while ((c = getopt(argc, argv, "b:D:R:c:f:d:p:P:gi:k:r:e:n:S:")) >= 0) {
 		if (c == 'b') bin_size = hk_parse_num(optarg);
+		else if (c == 'D') iso_radius = hk_parse_num(optarg);
 		else if (c == 'R') flt_radius = hk_parse_num(optarg);
 		else if (c == 'c') min_cnt = atoi(optarg);
 		else if (c == 'f') drop_frac = atof(optarg);
@@ -191,7 +192,7 @@ int main_bin(int argc, char *argv[])
 		fprintf(stderr, "Options:\n");
 		fprintf(stderr, "  Binning:\n");
 		fprintf(stderr, "    -b NUM        bin size [1m]\n");
-		fprintf(stderr, "    -R NUM        radius for filtering [1m]\n");
+		fprintf(stderr, "    -R NUM        radius for filtering [10m]\n");
 		fprintf(stderr, "    -c INT        min count [%d]\n", min_cnt);
 		fprintf(stderr, "    -f FLOAT      drop FLOAT fraction of contacts [%g]\n", drop_frac);
 		fprintf(stderr, "    -d FLOAT      distance to drop faraway pairs (effective with -i) [0]\n");
@@ -217,6 +218,7 @@ int main_bin(int argc, char *argv[])
 		hk_map_destroy(m);
 		m = tmp;
 	}
+	m->n_pairs = hk_pair_filter(m->n_pairs, m->pairs, iso_radius, 1, 0.0f);
 	if (min_cnt > 0 || drop_frac > 0.0f)
 		m->n_pairs = hk_pair_filter(m->n_pairs, m->pairs, flt_radius, min_cnt, drop_frac);
 	else hk_pair_count_nei(m->n_pairs, m->pairs, flt_radius);

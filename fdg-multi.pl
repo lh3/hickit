@@ -8,7 +8,7 @@ my %opts = (p=>0.65, S=>1);
 getopts('p:S:', \%opts);
 die "Usage: fdg-multi.pl [-p probThres] [-S rngSeed] <in.phased.pairs>\n" if @ARGV == 0;
 
-my $conf = [["2m",   0.1, 3000, 0.01, 0.2, 0.0],
+my $conf = [["2m",   0.1, 5000, 0.01, 0.2, 0.0],
 			["250k", 0.2, 1500, 0.02, 0.1, 0.0],
 			["50k",  0.2 , 750, 0.03, 0.1, 5.0],
 			["20k",  0.2,  500, 0.03, 0.1, 5.0],

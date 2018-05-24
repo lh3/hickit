@@ -99,13 +99,14 @@ static inline void fv3_axpy(float a, const fvec3_t x, fvec3_t y)
 	y[0] += a * x[0], y[1] += a * x[1], y[2] += a * x[2];
 }
 
-#define FORCE_BACKBONE 1
-#define FORCE_CONTACT  2
-#define FORCE_REPEL    3
+#define FORCE_BACKBONE        1
+#define FORCE_REPEL           2
+#define FORCE_CONTACT_STRONG  3
+#define FORCE_CONTACT_WEAK    4
 
 static inline float update_force(fvec3_t *x, int32_t i, int32_t j, float k, float unit, float d_scale, int force_type, fvec3_t *f, float *dist_)
 {
-	const float att_min = 0.1f, att_max = 1.1f, con_min = 0.8f, con_max = 1.2f, con_cut = 2.0f;
+	const float att_min = 0.1f, att_max = 1.1f, con_min = 0.5f, con_max = 1.5f, con_cut = 2.0f;
 	float dist, force, r;
 	fvec3_t delta;
 	assert(i != j);
@@ -131,7 +132,7 @@ static inline float update_force(fvec3_t *x, int32_t i, int32_t j, float k, floa
 			force = k * r * r;
 		} else if (r < con_max) {
 			force = 0.0f;
-		} else if (r < con_cut) {
+		} else if (r < con_cut || force_type == FORCE_CONTACT_STRONG) {
 			r = r / con_max - 1.0f;
 			force = -k * r * r;
 		} else {
@@ -177,7 +178,7 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 		if (p->bid[0] == p->bid[1]) continue;
 		k = p->max_nei >= max_nei? 1.0f : powf((double)p->max_nei / max_nei, a_third);
 		d_scale = pow(p->n, -a_third);
-		f_con += update_force(x, p->bid[0], p->bid[1], k, unit, d_scale, FORCE_CONTACT, f, &dist);
+		f_con += update_force(x, p->bid[0], p->bid[1], k, unit, d_scale, k == 1.0f? FORCE_CONTACT_STRONG : FORCE_CONTACT_WEAK, f, &dist);
 		d_con += dist;
 		++n_con;
 	}
@@ -290,7 +291,7 @@ void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 	tmp = CALLOC(int32_t, m->n_pairs);
 	for (i = 0; i < m->n_pairs; ++i)
 		tmp[i] = m->pairs[i].max_nei;
-	max_nei = ks_ksmall_int32_t(m->n_pairs, tmp, (int)(m->n_pairs * 0.95));
+	max_nei = ks_ksmall_int32_t(m->n_pairs, tmp, (int)(m->n_pairs * 0.5));
 	free(tmp);
 	if (hk_verbose >= 3) fprintf(stderr, "[M::%s] mid_dist:%d max_nei:%d\n", __func__, mid_dist, max_nei);
 
