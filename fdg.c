@@ -133,18 +133,26 @@ int32_t hk_fdg_bead_size(const struct hk_bmap *m)
 double hk_fdg_copy_x(struct hk_bmap *dst, const struct hk_bmap *src, krng_t *rng)
 {
 	int32_t i;
-	double avg_bb;
+	double avg_bb, dst_unit;
 	assert(dst->d->n == src->d->n);
 	if (dst->x) free(dst->x);
 	avg_bb = hk_fdg_bond_dist(src);
+	dst_unit = avg_bb / pow(dst->n_beads / src->n_beads, 1.0 / 3.0);
 	dst->x = CALLOC(fvec3_t, dst->n_beads);
 	for (i = 0; i < dst->n_beads; ++i) {
 		struct hk_bead *pd = &dst->beads[i];
 		int32_t j;
 		j = hk_bmap_pos2bid(src, pd->chr, pd->st);
-		dst->x[i][0] = src->x[j][0] + 1e-3f * (2.0 * kr_drand_r(rng) - 1);
-		dst->x[i][1] = src->x[j][1] + 1e-3f * (2.0 * kr_drand_r(rng) - 1);
-		dst->x[i][2] = src->x[j][2] + 1e-3f * (2.0 * kr_drand_r(rng) - 1);
+		if (j < src->n_beads - 1 && src->beads[j+1].chr == src->beads[j].chr) {
+			float t = (float)(pd->st - src->beads[j].st) / (src->beads[j+1].st - src->beads[j].st);
+			dst->x[i][0] = t * src->x[j][0] + (1.0f - t) * src->x[j+1][0] + .5f * dst_unit * (2.0 * kr_drand_r(rng) - 1.0);
+			dst->x[i][1] = t * src->x[j][1] + (1.0f - t) * src->x[j+1][1] + .5f * dst_unit * (2.0 * kr_drand_r(rng) - 1.0);
+			dst->x[i][2] = t * src->x[j][2] + (1.0f - t) * src->x[j+1][2] + .5f * dst_unit * (2.0 * kr_drand_r(rng) - 1.0);
+		} else {
+			dst->x[i][0] = src->x[j][0] + .5f * dst_unit * (2.0 * kr_drand_r(rng) - 1.0);
+			dst->x[i][1] = src->x[j][1] + .5f * dst_unit * (2.0 * kr_drand_r(rng) - 1.0);
+			dst->x[i][2] = src->x[j][2] + .5f * dst_unit * (2.0 * kr_drand_r(rng) - 1.0);
+		}
 	}
 	return avg_bb;
 }
