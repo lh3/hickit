@@ -29,33 +29,9 @@ KAVL_INIT(cy, struct avl_coor, head, cy_cmp)
 #define cx_lt(a, b) ((a).x[0] < (b).x[0])
 KSORT_INIT(cx, struct avl_coor, cx_lt)
 
-void hk_fdg_opt_init(struct hk_fdg_opt *opt)
-{
-	opt->target_radius = 10.0f;
-	opt->k_rep = 0.2f;
-	opt->r_rep = 2.0f;
-	opt->n_iter = 1000;
-	opt->step = 0.01f;
-	opt->max_f = 50.0f;
-}
-
-static float fdg_optimal_dist(float target_radius, int n_beads)
-{
-	return target_radius / pow(n_beads, 1.0 / 3.0);
-}
-
-fvec3_t *hk_fdg_init(krng_t *rng, int n_beads, float max)
-{
-	int32_t i;
-	fvec3_t *x;
-	x = CALLOC(fvec3_t, n_beads);
-	for (i = 0; i < n_beads; ++i) {
-		x[i][0] = max * (2.0 * kr_drand_r(rng) - 1.0);
-		x[i][1] = max * (2.0 * kr_drand_r(rng) - 1.0);
-		x[i][2] = max * (2.0 * kr_drand_r(rng) - 1.0);
-	}
-	return x;
-}
+/*********************
+ * Vector operations *
+ *********************/
 
 static inline float fv3_L2(fvec3_t x)
 {
@@ -98,6 +74,84 @@ static inline void fv3_axpy(float a, const fvec3_t x, fvec3_t y)
 {
 	y[0] += a * x[0], y[1] += a * x[1], y[2] += a * x[2];
 }
+
+/**********************
+ * Basic FDG routines *
+ **********************/
+
+void hk_fdg_opt_init(struct hk_fdg_opt *opt)
+{
+	opt->target_radius = 10.0f;
+	opt->k_rep = 0.2f;
+	opt->r_rep = 2.0f;
+	opt->n_iter = 1000;
+	opt->step = 0.01f;
+	opt->max_f = 50.0f;
+}
+
+static float fdg_optimal_dist(float target_radius, int n_beads)
+{
+	return target_radius / pow(n_beads, 1.0 / 3.0);
+}
+
+fvec3_t *hk_fdg_init(krng_t *rng, int n_beads, float max)
+{
+	int32_t i;
+	fvec3_t *x;
+	x = CALLOC(fvec3_t, n_beads);
+	for (i = 0; i < n_beads; ++i) {
+		x[i][0] = max * (2.0 * kr_drand_r(rng) - 1.0);
+		x[i][1] = max * (2.0 * kr_drand_r(rng) - 1.0);
+		x[i][2] = max * (2.0 * kr_drand_r(rng) - 1.0);
+	}
+	return x;
+}
+
+double hk_fdg_bond_dist(const struct hk_bmap *m)
+{
+	int32_t i, n;
+	fvec3_t tmp;
+	double sum;
+	assert(m->x);
+	for (i = 1, sum = 0.0, n = 0; i < m->n_beads; ++i)
+		if (m->beads[i-1].chr == m->beads[i].chr)
+			sum += fv3_sub_normalize(m->x[i-1], m->x[i], tmp), ++n;
+	return sum / n;
+}
+
+int32_t hk_fdg_bead_size(const struct hk_bmap *m)
+{
+	int32_t mid_dist, i, *tmp;
+	tmp = CALLOC(int32_t, m->n_beads);
+	for (i = 0; i < m->n_beads; ++i)
+		tmp[i] = m->beads[i].en - m->beads[i].st;
+	mid_dist = ks_ksmall_int32_t(m->n_beads, tmp, (int)(m->n_beads * 0.5));
+	free(tmp);
+	return mid_dist;
+}
+
+double hk_fdg_copy_x(struct hk_bmap *dst, const struct hk_bmap *src, krng_t *rng)
+{
+	int32_t i;
+	double avg_bb;
+	assert(dst->d->n == src->d->n);
+	if (dst->x) free(dst->x);
+	avg_bb = hk_fdg_bond_dist(src);
+	dst->x = CALLOC(fvec3_t, dst->n_beads);
+	for (i = 0; i < dst->n_beads; ++i) {
+		struct hk_bead *pd = &dst->beads[i];
+		int32_t j;
+		j = hk_bmap_pos2bid(src, pd->chr, pd->st);
+		dst->x[i][0] = src->x[j][0] + 1e-3f * (2.0 * kr_drand_r(rng) - 1);
+		dst->x[i][1] = src->x[j][1] + 1e-3f * (2.0 * kr_drand_r(rng) - 1);
+		dst->x[i][2] = src->x[j][2] + 1e-3f * (2.0 * kr_drand_r(rng) - 1);
+	}
+	return avg_bb;
+}
+
+/********************
+ * FDG optimization *
+ ********************/
 
 #define FORCE_BACKBONE        1
 #define FORCE_REPEL           2
@@ -146,16 +200,15 @@ static inline float update_force(fvec3_t *x, int32_t i, int32_t j, float k, floa
 	return fabsf(force);
 }
 
-static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(set64) *h, int max_nei, int mid_dist, float rel_rep_k, int iter)
+static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(set64) *h, float unit, int max_nei, int mid_dist, float rel_rep_k, int iter)
 {
 	const double a_third = 1.0 / 3.0;
 	int32_t i, j, n_y, left, n_rep = 0, n_con = 0;
 	struct avl_coor *y, *root = 0;
 	fvec3_t *f, *x = m->x;
 	double sum = 0.0, f_bb = 0.0, f_con = 0.0, f_rep = 0.0, d_bb = 0.0, d_con = 0.0, d_rep = 0.0;
-	float step, unit, rep_radius, dist;
+	float step, rep_radius, dist;
 
-	unit = fdg_optimal_dist(opt->target_radius, m->n_beads);
 	step = opt->step * unit;
 	f = CALLOC(fvec3_t, m->n_beads);
 
@@ -256,13 +309,14 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 	return sum;
 }
 
-void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
+void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, const struct hk_bmap *src, krng_t *rng)
 {
 	const float alpha = 10.0f;
 	int32_t iter, i, j, absent, max_nei, *tmp, mid_dist;
 	khash_t(set64) *h;
 	fvec3_t *best_x;
 	double best = 1e30;
+	float unit;
 
 	// collect attractive pairs
 	h = kh_init(set64);
@@ -280,29 +334,33 @@ void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, krng_t *rng)
 		kh_put(set64, h, (uint64_t)p->bid[1] << 32 | p->bid[0], &absent);
 	}
 
-	// median backbone size
-	tmp = CALLOC(int32_t, m->n_beads);
-	for (i = 0; i < m->n_beads; ++i)
-		tmp[i] = m->beads[i].en - m->beads[i].st;
-	mid_dist = ks_ksmall_int32_t(m->n_beads, tmp, (int)(m->n_beads * 0.5));
-	free(tmp);
-
 	// figure out max_nei
 	tmp = CALLOC(int32_t, m->n_pairs);
 	for (i = 0; i < m->n_pairs; ++i)
 		tmp[i] = m->pairs[i].max_nei;
 	max_nei = ks_ksmall_int32_t(m->n_pairs, tmp, (int)(m->n_pairs * 0.5));
 	free(tmp);
+
+	mid_dist = hk_fdg_bead_size(m);
 	if (hk_verbose >= 3) fprintf(stderr, "[M::%s] mid_dist:%d max_nei:%d\n", __func__, mid_dist, max_nei);
 
+	// initialize
+	if (src) {
+		float src_dist;
+		src_dist = hk_fdg_copy_x(m, src, rng);
+		unit = src_dist / pow(m->n_beads / src->n_beads, 1.0/3.0);
+	} else {
+		m->x = hk_fdg_init(rng, m->n_beads, opt->target_radius);
+		unit = fdg_optimal_dist(opt->target_radius, m->n_beads);
+	}
+
 	// FDG
-	if (m->x == 0) m->x = hk_fdg_init(rng, m->n_beads, opt->target_radius);
 	best_x = CALLOC(fvec3_t, m->n_beads);
 	for (iter = 0; iter < opt->n_iter; ++iter) {
 		double s, rel_rep_k;
 		rel_rep_k = 0.5 + atan(alpha * (2.0 * (iter + 1) / opt->n_iter - 1)) / M_PI;
 		rel_rep_k = 1.0;
-		s = hk_fdg1(opt, m, h, max_nei, mid_dist, rel_rep_k, iter);
+		s = hk_fdg1(opt, m, h, unit, max_nei, mid_dist, rel_rep_k, iter);
 		if (s < best) {
 			memcpy(best_x, m->x, sizeof(fvec3_t) * m->n_beads);
 			best = s;
@@ -317,14 +375,8 @@ int32_t hk_pair_flt_3d(const struct hk_bmap *m, int32_t n_pairs, struct hk_pair 
 {
 	int32_t i, n;
 	fvec3_t tmp;
-	double sum, avg_bb;
-
-	assert(m->x);
-	for (i = 1, sum = 0.0, n = 0; i < m->n_beads; ++i)
-		if (m->beads[i-1].chr == m->beads[i].chr)
-			sum += fv3_sub_normalize(m->x[i-1], m->x[i], tmp), ++n;
-	avg_bb = sum / n;
-
+	double avg_bb;
+	avg_bb = hk_fdg_bond_dist(m);
 	for (i = n = 0; i < n_pairs; ++i) {
 		struct hk_pair *p = &pairs[i];
 		int bid[2];
@@ -342,25 +394,21 @@ int32_t hk_pair_flt_3d(const struct hk_bmap *m, int32_t n_pairs, struct hk_pair 
 
 void hk_fdg_normalize(struct hk_bmap *m)
 {
-	int32_t i, j, n_d = 0;
+	int32_t i, j, n_d;
 	fvec3_t center, tmp;
 	float d, max_radius = 0.0f;
 	double sum[3], sum_d = 0.0, sum_d2 = 0.0;
 
 	sum[0] = sum[1] = sum[2] = 0.0;
-	for (i = 0; i < m->n_beads; ++i) {
+	for (i = 0; i < m->n_beads; ++i)
 		for (j = 0; j < 3; ++j) sum[j] += m->x[i][j];
-		if (i > 0 && m->beads[i].chr == m->beads[i-1].chr) {
-			d = fv3_sub_normalize(m->x[i], m->x[i-1], tmp);
-			sum_d += d, ++n_d;
-		}
-	}
 	for (j = 0; j < 3; ++j) center[j] = sum[j] / m->n_beads;
-	sum_d /= n_d;
-	for (i = 1; i < m->n_beads; ++i) {
+	sum_d = hk_fdg_bond_dist(m);
+	for (i = 1, n_d = 0; i < m->n_beads; ++i) {
 		if (i > 0 && m->beads[i].chr == m->beads[i-1].chr) {
 			d = fv3_sub_normalize(m->x[i], m->x[i-1], tmp);
 			sum_d2 += (d - sum_d) * (d - sum_d);
+			++n_d;
 		}
 	}
 	sum_d2 = sqrt(sum_d2 / n_d) / sum_d;

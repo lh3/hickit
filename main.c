@@ -6,7 +6,7 @@
 #include <getopt.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r183"
+#define HICKIT_VERSION "r184"
 
 static struct option long_options_pair[] = {
 	{ "out-phase",      no_argument,       0, 0 }, // 0
@@ -227,8 +227,7 @@ int main_bin(int argc, char *argv[])
 	bm = hk_bmap_gen(m->d, m->n_pairs, m->pairs, bin_size);
 	hk_map_destroy(m);
 	if (fdg) {
-		if (in) hk_bmap_copy_x(bm, in, &rng);
-		hk_fdg(&opt, bm, &rng);
+		hk_fdg(&opt, bm, in, &rng);
 		hk_print_3dg(stdout, bm);
 	} else hk_print_bmap(stdout, bm);
 	hk_bmap_destroy(bm);
