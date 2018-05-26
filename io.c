@@ -296,6 +296,7 @@ void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs
 	if (flag & HK_OUT_CNT) fprintf(fp, " count");
 	if (flag & HK_OUT_P4) fprintf(fp, " p00 p01 p10 p11");
 	if (flag & HK_OUT_PHASE) fprintf(fp, " phase1 phase2");
+	if (flag & HK_OUT_PPROB) fprintf(fp, " pprob");
 	fputc('\n', fp);
 	for (i = 0; i < n_pairs; ++i) {
 		const struct hk_pair *p = &pairs[i];
@@ -306,6 +307,7 @@ void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs
 		if (flag & HK_OUT_CNT) fprintf(fp, "\t%d", p->n);
 		if (flag & HK_OUT_P4) fprintf(fp, "\t%.3f\t%.3f\t%.3f\t%.3f", p->_.p4[0], p->_.p4[1], p->_.p4[2], p->_.p4[3]);
 		if (flag & HK_OUT_PHASE) fprintf(fp, "\t%c\t%c", p->phase[0] < 0? '.' : '0' + p->phase[0], p->phase[1] < 0? '.' : '0' + p->phase[1]);
+		if (flag & HK_OUT_PPROB) fprintf(fp, "\t%.4f", p->_.phased_prob);
 		fputc('\n', fp);
 	}
 }

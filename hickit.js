@@ -523,6 +523,34 @@ function hic_con2pair(args)
 	buf.destroy();
 }
 
+function hic_pair2ncc(args)
+{
+	var c, prob = 0.75;
+	while ((c = getopt(args, "p:")) != null) {
+		if (c == 'p') prob = parseFloat(getopt.arg);
+	}
+	if (getopt.ind == args.length) {
+		print("Usage: hickit.js pair2ncc [-p prob] <in.con>");
+		exit(1);
+	}
+
+	var buf = new Bytes();
+	var file = args[getopt.ind] == '-'? new File() : new File(args[getopt.ind]);
+	var id = 1;
+	while (file.readline(buf) >= 0) {
+		var t = buf.toString().split("\t");
+		if (t[0][0] == '#') continue;
+		if (t.length >= 8) {
+			if (parseFloat(t[7]) < prob)
+				continue;
+		}
+		var a = [t[1], t[2], t[2], t[2], t[2], '+', t[3], t[4], t[4], t[4], t[4], '+', id++, 0, 0];
+		print(a.join(" "));
+	}
+	file.close();
+	buf.destroy();
+}
+
 var seq_nt4_table = [
 	0, 1, 2, 3,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
 	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
@@ -661,6 +689,7 @@ function main(args)
 	else if (cmd == 'bedflt') hic_bedflt(args);
 	else if (cmd == 'gfeat') hic_gfeat(args);
 	else if (cmd == 'con2pair') hic_con2pair(args);
+	else if (cmd == 'pair2ncc') hic_pair2ncc(args);
 	else throw Error("unrecognized command: " + cmd);
 }
 

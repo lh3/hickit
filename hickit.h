@@ -10,6 +10,7 @@
 #define HK_OUT_PHASE        0x1
 #define HK_OUT_P4           0x2
 #define HK_OUT_CNT          0x4
+#define HK_OUT_PPROB        0x8
 
 #ifdef __cplusplus
 extern "C" {

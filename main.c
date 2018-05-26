@@ -7,7 +7,7 @@
 #include "hickit.h"
 #include "hkpriv.h"
 
-#define HICKIT_VERSION "r187"
+#define HICKIT_VERSION "r188"
 
 static struct option long_options_pair[] = {
 	{ "out-phase",      no_argument,       0, 0 }, // 0
@@ -161,7 +161,7 @@ main_return:
 
 int main_bin(int argc, char *argv[])
 {
-	int c, bin_size = 1000000, min_cnt = 2, ploidy = 2, seed = 1, fdg = 0, flt_radius = 10000000, iso_radius = 1000000;
+	int c, bin_size = 1000000, min_cnt = 2, ploidy = 2, seed = 1, fdg = 0, flt_radius = 10000000, iso_radius = 1000000, out_pairs = 0;
 	float phase_thres = 0.75f, drop_frac = 0.001f, max_dist = 0.0f;
 	struct hk_map *m;
 	struct hk_bmap *bm, *in = 0;
@@ -170,7 +170,7 @@ int main_bin(int argc, char *argv[])
 	krng_t rng;
 
 	hk_fdg_opt_init(&opt);
-	while ((c = getopt(argc, argv, "b:D:R:c:f:d:p:P:gi:k:r:e:n:S:")) >= 0) {
+	while ((c = getopt(argc, argv, "b:D:R:c:f:d:p:P:gi:k:r:e:n:S:x")) >= 0) {
 		if (c == 'b') bin_size = hk_parse_num(optarg);
 		else if (c == 'D') iso_radius = hk_parse_num(optarg);
 		else if (c == 'R') flt_radius = hk_parse_num(optarg);
@@ -186,6 +186,7 @@ int main_bin(int argc, char *argv[])
 		else if (c == 'e') opt.step = atof(optarg);
 		else if (c == 'n') opt.n_iter = atoi(optarg);
 		else if (c == 'S') seed = atoi(optarg);
+		else if (c == 'x') out_pairs = 1;
 	}
 	assert(ploidy >= 1 && ploidy <= 2);
 	if (optind == argc) {
@@ -222,6 +223,11 @@ int main_bin(int argc, char *argv[])
 	if (min_cnt > 0 || drop_frac > 0.0f)
 		m->n_pairs = hk_pair_filter(m->n_pairs, m->pairs, flt_radius, min_cnt, drop_frac);
 	else hk_pair_count_nei(m->n_pairs, m->pairs, flt_radius);
+	if (out_pairs) {
+		hk_print_pair(stdout, HK_OUT_PPROB, m->d, m->n_pairs, m->pairs);
+		hk_map_destroy(m);
+		return 0;
+	}
 	if (fn_in) in = hk_3dg_read(fn_in);
 	if (in && max_dist > 1.01f)
 		m->n_pairs = hk_pair_flt_3d(in, m->n_pairs, m->pairs, max_dist);
