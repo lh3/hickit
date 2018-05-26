@@ -517,7 +517,7 @@ function hic_con2pair(args)
 		s[0][2] = parseInt(s[0][2]);
 		s[1][2] = parseInt(s[1][2]);
 		p[s[0][2]<<1|s[1][2]] = 1.0;
-		print(s[0][0], s[0][1], s[1][0], s[1][1], p.join("\t"));
+		print('.', s[0][0], s[0][1], s[1][0], s[1][1], '+', '+', p.join("\t"));
 	}
 	file.close();
 	buf.destroy();
