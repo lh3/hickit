@@ -5,6 +5,7 @@
 #include <string.h>
 #include <getopt.h>
 #include "hickit.h"
+#include "hkpriv.h"
 
 #define HICKIT_VERSION "r185"
 
@@ -211,7 +212,6 @@ int main_bin(int argc, char *argv[])
 	kr_srand_r(&rng, seed);
 	m = hk_map_read(argv[optind]);
 	assert(m && m->pairs);
-	if (fn_in) in = hk_3dg_read(fn_in);
 	if (ploidy == 2) {
 		struct hk_map *tmp;
 		tmp = hk_pair_split_phase(m, phase_thres);
@@ -222,6 +222,7 @@ int main_bin(int argc, char *argv[])
 	if (min_cnt > 0 || drop_frac > 0.0f)
 		m->n_pairs = hk_pair_filter(m->n_pairs, m->pairs, flt_radius, min_cnt, drop_frac);
 	else hk_pair_count_nei(m->n_pairs, m->pairs, flt_radius);
+	if (fn_in) in = hk_3dg_read(fn_in);
 	if (in && max_dist > 1.01f)
 		m->n_pairs = hk_pair_flt_3d(in, m->n_pairs, m->pairs, max_dist);
 	bm = hk_bmap_gen(m->d, m->n_pairs, m->pairs, bin_size);

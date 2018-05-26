@@ -137,7 +137,7 @@ double hk_fdg_copy_x(struct hk_bmap *dst, const struct hk_bmap *src, krng_t *rng
 	assert(dst->d->n == src->d->n);
 	if (dst->x) free(dst->x);
 	avg_bb = hk_fdg_bond_dist(src);
-	dst_unit = avg_bb / pow(dst->n_beads / src->n_beads, 1.0 / 3.0);
+	dst_unit = avg_bb / pow((double)dst->n_beads / src->n_beads, 1.0 / 3.0);
 	dst->x = CALLOC(fvec3_t, dst->n_beads);
 	for (i = 0; i < dst->n_beads; ++i) {
 		struct hk_bead *pd = &dst->beads[i];
@@ -173,6 +173,7 @@ static inline float update_force(fvec3_t *x, int32_t i, int32_t j, float k, floa
 	fvec3_t delta;
 	assert(i != j);
 	*dist_ = dist = fv3_sub_normalize(x[i], x[j], delta) / unit;
+	assert(dist > 0.0f);
 	r = dist / d_scale;
 	if (force_type == FORCE_REPEL) {
 		if (r >= 1.0f) return 0.0f;
@@ -356,7 +357,7 @@ void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, const struct hk_bma
 	if (src) {
 		float src_dist;
 		src_dist = hk_fdg_copy_x(m, src, rng);
-		unit = src_dist / pow(m->n_beads / src->n_beads, 1.0/3.0);
+		unit = src_dist / pow((double)m->n_beads / src->n_beads, 1.0/3.0);
 	} else {
 		m->x = hk_fdg_init(rng, m->n_beads, opt->target_radius);
 		unit = fdg_optimal_dist(opt->target_radius, m->n_beads);

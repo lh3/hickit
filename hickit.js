@@ -497,6 +497,32 @@ function hic_bedflt(args)
 	buf.destroy();
 }
 
+function hic_con2pair(args)
+{
+	var c;
+	while ((c = getopt(args, "")) != null) {
+	}
+	if (getopt.ind == args.length) {
+		print("Usage: hickit.js con2pair <in.con>");
+		exit(1);
+	}
+
+	var buf = new Bytes();
+	var file = new File(args[getopt.ind]);
+	while (file.readline(buf) >= 0) {
+		var t = buf.toString().split("\t");
+		var s = [], p = [0.0, 0.0, 0.0, 0.0];
+		s[0] = t[0].split(",");
+		s[1] = t[1].split(",");
+		s[0][2] = parseInt(s[0][2]);
+		s[1][2] = parseInt(s[1][2]);
+		p[s[0][2]<<1|s[1][2]] = 1.0;
+		print(s[0][0], s[0][1], s[1][0], s[1][1], p.join("\t"));
+	}
+	file.close();
+	buf.destroy();
+}
+
 var seq_nt4_table = [
 	0, 1, 2, 3,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
 	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
@@ -634,6 +660,7 @@ function main(args)
 	else if (cmd == 'chronly') hic_chronly(args);
 	else if (cmd == 'bedflt') hic_bedflt(args);
 	else if (cmd == 'gfeat') hic_gfeat(args);
+	else if (cmd == 'con2pair') hic_con2pair(args);
 	else throw Error("unrecognized command: " + cmd);
 }
 
