@@ -155,14 +155,14 @@ struct phase_aux {
 
 static inline void spacial_adj(const struct hk_pair *p1, float p[4])
 {
-	const float f = 1e-8f;
+	const float f = 1e7f;
 	int32_t d;
 	float r, q[4];
 	if ((int32_t)(p1->chr>>32) != (int32_t)p1->chr) return;
 	if (p[0] + p[3] + 1.0f == 1.0f || p[1] + p[2] + 1.0f == 1.0f) return;
 	d = hk_ppos2(p1) - hk_ppos1(p1);
-	r = 1.0f - f * d;
-	if (r < 0.9f || r < p[0] + p[3]) return;
+	r = d > 0? f / d : 1.0f;
+	if (r < p[0] + p[3]) return;
 	if (r > 0.99f) r = 0.99f;
 	q[0] = r * p[0] / (p[0] + p[3]);
 	q[3] = r * p[3] / (p[0] + p[3]);
