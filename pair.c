@@ -229,13 +229,11 @@ int32_t hk_pair_filter(int32_t n_pairs, struct hk_pair *pairs, int32_t max_radiu
 	min = ks_ksmall_int32_t(n_pairs, cnt, n_pairs * drop_frac);
 	min = min > min_cnt? min : min_cnt;
 	free(cnt);
-	if (hk_verbose >= 3)
-		fprintf(stderr, "[M::%s] threshold: %d\n", __func__, min);
 	for (i = k = 0; i < n_pairs; ++i)
 		if (pairs[i].n >= min)
 			pairs[k++] = pairs[i];
 	if (hk_verbose >= 3)
-		fprintf(stderr, "[M::%s] filtered out %d isolated pairs\n", __func__, n_pairs - k);
+		fprintf(stderr, "[M::%s] threshold: %d; filtered out %d/%d isolated pairs\n", __func__, min, n_pairs - k, n_pairs);
 	return k;
 }
 

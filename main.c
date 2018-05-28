@@ -7,7 +7,7 @@
 #include "hickit.h"
 #include "hkpriv.h"
 
-#define HICKIT_VERSION "r189"
+#define HICKIT_VERSION "r190"
 
 static struct option long_options_pair[] = {
 	{ "out-phase",      no_argument,       0, 0 }, // 0
@@ -161,7 +161,7 @@ main_return:
 
 int main_bin(int argc, char *argv[])
 {
-	int c, bin_size = 1000000, min_cnt = 2, ploidy = 2, seed = 1, fdg = 0, flt_radius = 10000000, iso_radius = 1000000, out_pairs = 0;
+	int c, bin_size = 1000000, min_cnt = 5, ploidy = 2, seed = 1, fdg = 0, flt_radius = 10000000, iso_radius = 1000000, out_pairs = 0;
 	float phase_thres = 0.75f, drop_frac = 0.001f, max_dist = 0.0f;
 	struct hk_map *m;
 	struct hk_bmap *bm, *in = 0;
@@ -219,10 +219,11 @@ int main_bin(int argc, char *argv[])
 		hk_map_destroy(m);
 		m = tmp;
 	}
-	m->n_pairs = hk_pair_filter(m->n_pairs, m->pairs, iso_radius, 1, 0.0f);
 	if (min_cnt > 0 || drop_frac > 0.0f)
 		m->n_pairs = hk_pair_filter(m->n_pairs, m->pairs, flt_radius, min_cnt, drop_frac);
-	else hk_pair_count_nei(m->n_pairs, m->pairs, flt_radius);
+	if (iso_radius > 0)
+		m->n_pairs = hk_pair_filter(m->n_pairs, m->pairs, iso_radius, 1, 0.0f);
+	hk_pair_count_nei(m->n_pairs, m->pairs, flt_radius);
 	if (out_pairs) {
 		hk_print_pair(stdout, HK_OUT_PPROB, m->d, m->n_pairs, m->pairs);
 		hk_map_destroy(m);
