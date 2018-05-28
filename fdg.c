@@ -320,7 +320,7 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 
 void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, const struct hk_bmap *src, krng_t *rng)
 {
-	const float alpha = 10.0f;
+	const float alpha = 10.0f, turning = 0.333f;
 	int32_t iter, i, j, absent, max_nei, *tmp, mid_dist;
 	khash_t(set64) *h;
 	fvec3_t *best_x;
@@ -367,8 +367,9 @@ void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, const struct hk_bma
 	best_x = CALLOC(fvec3_t, m->n_beads);
 	for (iter = 0; iter < opt->n_iter; ++iter) {
 		double s, rel_rep_k;
-		rel_rep_k = 0.5 + atan(alpha * (2.0 * (iter + 1) / opt->n_iter - 1)) / M_PI;
-		rel_rep_k = 1.0;
+		rel_rep_k = (double)(iter + 1) / opt->n_iter;
+		rel_rep_k = 1.0 / (1.0 + exp(-alpha * (rel_rep_k - turning)));
+		//rel_rep_k = 1.0;
 		s = hk_fdg1(opt, m, h, unit, max_nei, mid_dist, rel_rep_k, iter);
 		if (s < best) {
 			memcpy(best_x, m->x, sizeof(fvec3_t) * m->n_beads);
