@@ -81,12 +81,18 @@ struct hk_bmap {
 	float *feat;
 };
 
-struct hk_fdg_opt {
+struct hk_fdg_conf {
 	float target_radius;
-	float k_rep, r_rep;
 	int n_iter;
 	float step;
 	float max_f;
+
+	float k_rel_rep;
+	float d_r;
+	float d_b1, d_b2;
+	float d_c1, d_c2, d_c3;
+
+	float c_c1, c_c2;
 };
 
 extern int hk_verbose;
@@ -120,8 +126,9 @@ struct hk_bmap *hk_bmap_gen(const struct hk_sdict *d, int32_t n_pairs, const str
 int32_t hk_pair_flt_3d(const struct hk_bmap *m, int32_t n_pairs, struct hk_pair *pairs, float max_factor);
 void hk_bmap_destroy(struct hk_bmap *m);
 
-void hk_fdg_opt_init(struct hk_fdg_opt *opt);
-void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, const struct hk_bmap *src, krng_t *rng);
+void hk_fdg_conf_init(struct hk_fdg_conf *opt);
+void hk_fdg_cal_c(struct hk_fdg_conf *opt);
+void hk_fdg(const struct hk_fdg_conf *opt, struct hk_bmap *m, const struct hk_bmap *src, krng_t *rng);
 void hk_check_dist(struct hk_bmap *m);
 
 void hk_print_seg(FILE *fp, const struct hk_sdict *d, int32_t n_segs, const struct hk_seg *segs);

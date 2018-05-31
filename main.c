@@ -165,11 +165,11 @@ int main_bin(int argc, char *argv[])
 	float phase_thres = 0.75f, drop_frac = 0.001f, max_dist = 0.0f;
 	struct hk_map *m;
 	struct hk_bmap *bm, *in = 0;
-	struct hk_fdg_opt opt;
+	struct hk_fdg_conf opt;
 	char *fn_in = 0;
 	krng_t rng;
 
-	hk_fdg_opt_init(&opt);
+	hk_fdg_conf_init(&opt);
 	while ((c = getopt(argc, argv, "b:D:R:c:f:d:p:P:gi:k:r:e:n:S:x")) >= 0) {
 		if (c == 'b') bin_size = hk_parse_num(optarg);
 		else if (c == 'D') iso_radius = hk_parse_num(optarg);
@@ -181,8 +181,8 @@ int main_bin(int argc, char *argv[])
 		else if (c == 'P') ploidy = atoi(optarg);
 		else if (c == 'g') fdg = 1;
 		else if (c == 'i') fn_in = optarg;
-		else if (c == 'k') opt.k_rep = atof(optarg);
-		else if (c == 'r') opt.r_rep = atof(optarg);
+		else if (c == 'k') opt.k_rel_rep = atof(optarg);
+		else if (c == 'r') opt.d_r = atof(optarg);
 		else if (c == 'e') opt.step = atof(optarg);
 		else if (c == 'n') opt.n_iter = atoi(optarg);
 		else if (c == 'S') seed = atoi(optarg);
@@ -203,8 +203,8 @@ int main_bin(int argc, char *argv[])
 		fprintf(stderr, "  3D modeling with FDG:\n");
 		fprintf(stderr, "    -g            perform FDG\n");
 		fprintf(stderr, "    -i FILE       previous FDG output []\n");
-		fprintf(stderr, "    -k FLOAT      relative repulsive stiffness [%g]\n", opt.k_rep);
-		fprintf(stderr, "    -r FLOAT      relative repulsive radius [%g]\n", opt.r_rep);
+		fprintf(stderr, "    -k FLOAT      relative repulsive stiffness [%g]\n", opt.k_rel_rep);
+		fprintf(stderr, "    -r FLOAT      relative repulsive radius [%g]\n", opt.d_r);
 		fprintf(stderr, "    -e FLOAT      step size [%g]\n", opt.step);
 		fprintf(stderr, "    -n INT        max iteration [%d]\n", opt.n_iter);
 		fprintf(stderr, "    -S INT        seed for initialization [%d]\n", seed);

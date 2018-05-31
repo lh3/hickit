@@ -79,14 +79,26 @@ static inline void fv3_axpy(float a, const fvec3_t x, fvec3_t y)
  * Basic FDG routines *
  **********************/
 
-void hk_fdg_opt_init(struct hk_fdg_opt *opt)
+void hk_fdg_cal_c(struct hk_fdg_conf *opt)
+{
+	double t = (double)opt->d_c3 / opt->d_c2;
+	assert(opt->d_c2 > 0.0 && opt->d_c3 > 0.0 && opt->d_c3 > opt->d_c2);
+	opt->c_c1 = .25 / opt->d_c3 * (t - 1.0) * (3.0 * t - 1.0);
+	opt->c_c2 = .25 * opt->d_c3 * (t * t - 1.0);
+}
+
+void hk_fdg_conf_init(struct hk_fdg_conf *opt)
 {
 	opt->target_radius = 10.0f;
-	opt->k_rep = 0.2f;
-	opt->r_rep = 2.0f;
 	opt->n_iter = 1000;
-	opt->step = 0.01f;
+	opt->step = 0.02f;
 	opt->max_f = 50.0f;
+
+	opt->k_rel_rep = 0.2f;
+	opt->d_r = 2.0f;
+	opt->d_b1 = 0.1f, opt->d_b2 = 1.1f;
+	opt->d_c1 = 0.5f, opt->d_c2 = 1.5f, opt->d_c3 = 2.0f;
+	hk_fdg_cal_c(opt);
 }
 
 static float fdg_optimal_dist(float target_radius, int n_beads)
@@ -161,61 +173,64 @@ double hk_fdg_copy_x(struct hk_bmap *dst, const struct hk_bmap *src, krng_t *rng
  * FDG optimization *
  ********************/
 
-#define FORCE_BACKBONE        1
-#define FORCE_REPEL           2
-#define FORCE_CONTACT_STRONG  3
-#define FORCE_CONTACT_WEAK    4
+#define FORCE_BACKBONE 1
+#define FORCE_REPEL    2
+#define FORCE_CONTACT  3
 
-static inline float update_force(fvec3_t *x, int32_t i, int32_t j, float k, float unit, float d_scale, int force_type, fvec3_t *f, float *dist_)
+static inline float update_force(const struct hk_fdg_conf *conf, fvec3_t *x, int32_t i, int32_t j, float k, float unit, float d_scale, int force_type, fvec3_t *f, float *dist)
 {
-	const float att_min = 0.1f, att_max = 1.1f, con_min = 0.5f, con_max = 1.5f, con_cut = 2.0f;
-	float dist, force, r;
+	float force, energy, r, t;
 	fvec3_t delta;
 	assert(i != j);
-	*dist_ = dist = fv3_sub_normalize(x[i], x[j], delta) / unit;
-	assert(dist > 0.0f);
-	r = dist / d_scale;
+	*dist = fv3_sub_normalize(x[i], x[j], delta) / unit;
+	r = *dist / d_scale;
+	assert(r > 0.0f);
 	if (force_type == FORCE_REPEL) {
-		if (r >= 1.0f) return 0.0f;
-		r = 1.0f - r;
-		force = k * r * r;
+		if (r >= conf->d_r) return 0.0f;
+		t = 1.0f - r / conf->d_r;
+		energy = .5f * k * t * t;
+		force  = k / conf->d_r * t;
 	} else if (force_type == FORCE_BACKBONE) {
-		if (r < att_min) {
-			r = 1.0f - r / att_min;
-			force = k * r * r;
-		} else if (r < att_max) {
-			force = 0.0f;
+		if (r < conf->d_b1) {
+			t = 1.0f - r / conf->d_b1;
+			energy = .5f * k * t * t;
+			force  = k / conf->d_b1 * t;
+		} else if (r <= conf->d_b2) {
+			force = energy = 0.0f;
 		} else {
-			r = r / att_max - 1.0f;
-			force = -k * r * r;
+			t = r / conf->d_b2 - 1.0f;
+			energy = .5f * k * t * t;
+			force  = -k / conf->d_b2 * t;
 		}
 	} else {
-		if (r < con_min) {
-			r = 1.0f - r / con_min;
-			force = k * r * r;
-		} else if (r < con_max) {
-			force = 0.0f;
-		} else if (r < con_cut || force_type == FORCE_CONTACT_STRONG) {
-			r = r / con_max - 1.0f;
-			force = -k * r * r;
+		if (r < conf->d_c1) {
+			t = 1.0f - r / conf->d_c1;
+			energy = .5f * k * t * t;
+			force  = k / conf->d_c1 * t;
+		} else if (r <= conf->d_c2) {
+			force = energy = 0.0f;
+		} else if (r <= conf->d_c3) {
+			t = r / conf->d_c2 - 1.0f;
+			energy = .5f * k * t * t;
+			force  = -k / conf->d_c2 * t;
 		} else {
-			r = r / con_cut - 1.0f;
-			force = -k * r - k * (con_cut / con_max - 1) * (con_cut / con_max - 1);
+			energy = k * (conf->c_c1 * r - conf->c_c2 / r);
+			force  = -k * (conf->c_c1 + conf->c_c1 / (r * r));
 		}
 	}
 	fv3_scale(force, delta);
 	fv3_addto(delta, f[i]);
 	fv3_subfrom(delta, f[j]);
-	return fabsf(force);
+	return energy;
 }
 
-static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(set64) *h, float unit, int max_nei, int mid_dist, float rel_rep_k, int iter)
+static double hk_fdg1(const struct hk_fdg_conf *opt, struct hk_bmap *m, khash_t(set64) *h, float unit, int max_nei, int mid_dist, float rel_rep_k, int iter)
 {
 	const double a_third = 1.0 / 3.0;
-	int32_t i, j, n_y, left, n_rep = 0, n_con = 0;
+	int32_t i, j, n_y, left, n_bb = 0, n_rep = 0, n_con = 0;
 	struct avl_coor *y, *root = 0;
 	fvec3_t *f, *x = m->x;
-	double sum = 0.0, f_bb = 0.0, f_con = 0.0, f_rep = 0.0, d_bb = 0.0, d_con = 0.0, d_rep = 0.0;
+	double sum = 0.0, e_bb = 0.0, e_con = 0.0, e_rep = 0.0, d_bb = 0.0, d_con = 0.0, d_rep = 0.0;
 	float step, rep_radius, dist;
 
 	step = opt->step * unit;
@@ -230,8 +245,9 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 			int32_t d = ((m->beads[bid-1].en - m->beads[bid-1].st) + (m->beads[bid].en - m->beads[bid].st)) / 2;
 			float d_opt;
 			d_opt = pow((double)d / mid_dist, a_third);
-			f_bb += update_force(x, bid - 1, bid, 1.0f, unit, d_opt, FORCE_BACKBONE, f, &dist);
-			d_bb += dist;
+			e_bb += update_force(opt, x, bid - 1, bid, 1.0f, unit, d_opt, FORCE_BACKBONE, f, &dist);
+			d_bb += dist / d_opt;
+			++n_bb;
 		}
 	}
 	for (i = 0; i < m->n_pairs; ++i) { // contact
@@ -240,8 +256,8 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 		if (p->bid[0] == p->bid[1]) continue;
 		k = p->max_nei >= max_nei? 1.0f : powf((double)p->max_nei / max_nei, a_third);
 		d_scale = pow(p->n, -a_third);
-		f_con += update_force(x, p->bid[0], p->bid[1], k, unit, d_scale, k == 1.0f? FORCE_CONTACT_STRONG : FORCE_CONTACT_WEAK, f, &dist);
-		d_con += dist;
+		e_con += update_force(opt, x, p->bid[0], p->bid[1], k, unit, d_scale, FORCE_CONTACT, f, &dist);
+		d_con += dist / d_scale;
 		++n_con;
 	}
 
@@ -254,7 +270,7 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 	ks_introsort(cx, n_y, y);
 
 	// apply repulsive forces
-	rep_radius = unit * opt->r_rep;
+	rep_radius = unit * opt->d_r;
 	kavl_insert(cy, &root, &y[0], 0);
 	for (i = 1, left = 0; i < n_y; ++i) {
 		struct avl_coor t, *q = &y[i];
@@ -279,9 +295,9 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 				khint_t k;
 				k = kh_get(set64, h, (uint64_t)q->i << 32 | p->i);
 				if (k == kh_end(h)) {
-					f2 = update_force(x, q->i, p->i, opt->k_rep * rel_rep_k, unit, opt->r_rep, FORCE_REPEL, f, &dist);
+					f2 = update_force(opt, x, q->i, p->i, opt->k_rel_rep * rel_rep_k, unit, 1.0f, FORCE_REPEL, f, &dist);
 					if (f2 > 0.0f) {
-						f_rep += f2;
+						e_rep += f2;
 						d_rep += dist;
 						++n_rep;
 					}
@@ -310,15 +326,15 @@ static double hk_fdg1(const struct hk_fdg_opt *opt, struct hk_bmap *m, khash_t(s
 	free(f);
 
 	sum = sqrt(sum / m->n_beads);
-	f_bb /= m->n_beads - m->d->n, f_con /= n_con, f_rep /= n_rep;
-	d_bb /= m->n_beads - m->d->n, d_con /= n_con, d_rep /= n_rep;
+	e_bb /= n_bb, e_con /= n_con, e_rep /= n_rep;
+	d_bb /= n_bb, d_con /= n_con, d_rep /= n_rep;
 	if (hk_verbose >= 3 && (iter + 1) % 10 == 0)
-		fprintf(stderr, "[M::%s] iter:%d rep_coef:%.4f RMS_force:%.4f n_rep:%.4f forces:%.4f,%.4f,%.4f dist:%.4f,%.4f,%.4f\n",
-				__func__, iter+1, rel_rep_k, sum, (float)n_rep / m->n_beads, f_bb, f_con, f_rep, d_bb, d_con, d_rep);
+		fprintf(stderr, "[M::%s] iter:%d rep_coef:%.4f RMS_force:%.4f n_rep:%.4f energy:%.4f,%.4f,%.4f dist:%.4f,%.4f,%.4f\n",
+				__func__, iter+1, rel_rep_k, sum, (float)n_rep / m->n_beads, e_bb, e_con, e_rep, d_bb, d_con, d_rep);
 	return sum;
 }
 
-void hk_fdg(const struct hk_fdg_opt *opt, struct hk_bmap *m, const struct hk_bmap *src, krng_t *rng)
+void hk_fdg(const struct hk_fdg_conf *opt, struct hk_bmap *m, const struct hk_bmap *src, krng_t *rng)
 {
 	const float alpha = 10.0f, turning = 0.333f;
 	int32_t iter, i, j, absent, max_nei, *tmp, mid_dist;
