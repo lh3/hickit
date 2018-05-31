@@ -8,11 +8,11 @@ my %opts = (p=>0.75, S=>1);
 getopts('p:S:', \%opts);
 die "Usage: fdg-multi.pl [-p probThres] [-S rngSeed] <in.phased.pairs>\n" if @ARGV == 0;
 
-my $conf = [["4m",   0.2, 20000, 0.02, 0.0],
-			["1m",   0.2,  5000, 0.02, 0.0],
-			["200k", 0.2,  1500, 0.02, 0.0],
-			["50k",  0.2,   750, 0.02, 5.0],
-			["20k",  0.2,   750, 0.02, 5.0]];
+my $conf = [["4m",   0.05, 20000, 0.02, 0.0],
+			["1m",   0.05,  5000, 0.02, 0.0],
+			["200k", 0.05,  1500, 0.02, 0.0],
+			["50k",  0.05,   750, 0.02, 5.0],
+			["20k",  0.05,   750, 0.02, 5.0]];
 
 my $hickit = (&dirname($0)) . '/hickit';
 die 'ERROR: failed to find executable "hickit"' unless -x $hickit;

@@ -94,7 +94,7 @@ void hk_fdg_conf_init(struct hk_fdg_conf *opt)
 	opt->step = 0.02f;
 	opt->max_f = 50.0f;
 
-	opt->k_rel_rep = 0.1f;
+	opt->k_rel_rep = 0.05f;
 	opt->d_r = 2.0f;
 	opt->d_b1 = 0.1f, opt->d_b2 = 1.1f;
 	opt->d_c1 = 0.5f, opt->d_c2 = 1.5f, opt->d_c3 = 2.0f;
