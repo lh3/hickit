@@ -75,16 +75,16 @@ static inline void fv3_axpy(float a, const fvec3_t x, fvec3_t y)
 	y[0] += a * x[0], y[1] += a * x[1], y[2] += a * x[2];
 }
 
-/**********************
- * Basic FDG routines *
- **********************/
+/******************
+ * FDG parameters *
+ ******************/
 
 void hk_fdg_cal_c(struct hk_fdg_conf *opt)
 {
-	double t = (double)opt->d_c3 / opt->d_c2;
+	double t = (double)opt->d_c2 / opt->d_c3;
 	assert(opt->d_c2 > 0.0 && opt->d_c3 > 0.0 && opt->d_c3 > opt->d_c2);
-	opt->c_c1 = .25 / opt->d_c3 * (t - 1.0) * (3.0 * t - 1.0);
-	opt->c_c2 = .25 * opt->d_c3 * (t * t - 1.0);
+	opt->c_c1 = .5 * opt->d_c3 * (1.0 - t) * (3.0 - t);
+	opt->c_c2 = .5 * opt->d_c3 * opt->d_c3 * opt->d_c3 * (1.0 - t * t);
 }
 
 void hk_fdg_conf_init(struct hk_fdg_conf *opt)
@@ -94,12 +94,16 @@ void hk_fdg_conf_init(struct hk_fdg_conf *opt)
 	opt->step = 0.02f;
 	opt->max_f = 50.0f;
 
-	opt->k_rel_rep = 0.2f;
+	opt->k_rel_rep = 0.1f;
 	opt->d_r = 2.0f;
 	opt->d_b1 = 0.1f, opt->d_b2 = 1.1f;
 	opt->d_c1 = 0.5f, opt->d_c2 = 1.5f, opt->d_c3 = 2.0f;
 	hk_fdg_cal_c(opt);
 }
+
+/**********************
+ * Basic FDG routines *
+ **********************/
 
 static float fdg_optimal_dist(float target_radius, int n_beads)
 {
@@ -187,32 +191,32 @@ static inline float update_force(const struct hk_fdg_conf *conf, fvec3_t *x, int
 	assert(r > 0.0f);
 	if (force_type == FORCE_REPEL) {
 		if (r >= conf->d_r) return 0.0f;
-		t = 1.0f - r / conf->d_r;
-		energy = .5f * k * t * t;
-		force  = k / conf->d_r * t;
+		t = conf->d_r - r;
+		energy = k * t * t;
+		force  = 2.0f * k * t;
 	} else if (force_type == FORCE_BACKBONE) {
 		if (r < conf->d_b1) {
-			t = 1.0f - r / conf->d_b1;
-			energy = .5f * k * t * t;
-			force  = k / conf->d_b1 * t;
+			t = conf->d_b1 - r;
+			energy = k * t * t;
+			force  = 2.0f * k * t;
 		} else if (r <= conf->d_b2) {
 			force = energy = 0.0f;
 		} else {
-			t = r / conf->d_b2 - 1.0f;
-			energy = .5f * k * t * t;
-			force  = -k / conf->d_b2 * t;
+			t = r - conf->d_b2;
+			energy = k * t * t;
+			force  = -2.0f * k * t;
 		}
 	} else {
 		if (r < conf->d_c1) {
-			t = 1.0f - r / conf->d_c1;
-			energy = .5f * k * t * t;
-			force  = k / conf->d_c1 * t;
+			t = conf->d_c1 - r;
+			energy = k * t * t;
+			force  = 2.0f * k * t;
 		} else if (r <= conf->d_c2) {
 			force = energy = 0.0f;
 		} else if (r <= conf->d_c3) {
-			t = r / conf->d_c2 - 1.0f;
-			energy = .5f * k * t * t;
-			force  = -k / conf->d_c2 * t;
+			t = r - conf->d_c2;
+			energy = k * t * t;
+			force  = -2.0f * k * t;
 		} else {
 			energy = k * (conf->c_c1 * r - conf->c_c2 / r);
 			force  = -k * (conf->c_c1 + conf->c_c1 / (r * r));

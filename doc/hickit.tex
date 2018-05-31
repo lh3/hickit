@@ -3,8 +3,6 @@
 \usepackage{amsmath}
 \newcommand{\norm}[1]{\left\lVert#1\right\rVert}
 
-\renewcommand{\arraystretch}{2.2}
-
 \begin{document}
 
 For two constrained particles at coordinates $\vec{x}_1$ and $\vec{x}_2$,
@@ -16,36 +14,29 @@ $$\hat{r}=\nabla r=\vec{r}/r$$
 The general form of potential energy $U(r)$ between the two particles is
 \begin{equation*}
 U(r)=\left\{\begin{array}{ll}
-\dfrac{k}{2}\left(1-\dfrac{r}{d_1}\right)^2 & (r < d_1) \\
+k(d_1-r)^2 & (r < d_1) \\
 0 & (d_1\le r\le d_2) \\
-\dfrac{k}{2}\left(\dfrac{r}{d_2}-1\right)^2 & (d_2 < r \le d_3) \\
-k\left(c_1 r - \dfrac{c_2}{r}\right) & (r > d_3)
+k(r-d_2)^2 & (d_2 < r \le d_3) \\
+k(c_1 r - c_2/r) & (r > d_3)
 \end{array}\right.
 \end{equation*}
 The force between the two particles is $\vec{F}(\vec{r})=\nabla
 U(r)=U'(r)\cdot\nabla r$, which is
 \[
 \vec{F}(\vec{r})=\left\{\begin{array}{ll}
--\dfrac{k}{d_1}\left(1-\dfrac{r}{d_1}\right)\hat{r} & (r < d_1) \\
+-2k(d_1-r)\cdot\hat{r} & (r < d_1) \\
 0 & (d_1\le r\le d_2) \\
-\dfrac{k}{d_2}\left(\dfrac{r}{d_2}-1\right)\hat{r} & (d_2 < r \le d_3) \\
-k\left(c_1+\dfrac{c_2}{r^2}\right)\hat{r} & (r > d_3)
+2k(r-d_2)\cdot\hat{r} & (d_2 < r \le d_3) \\
+k(c_1+c_2/r^2)\cdot\hat{r} & (r > d_3)
 \end{array}\right.
 \]
 To find $c_1$ and $c_2$, we require $U(r)$ and $U'(r)$ continuous at
 $r=d_3$. This gives:
 \[
-c_1 + \frac{c_2}{d_3^2} = \frac{1}{d_2}\left(\frac{d_3}{d_2}-1\right)
+c_1=\frac{1}{2}(d_3-d_2)\left(3-\frac{d_2}{d_3}\right)
 \]
 \[
-c_1 - \frac{c_2}{d_3^2} = \frac{1}{2d_3}\left(\frac{d_3}{d_2}-1\right)^2
-\]
-therefore
-\[
-c_1=\frac{1}{4}\left(\frac{d_3}{d_2}-1\right)\left(\frac{3}{d_2}-\frac{1}{d_3}\right)
-\]
-\[
-c_2=\frac{d_3}{4}\left[\left(\frac{d_3}{d_2}\right)^2-1\right]
+c_2=\frac{d_3}{2}(d_3-d_2)(d_3+d_2)
 \]
 
 \end{document}
