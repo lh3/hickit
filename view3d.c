@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "hkpriv.h"
 
 #ifdef HAVE_GL
@@ -79,6 +80,15 @@ static void cb_key(unsigned char key, int x, int y)
 	} else if (key == 'f' || key == 'F') {
 		global.feat_color = !global.feat_color;
 		cb_draw();
+	} else if (key == '>' || key == '.') {
+		gluLookAt(0, 0, 0.05,  0, 0, -1.0,  0, 1, 0);
+		cb_draw();
+	} else if (key == '<' || key == ',') {
+		gluLookAt(0, 0, -0.05,  0, 0, -1.0,  0, 1, 0);
+		cb_draw();
+	} else if (key == '0') {
+		glLoadIdentity();
+		cb_draw();
 	}
 }
 
@@ -101,6 +111,15 @@ static void cb_special_key(int key, int x, int y)
 		glRotatef(s, xx, yy, zz);
 		cb_draw();
 	}
+	/*
+	if (key == GLUT_KEY_UP || key == GLUT_KEY_DOWN || key == GLUT_KEY_RIGHT || key == GLUT_KEY_LEFT) {
+		if (key == GLUT_KEY_UP) gluLookAt(0, 0, 0, 0, -sin(step), -cos(step), 0, 1, 0);
+		else if (key == GLUT_KEY_DOWN) gluLookAt(0, 0, 0, 0, sin(step), -cos(step), 0, 1, 0);
+		else if (key == GLUT_KEY_LEFT) gluLookAt(0, 0, 0, -sin(step), cos(step), 0, 0, 1, 0);
+		else if (key == GLUT_KEY_RIGHT) gluLookAt(0, 0, 0, sin(step), cos(step), 0, 0, 1, 0);
+		cb_draw();
+	}
+	*/
 }
 
 void hk_v3d_prep(int *argc, char *argv[])
