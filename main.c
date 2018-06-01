@@ -7,7 +7,7 @@
 #include "hickit.h"
 #include "hkpriv.h"
 
-#define HICKIT_VERSION "r191"
+#define HICKIT_VERSION "r197"
 
 static struct option long_options_pair[] = {
 	{ "out-phase",      no_argument,       0, 0 }, // 0
