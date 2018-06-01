@@ -17,7 +17,7 @@ U(r)=\left\{\begin{array}{ll}
 k(d_1-r)^2 & (r < d_1) \\
 0 & (d_1\le r\le d_2) \\
 k(r-d_2)^2 & (d_2 < r \le d_3) \\
-k(c_1 r - c_2/r) & (r > d_3)
+k[c_1(r-d_3) + c_2/(r-d_2)] & (r > d_3)
 \end{array}\right.
 \end{equation*}
 The force between the two particles is $\vec{F}(\vec{r})=\nabla
@@ -27,16 +27,11 @@ U(r)=U'(r)\cdot\nabla r$, which is
 -2k(d_1-r)\cdot\hat{r} & (r < d_1) \\
 0 & (d_1\le r\le d_2) \\
 2k(r-d_2)\cdot\hat{r} & (d_2 < r \le d_3) \\
-k(c_1+c_2/r^2)\cdot\hat{r} & (r > d_3)
+k[c_1-c_2/(r-d_2)^2]\cdot\hat{r} & (r > d_3)
 \end{array}\right.
 \]
 To find $c_1$ and $c_2$, we require $U(r)$ and $U'(r)$ continuous at
-$r=d_3$. This gives:
-\[
-c_1=\frac{1}{2}(d_3-d_2)\left(3-\frac{d_2}{d_3}\right)
-\]
-\[
-c_2=\frac{d_3}{2}(d_3-d_2)(d_3+d_2)
-\]
+$r=d_3$. This gives $c_1=3(d_3-d_2)$ and $c_2=(d_3-d_2)^3$. Note that $U''(r)$
+is also continuous at $r=d_3$.
 
 \end{document}

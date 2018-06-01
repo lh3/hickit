@@ -81,10 +81,10 @@ static inline void fv3_axpy(float a, const fvec3_t x, fvec3_t y)
 
 void hk_fdg_cal_c(struct hk_fdg_conf *opt)
 {
-	double t = (double)opt->d_c2 / opt->d_c3;
+	double t = (double)opt->d_c3 - opt->d_c2;
 	assert(opt->d_c2 > 0.0 && opt->d_c3 > 0.0 && opt->d_c3 > opt->d_c2);
-	opt->c_c1 = .5 * opt->d_c3 * (1.0 - t) * (3.0 - t);
-	opt->c_c2 = .5 * opt->d_c3 * opt->d_c3 * opt->d_c3 * (1.0 - t * t);
+	opt->c_c1 = 3.0 * t;
+	opt->c_c2 = t * t * t;
 }
 
 void hk_fdg_conf_init(struct hk_fdg_conf *opt)
@@ -218,8 +218,9 @@ static inline float update_force(const struct hk_fdg_conf *conf, fvec3_t *x, int
 			energy = k * t * t;
 			force  = -2.0f * k * t;
 		} else {
-			energy = k * (conf->c_c1 * r - conf->c_c2 / r);
-			force  = -k * (conf->c_c1 + conf->c_c1 / (r * r));
+			t = r - conf->d_c2;
+			energy = k * (conf->c_c1 * (r - conf->d_c3) + conf->c_c2 / t);
+			force  = -k * (conf->c_c1 - conf->c_c2 / (t * t));
 		}
 	}
 	fv3_scale(force, delta);
