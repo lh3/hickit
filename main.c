@@ -7,7 +7,7 @@
 #include "hickit.h"
 #include "hkpriv.h"
 
-#define HICKIT_VERSION "r199"
+#define HICKIT_VERSION "r200"
 
 static struct option long_options_pair[] = {
 	{ "out-phase",      no_argument,       0, 0 }, // 0
@@ -300,7 +300,13 @@ int main_view3d(int argc, char *argv[])
 		fprintf(stderr, "\n");
 		fprintf(stderr, "Key bindings:\n");
 		fprintf(stderr, "  arrows: rotate\n");
-		fprintf(stderr, "  c:      change colors\n");
+		fprintf(stderr, "  [ or ]: rotate\n");
+		fprintf(stderr, "  . or >: into screen\n");
+		fprintf(stderr, "  , or <: out of screen\n");
+		fprintf(stderr, "  z or Z: toggle white/black background\n");
+		fprintf(stderr, "  f or F: toggle color for numerical/chromosome\n");
+		fprintf(stderr, "  c or C: change colors\n");
+		fprintf(stderr, "  q or Q: exit\n");
 		return 1;
 	}
 	m = hk_3dg_read(argv[optind]);

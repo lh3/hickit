@@ -17,6 +17,7 @@ struct {
 	krng_t rng;
 	int line_width;
 	int n_hl;
+	int is_white;
 	char **hl;
 	float feat_lo, feat_hi;
 	int feat_color;
@@ -37,8 +38,9 @@ static void cb_draw(void)
 	struct hk_bmap *m = global.m;
 	int32_t i;
 
+	if (global.is_white) glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+	else glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glMatrixMode(GL_MODELVIEW);
 	glLineWidth(global.line_width);
 	for (i = 0; i < m->d->n; ++i) {
@@ -68,6 +70,25 @@ static void cb_draw(void)
 	glFlush();
 }
 
+static void rotate(int axis, float x)
+{
+	const float step = 5.0f;
+	double mat_modview[16], mat_proj[16];
+	double xx, yy, zz, s;
+	int view_point[4];
+	glGetDoublev(GL_MODELVIEW_MATRIX, mat_modview);
+	glGetDoublev(GL_PROJECTION_MATRIX, mat_proj);
+	glGetIntegerv(GL_VIEWPORT, view_point);
+	gluProject(0.0, 0.0, 0.0, mat_modview, mat_proj, view_point, &xx, &yy, &zz);
+	s = step * x;
+	if (axis == 0)      gluUnProject(xx + 10.0, yy, zz, mat_modview, mat_proj, view_point, &xx, &yy, &zz);
+	else if (axis == 1) gluUnProject(xx, yy + 10.0, zz, mat_modview, mat_proj, view_point, &xx, &yy, &zz);
+	else if (axis == 2) gluUnProject(xx, yy, zz + 10.0, mat_modview, mat_proj, view_point, &xx, &yy, &zz);
+	glMatrixMode(GL_MODELVIEW);
+	glRotatef(s, xx, yy, zz);
+	cb_draw();
+}
+
 static void cb_key(unsigned char key, int x, int y)
 {
 	if (key == 27 || key == 'q' || key == 'Q') {
@@ -81,45 +102,33 @@ static void cb_key(unsigned char key, int x, int y)
 		global.feat_color = !global.feat_color;
 		cb_draw();
 	} else if (key == '>' || key == '.') {
+		glMatrixMode(GL_PROJECTION);
 		gluLookAt(0, 0, 0.05,  0, 0, -1.0,  0, 1, 0);
 		cb_draw();
 	} else if (key == '<' || key == ',') {
+		glMatrixMode(GL_PROJECTION);
 		gluLookAt(0, 0, -0.05,  0, 0, -1.0,  0, 1, 0);
 		cb_draw();
 	} else if (key == '0') {
+		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
+		cb_draw();
+	} else if (key == '[') {
+		rotate(2, 1.0f);
+	} else if (key == ']') {
+		rotate(2, -1.0f);
+	} else if (key == 'z' || key == 'Z') {
+		global.is_white = !global.is_white;
 		cb_draw();
 	}
 }
 
 static void cb_special_key(int key, int x, int y)
 {
-	const float step = 5.0f;
-	if (key == GLUT_KEY_UP || key == GLUT_KEY_DOWN || key == GLUT_KEY_RIGHT || key == GLUT_KEY_LEFT) {
-		double mat_modview[16], mat_proj[16];
-		double xx, yy, zz, s;
-		int view_point[4];
-		glGetDoublev(GL_MODELVIEW_MATRIX, mat_modview);
-		glGetDoublev(GL_PROJECTION_MATRIX, mat_proj);
-		glGetIntegerv(GL_VIEWPORT, view_point);
-		gluProject(0.0, 0.0, 0.0, mat_modview, mat_proj, view_point, &xx, &yy, &zz);
-		s = key == GLUT_KEY_LEFT || key == GLUT_KEY_UP? step : -step;
-		if (key == GLUT_KEY_RIGHT || key == GLUT_KEY_LEFT)
-			gluUnProject(xx, yy + 10.0, zz, mat_modview, mat_proj, view_point, &xx, &yy, &zz);
-		else
-			gluUnProject(xx + 10.0, yy, zz, mat_modview, mat_proj, view_point, &xx, &yy, &zz);
-		glRotatef(s, xx, yy, zz);
-		cb_draw();
-	}
-	/*
-	if (key == GLUT_KEY_UP || key == GLUT_KEY_DOWN || key == GLUT_KEY_RIGHT || key == GLUT_KEY_LEFT) {
-		if (key == GLUT_KEY_UP) gluLookAt(0, 0, 0, 0, -sin(step), -cos(step), 0, 1, 0);
-		else if (key == GLUT_KEY_DOWN) gluLookAt(0, 0, 0, 0, sin(step), -cos(step), 0, 1, 0);
-		else if (key == GLUT_KEY_LEFT) gluLookAt(0, 0, 0, -sin(step), cos(step), 0, 0, 1, 0);
-		else if (key == GLUT_KEY_RIGHT) gluLookAt(0, 0, 0, sin(step), cos(step), 0, 0, 1, 0);
-		cb_draw();
-	}
-	*/
+	if (key == GLUT_KEY_UP)         rotate(0, 1.0f);
+	else if (key == GLUT_KEY_DOWN)  rotate(0, -1.0f);
+	else if (key == GLUT_KEY_LEFT)  rotate(1, 1.0f);
+	else if (key == GLUT_KEY_RIGHT) rotate(1, -1.0f);
 }
 
 void hk_v3d_prep(int *argc, char *argv[])
@@ -170,6 +179,7 @@ void hk_v3d_view(struct hk_bmap *m, int width, int line_width, int color_seed, c
 	memset(&global, 0, sizeof(global));
 	global.m = m;
 	global.line_width = line_width;
+	global.is_white = 1;
 	kr_srand_r(&global.rng, color_seed);
 	hk_fdg_normalize(m);
 	if (hl) split_hl(hl);
