@@ -68,6 +68,7 @@ static void cb_draw(void)
 		glEnd();
 	}
 	glFlush();
+	glutSwapBuffers();
 }
 
 static void rotate(int axis, float x)
@@ -134,7 +135,7 @@ static void cb_special_key(int key, int x, int y)
 void hk_v3d_prep(int *argc, char *argv[])
 {
 	glutInit(argc, argv);
-	glutInitDisplayMode(GLUT_RGB|GLUT_DEPTH|GLUT_ALPHA);
+	glutInitDisplayMode(GLUT_RGB|GLUT_DEPTH|GLUT_ALPHA|GLUT_DOUBLE);
 }
 
 static void prep_color(const struct hk_sdict *d)
