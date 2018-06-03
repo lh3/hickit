@@ -68,7 +68,7 @@ static void cb_draw(void)
 				if (m->feat && global.feat_color) set_feat_color(m->feat[off+j], global.alpha[i]);
 				glPushMatrix();
 				glTranslatef(m->x[off+j][0], m->x[off+j][1], m->x[off+j][2]);
-				glutSolidSphere(0.01, 6, 5);
+				glutSolidSphere(0.02, 6, 5);
 				glPopMatrix();
 			}
 		}
@@ -205,14 +205,12 @@ static void split_hl(const char *hl)
 
 static void init_gl(void)
 {
-	GLfloat light_position[] = { 1.0, 1.0, -1.0, 0.0 };
+	GLfloat light_position[] = { 1.0, 1.0, -2.0, 0.0 };
 	GLfloat white_light[] = { 1.0, 1.0, 1.0, 1.0 };
-	GLfloat lmodel_ambient[] = { 0.1, 0.1, 0.1, 1.0 };
 
 	glLightfv(GL_LIGHT0, GL_POSITION, light_position);
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, white_light);
 	glLightfv(GL_LIGHT0, GL_AMBIENT, white_light);
-	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, lmodel_ambient);
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
