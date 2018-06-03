@@ -26,17 +26,22 @@ struct {
 
 static void prep_color(const struct hk_sdict *d);
 
-static inline void set_feat_color(float x, float alpha)
+static inline void set_bead_color(int chr, int bid)
 {
-	if (x < global.feat_lo) x = global.feat_lo;
-	if (x > global.feat_hi) x = global.feat_hi;
-	x = (x - global.feat_lo) / (global.feat_hi - global.feat_lo);
-	glColor4f(1.0f - x, x, 0, alpha);
-	if (global.use_ball) {
-		GLfloat c[4];
-		c[0] = 1.0f - x, c[1] = x, c[2] = 0, c[3] = alpha;
-		glMaterialfv(GL_FRONT, GL_DIFFUSE, c);
+	GLfloat c[4];
+	c[3] = global.alpha[chr];
+	if (global.feat_color && global.m->feat) {
+		float x = global.m->feat[bid];
+		if (x < global.feat_lo) x = global.feat_lo;
+		if (x > global.feat_hi) x = global.feat_hi;
+		x = (x - global.feat_lo) / (global.feat_hi - global.feat_lo);
+		c[0] = 1.0f - x, c[1] = x, c[2] = 0;
+	} else {
+		c[0] = global.color[chr][0], c[1] = global.color[chr][1], c[2] = global.color[chr][2];
 	}
+	glColor4fv(c);
+	if (global.use_ball)
+		glMaterialfv(GL_FRONT, GL_DIFFUSE, c);
 }
 
 static void cb_draw(void)
@@ -53,22 +58,18 @@ static void cb_draw(void)
 		int32_t j, cnt = (int32_t)m->offcnt[i];
 		int32_t off = m->offcnt[i] >> 32;
 		if (global.alpha[i] < 0.9) continue;
-		glColor4f(global.color[i][0], global.color[i][1], global.color[i][2], global.alpha[i]);
 		glBegin(GL_LINE_STRIP);
 		for (j = 0; j < cnt; ++j) {
-			if (m->feat && global.feat_color) set_feat_color(m->feat[off+j], global.alpha[i]);
+			set_bead_color(i, off + j);
 			glVertex3f(m->x[off+j][0], m->x[off+j][1], m->x[off+j][2]);
 		}
 		glEnd();
 		if (global.use_ball) {
-			GLfloat c[4];
-			c[0] = global.color[i][0], c[1] = global.color[i][1], c[2] = global.color[i][2], c[3] = global.alpha[i];
-			glMaterialfv(GL_FRONT, GL_DIFFUSE, c);
 			for (j = 0; j < cnt; ++j) {
-				if (m->feat && global.feat_color) set_feat_color(m->feat[off+j], global.alpha[i]);
+				set_bead_color(i, off + j);
 				glPushMatrix();
 				glTranslatef(m->x[off+j][0], m->x[off+j][1], m->x[off+j][2]);
-				glutSolidSphere(0.02, 6, 5);
+				glutSolidSphere(0.01, 6, 5);
 				glPopMatrix();
 			}
 		}
@@ -77,10 +78,9 @@ static void cb_draw(void)
 		int32_t j, cnt = (int32_t)m->offcnt[i];
 		int32_t off = m->offcnt[i] >> 32;
 		if (global.alpha[i] > 0.9) continue;
-		glColor4f(global.color[i][0], global.color[i][1], global.color[i][2], global.alpha[i]);
 		glBegin(GL_LINE_STRIP);
 		for (j = 0; j < cnt; ++j) {
-			if (m->feat && global.feat_color) set_feat_color(m->feat[off+j], global.alpha[i]);
+			set_bead_color(i, off + j);
 			glVertex3f(m->x[off+j][0], m->x[off+j][1], m->x[off+j][2]);
 		}
 		glEnd();
@@ -119,6 +119,7 @@ static void cb_key(unsigned char key, int x, int y)
 		cb_draw();
 	} else if (key == 'f' || key == 'F') {
 		global.feat_color = !global.feat_color;
+		if (global.m->feat == 0) global.feat_color = 0;
 		cb_draw();
 	} else if (key == '>' || key == '.') {
 		glMatrixMode(GL_PROJECTION);
