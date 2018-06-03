@@ -70,7 +70,7 @@ static void cb_draw(void)
 				if (global.feat_color) set_bead_color(i, off + j);
 				glPushMatrix();
 				glTranslatef(m->x[off+j][0], m->x[off+j][1], m->x[off+j][2]);
-				glutSolidSphere(0.01, 6, 5);
+				glutSolidSphere(0.015, 6, 5);
 				glPopMatrix();
 			}
 		}
