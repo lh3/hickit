@@ -30,7 +30,7 @@ static inline void set_bead_color(int chr, int bid)
 {
 	GLfloat c[4];
 	c[3] = global.alpha[chr];
-	if (global.feat_color && global.m->feat) {
+	if (global.feat_color && global.m->feat && bid >= 0) {
 		float x = global.m->feat[bid];
 		if (x < global.feat_lo) x = global.feat_lo;
 		if (x > global.feat_hi) x = global.feat_hi;
@@ -58,15 +58,16 @@ static void cb_draw(void)
 		int32_t j, cnt = (int32_t)m->offcnt[i];
 		int32_t off = m->offcnt[i] >> 32;
 		if (global.alpha[i] < 0.9) continue;
+		set_bead_color(i, -1);
 		glBegin(GL_LINE_STRIP);
 		for (j = 0; j < cnt; ++j) {
-			set_bead_color(i, off + j);
+			if (global.feat_color) set_bead_color(i, off + j);
 			glVertex3f(m->x[off+j][0], m->x[off+j][1], m->x[off+j][2]);
 		}
 		glEnd();
 		if (global.use_ball) {
 			for (j = 0; j < cnt; ++j) {
-				set_bead_color(i, off + j);
+				if (global.feat_color) set_bead_color(i, off + j);
 				glPushMatrix();
 				glTranslatef(m->x[off+j][0], m->x[off+j][1], m->x[off+j][2]);
 				glutSolidSphere(0.01, 6, 5);
@@ -78,9 +79,10 @@ static void cb_draw(void)
 		int32_t j, cnt = (int32_t)m->offcnt[i];
 		int32_t off = m->offcnt[i] >> 32;
 		if (global.alpha[i] > 0.9) continue;
+		set_bead_color(i, -1);
 		glBegin(GL_LINE_STRIP);
 		for (j = 0; j < cnt; ++j) {
-			set_bead_color(i, off + j);
+			if (global.feat_color) set_bead_color(i, off + j);
 			glVertex3f(m->x[off+j][0], m->x[off+j][1], m->x[off+j][2]);
 		}
 		glEnd();
