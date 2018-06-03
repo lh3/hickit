@@ -32,23 +32,15 @@ static inline void set_feat_color(float x, float alpha)
 	if (x > global.feat_hi) x = global.feat_hi;
 	x = (x - global.feat_lo) / (global.feat_hi - global.feat_lo);
 	glColor4f(1.0f - x, x, 0, alpha);
+	if (global.use_ball) {
+		GLfloat c[4];
+		c[0] = 1.0f - x, c[1] = x, c[2] = 0, c[3] = alpha;
+		glMaterialfv(GL_FRONT, GL_DIFFUSE, c);
+	}
 }
 
 static void cb_draw(void)
 {
-	static const double X = .525731112119133606, Z = .850650808352039932;
-	static GLfloat vdata[12][3] = {
-		{-X, 0.0, Z}, {X, 0.0, Z}, {-X, 0.0, -Z}, {X, 0.0, -Z},
-		{0.0, Z, X}, {0.0, Z, -X}, {0.0, -Z, X}, {0.0, -Z, -X},
-		{Z, X, 0.0}, {-Z, X, 0.0}, {Z, -X, 0.0}, {-Z, -X, 0.0}
-	};
-	static GLuint tindices[20][3] = {
-		{1,4,0}, {4,9,0}, {4,5,9}, {8,5,4}, {1,8,4},
-		{1,10,8}, {10,3,8}, {8,3,5}, {3,2,5}, {3,7,2},
-		{3,10,7}, {10,6,7}, {6,11,7}, {6,0,11}, {6,1,0},
-		{10,1,6}, {11,0,9}, {2,11,9}, {5,2,9}, {11,2,7}
-	};
-
 	struct hk_bmap *m = global.m;
 	int32_t i;
 
@@ -69,23 +61,14 @@ static void cb_draw(void)
 		}
 		glEnd();
 		if (global.use_ball) {
+			GLfloat c[4];
+			c[0] = global.color[i][0], c[1] = global.color[i][1], c[2] = global.color[i][2], c[3] = global.alpha[i];
+			glMaterialfv(GL_FRONT, GL_DIFFUSE, c);
 			for (j = 0; j < cnt; ++j) {
-				int k;
 				if (m->feat && global.feat_color) set_feat_color(m->feat[off+j], global.alpha[i]);
 				glPushMatrix();
 				glTranslatef(m->x[off+j][0], m->x[off+j][1], m->x[off+j][2]);
-				glScalef(0.01, 0.01, 0.01);
-#if 1
-				glBegin(GL_TRIANGLES);
-				for (k = 0; k < 20; ++k) {
-					glVertex3fv(&vdata[tindices[k][0]][0]);
-					glVertex3fv(&vdata[tindices[k][1]][0]);
-					glVertex3fv(&vdata[tindices[k][2]][0]);
-				}
-				glEnd();
-#else
-				glutSolidSphere(1, 5, 4);
-#endif
+				glutSolidSphere(0.02, 6, 5);
 				glPopMatrix();
 			}
 		}
@@ -155,6 +138,13 @@ static void cb_key(unsigned char key, int x, int y)
 		rotate(2, -1.0f);
 	} else if (key == 'b' || key == 'B') {
 		global.use_ball = !global.use_ball;
+		if (global.use_ball) {
+			glEnable(GL_LIGHTING);
+			glEnable(GL_LIGHT0);
+		} else {
+			glDisable(GL_LIGHTING);
+			glDisable(GL_LIGHT0);
+		}
 		cb_draw();
 	} else if (key == 'z' || key == 'Z') {
 		global.is_white = !global.is_white;
@@ -213,6 +203,24 @@ static void split_hl(const char *hl)
 	}
 }
 
+static void init_gl(void)
+{
+	GLfloat light_position[] = { 1.0, 1.0, -2.0, 0.0 };
+	GLfloat white_light[] = { 1.0, 1.0, 1.0, 1.0 };
+	GLfloat lmodel_ambient[] = { 0.1, 0.1, 0.1, 1.0 };
+
+	glLightfv(GL_LIGHT0, GL_POSITION, light_position);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, white_light);
+	glLightfv(GL_LIGHT0, GL_AMBIENT, white_light);
+	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, lmodel_ambient);
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+}
+
 void hk_v3d_view(struct hk_bmap *m, int width, int line_width, int color_seed, const char *hl)
 {
 	memset(&global, 0, sizeof(global));
@@ -238,14 +246,10 @@ void hk_v3d_view(struct hk_bmap *m, int width, int line_width, int color_seed, c
 
 	glutInitWindowSize(width, width);
 	glutCreateWindow("View3D");
+	init_gl();
 	glutDisplayFunc(cb_draw);
 	glutKeyboardFunc(cb_key);
 	glutSpecialFunc(cb_special_key);
-
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
 
 	glutMainLoop();
 }
