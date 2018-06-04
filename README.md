@@ -38,7 +38,7 @@ cd hickit-0.1_x64-linux
     - [Aligning Hi-C reads](#aln-hic)
     - [Extracting contact pairs](#extract-pairs)
   - [Imputing missing phases (diploid single-cell Hi-C only)](#impute)
-  - [Inferring 3D structures](#infer-3d)
+  - [Inferring 3D structures (single-cell only)](#infer-3d)
 * [Related Projects](#related)
 * [Limitations](#limit)
 
@@ -176,7 +176,7 @@ intra-chromosome contacts close to the diagonal, accuracy of such contacts,
 sensitivity of off-diagonal contacts, accuracy of such contacts, sensitivity of
 all contacts and accuracy of all contacts.
 
-### <a name="infer-3d"></a>Inferring 3D structures
+### <a name="infer-3d"></a>Inferring 3D structures (single-cell only)
 
 The `hickit bin -g` command infers 3D structures at one resolution. It is
 recommended to performs the inferrence multiple times at different scales. The
@@ -201,6 +201,11 @@ often has large areas of greens (high CpG density; on the bottom).
 
 <img src="doc/pbmc_05-good.png" alt="PBMC05-good" />
 <img src="doc/pbmc_05-bad.png" alt="PBMC05-bad" />
+
+It should be noted that although cells of the same type are generally
+associated with some features (e.g. low-CpG regions at the periphery), but the
+spacial adjacencies of chromosomes are often distinct. Don't be supprised if
+you see the 3D structures of two cells look very different.
 
 ## <a name="related"></a>Related Projects
 
