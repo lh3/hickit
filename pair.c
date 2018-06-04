@@ -111,6 +111,8 @@ struct hk_pair *hk_seg2pair(int32_t n_segs, const struct hk_seg *segs, int min_d
 	}
 	ks_introsort_pair(n_pairs, pairs);
 	*n_pairs_ = n_pairs;
+	if (hk_verbose >= 3)
+		fprintf(stderr, "[M::%s] generated %d pairs\n", __func__, n_pairs);
 	return pairs;
 }
 
@@ -219,7 +221,7 @@ struct hk_map *hk_pair_split_phase(const struct hk_map *m, float phase_thres)
 	return p;
 }
 
-int32_t hk_pair_filter(int32_t n_pairs, struct hk_pair *pairs, int32_t max_radius, int32_t min_cnt, float drop_frac)
+int32_t hk_pair_filter_isolated(int32_t n_pairs, struct hk_pair *pairs, int32_t max_radius, int32_t min_cnt, float drop_frac)
 {
 	int32_t i, k, *cnt, min;
 	hk_pair_count_nei(n_pairs, pairs, max_radius);
@@ -234,6 +236,19 @@ int32_t hk_pair_filter(int32_t n_pairs, struct hk_pair *pairs, int32_t max_radiu
 			pairs[k++] = pairs[i];
 	if (hk_verbose >= 3)
 		fprintf(stderr, "[M::%s] threshold: %d; filtered out %d/%d isolated pairs\n", __func__, min, n_pairs - k, n_pairs);
+	return k;
+}
+
+int32_t hk_pair_filter_close_legs(int32_t n_pairs, struct hk_pair *pairs, int min_dist)
+{
+	int32_t i, k;
+	for (i = k = 0; i < n_pairs; ++i) {
+		struct hk_pair *p = &pairs[i];
+		if (!hk_intra(p) || hk_ppos2(p) - hk_ppos1(p) >= min_dist || p->strand[0] * p->strand[1] < 0)
+			pairs[k++] = *p;
+	}
+	if (hk_verbose >= 3)
+		fprintf(stderr, "[M::%s] filtered out %d/%d pairs with close legs\n", __func__, n_pairs - k, n_pairs);
 	return k;
 }
 

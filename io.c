@@ -200,6 +200,10 @@ parse_seg:
 	gzclose(fp);
 	if (m->pairs && !hk_pair_is_sorted(m->n_pairs, m->pairs))
 		hk_pair_sort(m->n_pairs, m->pairs);
+	if (hk_verbose >= 3) {
+		if (m->n_segs) fprintf(stderr, "[M::%s] read %d segments\n", __func__, m->n_segs);
+		if (m->n_pairs) fprintf(stderr, "[M::%s] read %d pairs\n", __func__, m->n_pairs);
+	}
 	return m;
 }
 

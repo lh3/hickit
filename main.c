@@ -6,7 +6,7 @@
 #include <getopt.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r209"
+#define HICKIT_VERSION "r210"
 
 static struct option long_options_pair[] = {
 	{ "out-phase",      no_argument,       0, 0 }, // 0
@@ -118,10 +118,12 @@ int main_pair(int argc, char *argv[])
 
 	if (m->pairs == 0 && m->segs)
 		m->pairs = hk_seg2pair(m->n_segs, m->segs, opt.min_dist, opt.max_seg, opt.min_mapq, &m->n_pairs);
+	else if (opt.min_dist > 0)
+		m->n_pairs = hk_pair_filter_close_legs(m->n_pairs, m->pairs, opt.min_dist);
 	if (is_dedup)
 		m->n_pairs = hk_pair_dedup(m->n_pairs, m->pairs, opt.min_dist);
-//	if (opt.min_flt_cnt > 0)
-//		m->n_pairs = hk_pair_filter(m->n_pairs, m->pairs, opt.max_radius, opt.min_flt_cnt);
+	if (opt.min_flt_cnt > 0)
+		m->n_pairs = hk_pair_filter_isolated(m->n_pairs, m->pairs, opt.max_radius, opt.min_flt_cnt, 0.0f);
 	if (cnt_radius > 0) {
 		hk_pair_count_nei(m->n_pairs, m->pairs, cnt_radius);
 		hk_print_pair(stdout, opt.flag, m->d, m->n_pairs, m->pairs);
@@ -144,6 +146,8 @@ int main_pair(int argc, char *argv[])
 	if (is_impute) { // phasing
 		if (val_frac > 0.0f && val_frac < 1.0f)
 			hk_validate_holdback(&rng, val_frac, m->n_pairs, m->pairs);
+		if (hk_verbose >= 3)
+			fprintf(stderr, "[M::%s] imputing phases from %d pairs\n", __func__, m->n_pairs);
 		hk_impute(m->n_pairs, m->pairs, opt.max_radius, opt.min_radius, opt.max_nei, opt.n_iter, opt.pseudo_cnt, use_spacial);
 		if (val_frac > 0.0f && val_frac < 1.0f)
 			hk_validate_roc(m->n_pairs, m->pairs);
@@ -219,9 +223,9 @@ int main_bin(int argc, char *argv[])
 		m = tmp;
 	}
 	if (min_cnt > 0 || drop_frac > 0.0f)
-		m->n_pairs = hk_pair_filter(m->n_pairs, m->pairs, flt_radius, min_cnt, drop_frac);
+		m->n_pairs = hk_pair_filter_isolated(m->n_pairs, m->pairs, flt_radius, min_cnt, drop_frac);
 	if (iso_radius > 0)
-		m->n_pairs = hk_pair_filter(m->n_pairs, m->pairs, iso_radius, 1, 0.0f);
+		m->n_pairs = hk_pair_filter_isolated(m->n_pairs, m->pairs, iso_radius, 1, 0.0f);
 	hk_pair_count_nei(m->n_pairs, m->pairs, flt_radius);
 	if (out_pairs) {
 		hk_print_pair(stdout, HK_OUT_PPROB, m->d, m->n_pairs, m->pairs);

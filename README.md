@@ -1,6 +1,12 @@
 ## Getting Started
 ```sh
-# Please download "k8" executables from github.com/attractivechaos/k8
+# Download precompiled binaries for Linux
+curl -L https:// | tar -jxf -
+cd hickit-0.1_x64-linux
+# Map Dip-C reads and extract contacts (skip if you used your own pipeline)
+./pre-dip-c read1.fq.gz read2.fq.gz | bwa mem -p human.fa - | gzip > aln.sam.gz
+./k8 hickit.js sam2seg -v phased_SNP.tsv aln.sam.gz | gzip > contacts.seg.gz
+# 
 # Generate segments
 hickit.js sam2seg -v SNPs.txt sample.sam > sample.seg
 # Convert .seg to .pairs (without markdup; with phase)
