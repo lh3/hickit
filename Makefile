@@ -13,8 +13,12 @@ endif
 
 ifneq ($(gl),)
 	CPPFLAGS += -DHAVE_GL
-	CFLAGS += -Wno-deprecated-declarations
-	LIBS_GL = -framework OpenGL -framework GLUT
+	ifeq ($(shell uname),Darwin)
+		CFLAGS += -Wno-deprecated-declarations
+		LIBS_GL = -framework OpenGL -framework GLUT
+	else
+		LIBS_GL = -Wl,-Bstatic -lglut -Wl,-Bdynamic -lGLU -lGL -lXi
+	endif
 endif
 
 .PHONY:all clean depend
