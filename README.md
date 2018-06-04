@@ -199,8 +199,8 @@ periphery, which leads to a red ball (on the left; image produced by the
 `view3d` command of hickit). For these cell types, a problematic inference
 often has large areas of greens (high CpG density; on the right).
 
-<img src="doc/pbmc_05-good.png" alt="PBMC05-good" style="width: 200px;"/>
-<img src="doc/pbmc_05-bad.png" alt="PBMC05-bad" style="width: 200px;"/>
+<img src="doc/pbmc_05-good.png" alt="PBMC05-good" style="width: 100px;"/>
+<img src="doc/pbmc_05-bad.png" alt="PBMC05-bad" style="width: 100px;"/>
 
 ## <a name="related"></a>Related Projects
 
