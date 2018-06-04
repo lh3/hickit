@@ -39,6 +39,8 @@ cd hickit-0.1_x64-linux
     - [Extracting contact pairs](#extract-pairs)
   - [Imputing missing phases (diploid single-cell Hi-C only)](#impute)
   - [Inferring 3D structures](#infer-3d)
+* [Related Projects](#related)
+* [Limitations](#limit)
 
 ## <a name="intro"></a>Introduction
 
@@ -193,7 +195,8 @@ density with
 hickit.js gfeat -r hs37d5.fa impute.3dg.gz | gzip > impute.cpg.3dg.gz
 ```
 For PBMC cells and LCL cells, we typically see low-CpG regions placed at the
-periphery, which leads to a red ball like
+periphery, which leads to a red ball like (image produced by the `view3d`
+command of hickit)
 
 ![PBMC-05-good](doc/pbmc_05-good.png)
 
@@ -202,8 +205,27 @@ For these cell types, a problematic inference often has large areas of greens
 
 ![PBMC-05-bad](doc/pbmc_05-bad.png)
 
+## <a name="related"></a>Related Projects
+
+[Dip-c][dip-c-repo] is the primary pipeline used in the Dip-C paper (to
+appear). Hickit optimizes and simplifies multiple steps. We also learned from
+[nuc\_dynamics][nuc-dyn] on single-cell 3D genome modeling.
+
+## <a name="limit"></a>Limitations
+
+* Hickit was originally developed for single-cell diploid Hi-C data. Although
+  some of its functionality potentially works with bulk Hi-C, it is not well
+  tested.
+
+* Hickit implements a fast binning-free TAD calling algorithm, but it has not
+  been carefully tested.
+
+Please raise issues or contact me if you want to try hickit on bulk Hi-C and
+have troubles. I will really appreciate.
+
 [zlib]: http://zlib.net
 [pre-pe]: https://github.com/lh3/pre-pe
 [bwa]: https://github.com/lh3/bwa
 [pairs-fmt]: https://github.com/4dn-dcic/pairix/blob/master/pairs_format_specification.md
 [nuc-dyn]: https://github.com/tjs23/nuc_dynamics
+[dip-c-repo]: https://github.com/tanlongzhi/dip-c
