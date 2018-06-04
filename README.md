@@ -195,12 +195,12 @@ density with
 hickit.js gfeat -r hs37d5.fa impute.3dg.gz | gzip > impute.cpg.3dg.gz
 ```
 For PBMC cells and LCL cells, we typically see low-CpG regions placed at the
-periphery, which leads to a red ball (on the left; image produced by the
+periphery, which leads to a red ball (on the top; image produced by the
 `view3d` command of hickit). For these cell types, a problematic inference
-often has large areas of greens (high CpG density; on the right).
+often has large areas of greens (high CpG density; on the bottom).
 
-<img src="doc/pbmc_05-good.png" alt="PBMC05-good" style="width: 100px;"/>
-<img src="doc/pbmc_05-bad.png" alt="PBMC05-bad" style="width: 100px;"/>
+<img src="doc/pbmc_05-good.png" alt="PBMC05-good" />
+<img src="doc/pbmc_05-bad.png" alt="PBMC05-bad" />
 
 ## <a name="related"></a>Related Projects
 
