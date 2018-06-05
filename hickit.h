@@ -95,6 +95,12 @@ struct hk_fdg_conf {
 	float c_c1, c_c2;
 };
 
+struct hk_v3d_opt {
+	int width;
+	float line_width;
+	float bead_radius;
+};
+
 extern int hk_verbose;
 
 void hk_popt_init(struct hk_popt *opt);
@@ -139,8 +145,9 @@ void hk_print_3dg(FILE *fp, const struct hk_bmap *m);
 
 void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int w, float phase_thres, int no_grad, const char *fn);
 
+void hk_v3d_opt_init(struct hk_v3d_opt *opt);
 void hk_v3d_prep(int *argc, char *argv[]);
-void hk_v3d_view(struct hk_bmap *m, int width, int line_width, int color_seed, const char *hl);
+void hk_v3d_view(struct hk_bmap *m, const struct hk_v3d_opt *opt, int color_seed, const char *hl);
 void hk_fdg_normalize(struct hk_bmap *m);
 
 #ifdef __cplusplus

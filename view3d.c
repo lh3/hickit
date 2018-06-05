@@ -11,11 +11,11 @@
 #endif
 
 struct {
+	const struct hk_v3d_opt *opt;
 	struct hk_bmap *m;
 	fvec3_t *color;
 	float *alpha;
 	krng_t rng;
-	int line_width;
 	int n_hl;
 	int is_white;
 	int use_ball;
@@ -35,7 +35,7 @@ static inline void set_bead_color(int chr, int bid)
 		if (x < global.feat_lo) x = global.feat_lo;
 		if (x > global.feat_hi) x = global.feat_hi;
 		x = (x - global.feat_lo) / (global.feat_hi - global.feat_lo);
-		c[0] = 1.0f - x, c[1] = x, c[2] = 0;
+		c[0] = 1.0f - x, c[1] = x, c[2] = 1.0f - x;
 	} else {
 		c[0] = global.color[chr][0], c[1] = global.color[chr][1], c[2] = global.color[chr][2];
 	}
@@ -53,7 +53,7 @@ static void cb_draw(void)
 	else glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 	glMatrixMode(GL_MODELVIEW);
-	glLineWidth(global.line_width);
+	glLineWidth(global.opt->line_width);
 	for (i = 0; i < m->d->n; ++i) {
 		int32_t j, cnt = (int32_t)m->offcnt[i];
 		int32_t off = m->offcnt[i] >> 32;
@@ -70,7 +70,7 @@ static void cb_draw(void)
 				if (global.feat_color) set_bead_color(i, off + j);
 				glPushMatrix();
 				glTranslatef(m->x[off+j][0], m->x[off+j][1], m->x[off+j][2]);
-				glutSolidSphere(0.015, 6, 5);
+				glutSolidSphere(global.opt->bead_radius, 6, 5);
 				glPopMatrix();
 			}
 		}
@@ -222,11 +222,18 @@ static void init_gl(void)
 	glDepthFunc(GL_LEQUAL);
 }
 
-void hk_v3d_view(struct hk_bmap *m, int width, int line_width, int color_seed, const char *hl)
+void hk_v3d_opt_init(struct hk_v3d_opt *opt)
+{
+	opt->width = 780;
+	opt->line_width = 2.0f;
+	opt->bead_radius = 0.015f;
+}
+
+void hk_v3d_view(struct hk_bmap *m, const struct hk_v3d_opt *opt, int color_seed, const char *hl)
 {
 	memset(&global, 0, sizeof(global));
 	global.m = m;
-	global.line_width = line_width;
+	global.opt = opt;
 	global.is_white = 1;
 	kr_srand_r(&global.rng, color_seed);
 	hk_fdg_normalize(m);
@@ -245,7 +252,7 @@ void hk_v3d_view(struct hk_bmap *m, int width, int line_width, int color_seed, c
 		global.feat_color = 1;
 	}
 
-	glutInitWindowSize(width, width);
+	glutInitWindowSize(opt->width, opt->width);
 	glutCreateWindow("View3D");
 	init_gl();
 	glutDisplayFunc(cb_draw);

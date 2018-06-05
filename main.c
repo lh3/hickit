@@ -6,7 +6,7 @@
 #include <getopt.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r210"
+#define HICKIT_VERSION "r221"
 
 static struct option long_options_pair[] = {
 	{ "out-phase",      no_argument,       0, 0 }, // 0
@@ -280,25 +280,29 @@ int main_image2d(int argc, char *argv[])
 
 int main_view3d(int argc, char *argv[])
 {
-	int c, width = 780, color_seed = 1, line_width = 2;
+	int c, color_seed = 1;
+	struct hk_v3d_opt opt;
 	struct hk_bmap *m;
 	char *hl = 0;
 
 #ifdef HAVE_GL
 	hk_v3d_prep(&argc, argv);
 #endif
-	while ((c = getopt(argc, argv, "w:s:u:l:")) >= 0) {
-		if (c == 'w') width = atoi(optarg);
+	hk_v3d_opt_init(&opt);
+	while ((c = getopt(argc, argv, "w:s:u:l:r:")) >= 0) {
+		if (c == 'w') opt.width = atoi(optarg);
 		else if (c == 's') color_seed = atoi(optarg);
-		else if (c == 'l') line_width = atoi(optarg);
+		else if (c == 'l') opt.line_width = atof(optarg);
+		else if (c == 'r') opt.bead_radius = atof(optarg);
 		else if (c == 'u') hl = optarg;
 	}
 	if (optind == argc) {
 		fprintf(stderr, "Usage: hickit view3d [options] <in.3dg>\n");
 		fprintf(stderr, "Options:\n");
-		fprintf(stderr, "  -w INT      viewer width [%d]\n", width);
+		fprintf(stderr, "  -w INT      viewer width [%d]\n", opt.width);
 		fprintf(stderr, "  -s INT      seed for RNG to generate random colors [%d]\n", color_seed);
-		fprintf(stderr, "  -l INT      line width [%d]\n", line_width);
+		fprintf(stderr, "  -l FLOAT    line width [%g]\n", opt.line_width);
+		fprintf(stderr, "  -r FLOAT    bead radius [%g]\n", opt.bead_radius);
 		fprintf(stderr, "  -u STR      comma-delimited list of chr to highlight []\n");
 		fprintf(stderr, "\n");
 		fprintf(stderr, "Key bindings:\n");
@@ -316,7 +320,7 @@ int main_view3d(int argc, char *argv[])
 	m = hk_3dg_read(argv[optind]);
 	assert(m);
 #ifdef HAVE_GL
-	hk_v3d_view(m, width, line_width, color_seed, hl);
+	hk_v3d_view(m, &opt, color_seed, hl);
 #endif
 	hk_bmap_destroy(m);
 	return 0;
