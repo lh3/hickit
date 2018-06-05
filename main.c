@@ -6,7 +6,7 @@
 #include <getopt.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r221"
+#define HICKIT_VERSION "r222"
 
 static struct option long_options_pair[] = {
 	{ "out-phase",      no_argument,       0, 0 }, // 0
@@ -278,6 +278,7 @@ int main_image2d(int argc, char *argv[])
 	return 0;
 }
 
+#ifdef HAVE_GL
 int main_view3d(int argc, char *argv[])
 {
 	int c, color_seed = 1;
@@ -285,10 +286,8 @@ int main_view3d(int argc, char *argv[])
 	struct hk_bmap *m;
 	char *hl = 0;
 
-#ifdef HAVE_GL
-	hk_v3d_prep(&argc, argv);
-#endif
 	hk_v3d_opt_init(&opt);
+	hk_v3d_prep(&argc, argv);
 	while ((c = getopt(argc, argv, "w:s:u:l:r:")) >= 0) {
 		if (c == 'w') opt.width = atoi(optarg);
 		else if (c == 's') color_seed = atoi(optarg);
@@ -319,12 +318,11 @@ int main_view3d(int argc, char *argv[])
 	}
 	m = hk_3dg_read(argv[optind]);
 	assert(m);
-#ifdef HAVE_GL
 	hk_v3d_view(m, &opt, color_seed, hl);
-#endif
 	hk_bmap_destroy(m);
 	return 0;
 }
+#endif
 
 int main(int argc, char *argv[])
 {
@@ -344,7 +342,9 @@ int main(int argc, char *argv[])
 	if (strcmp(argv[1], "pair") == 0) ret = main_pair(argc-1, argv+1);
 	else if (strcmp(argv[1], "bin") == 0) ret = main_bin(argc-1, argv+1);
 	else if (strcmp(argv[1], "image2d") == 0) ret = main_image2d(argc-1, argv+1);
+#ifdef HAVE_GL
 	else if (strcmp(argv[1], "view3d") == 0) ret = main_view3d(argc-1, argv+1);
+#endif
 	else if (strcmp(argv[1], "version") == 0) {
 		printf("%s\n", HICKIT_VERSION);
 		return 0;

@@ -399,15 +399,16 @@ function hic_sam2seg(args)
 
 function hic_chronly(args)
 {
-	var c, re = new RegExp("^(chr)?([0-9]+|[XY])$");
+	var pat_XY = "^(chr)?([0-9]+|[XY])$", pat_X = "^(chr)?([0-9]+|X)$";
+	var c, re = new RegExp(pat_XY);
 	while ((c = getopt(args, "r:y")) != null) {
 		if (c == 'r') re = new RegExp(getopt.arg);
-		else if (c == 'y') re = new RegExp("^(chr)?([0-9]+|X)$");
+		else if (c == 'y') re = new RegExp(pat_X);
 	}
 	if (getopt.ind == args.length) {
 		print("Usage: hicket.js chronly [options] <in.pairs>|<in.seg>");
 		print("Options:");
-		print("  -r STR     regexp to keep [^(chr)?([0-9]+|[XY])]");
+		print("  -r STR     regexp to keep [" + pat_XY + "]");
 		print("  -y         filter out Y chromosome");
 		exit(1);
 	}
@@ -499,25 +500,57 @@ function hic_bedflt(args)
 
 function hic_con2pair(args)
 {
-	var c;
-	while ((c = getopt(args, "")) != null) {
+	var pat_XY = "^(chr)?([0-9]+|[XY])$", pat_X = "^(chr)?([0-9]+|X)$";
+	var c, out_4 = false, fn_fai = null, re = new RegExp(pat_XY);
+	while ((c = getopt(args, "f:r:y4")) != null) {
+		if (c == 'f') fn_fai = getopt.arg;
+		else if (c == 'r') re = new RegExp(getopt.arg);
+		else if (c == 'y') re = new RegExp(pat_X);
+		else if (c == '4') out_4 = true;
 	}
 	if (getopt.ind == args.length) {
-		print("Usage: hickit.js con2pair <in.con>");
+		print("Usage: hickit.js con2pair [options] <in.con>");
+		print("Options:");
+		print("  -f FILE     faidx index file for pairs header []");
+		print("  -r STR      regex for chromosomes to retain (effective with -f) [" + pat_XY + "]");
+		print("  -y          excluding Y chromosome (effective with -f)");
 		exit(1);
 	}
 
-	var buf = new Bytes();
-	var file = new File(args[getopt.ind]);
+	var file, buf = new Bytes();
+
+	if (fn_fai) {
+		print("## pairs format v1.0");
+		print("#sorted: chr1-chr2-pos1-pos2");
+		print("#shape: upper triangle");
+		file = new File(fn_fai);
+		while (file.readline(buf) >= 0) {
+			var t = buf.toString().split("\t");
+			if (!re.test(t[0])) continue;
+			print(["#chromosome:", t[0], t[1]].join(" "));
+		}
+		file.close();
+		if (out_4)
+			print("#columns: readID chr1 pos1 chr2 pos2 strand1 strand2 p00 p01 p10 p11");
+		else
+			print("#columns: readID chr1 pos1 chr2 pos2 strand1 strand2 phase1 phase2");
+	}
+
+	file = new File(args[getopt.ind]);
 	while (file.readline(buf) >= 0) {
 		var t = buf.toString().split("\t");
-		var s = [], p = [0.0, 0.0, 0.0, 0.0];
+		var s = [];
 		s[0] = t[0].split(",");
 		s[1] = t[1].split(",");
-		s[0][2] = parseInt(s[0][2]);
-		s[1][2] = parseInt(s[1][2]);
-		p[s[0][2]<<1|s[1][2]] = 1.0;
-		print('.', s[0][0], s[0][1], s[1][0], s[1][1], '+', '+', p.join("\t"));
+		if (out_4) {
+			var p = [0.0, 0.0, 0.0, 0.0];
+			s[0][2] = parseInt(s[0][2]);
+			s[1][2] = parseInt(s[1][2]);
+			p[s[0][2]<<1|s[1][2]] = 1.0;
+			print('.', s[0][0], s[0][1], s[1][0], s[1][1], '.', '.', p.join("\t"));
+		} else {
+			print('.', s[0][0], s[0][1], s[1][0], s[1][1], '.', '.', s[0][2], s[1][2]);
+		}
 	}
 	file.close();
 	buf.destroy();
@@ -676,6 +709,8 @@ function main(args)
 		print("Commands:");
 		print("  sam2seg        convert SAM to segments/pairs");
 		print("  vcf2tsv        convert phased VCF to simple TSV (chr, pos1, al1, al2)");
+		print("  con2pair       convert dip-c .con format to .pairs");
+		print("  pair2ncc       convert .pairs to nuc_dynamics .ncc format");
 		print("  chronly        filter out non-chromosomal segments/pairs");
 		print("  bedflt         filter out segments overlapping a BED");
 		print("  gfeat          compute genomic features");
