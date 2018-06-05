@@ -13,12 +13,12 @@ cd hickit-0.1_x64-linux
 # Impute phases (the input file can also be contacts.seg.gz)
 ./hickit pair -p contacts.pairs.gz | bgzip > impute.pairs.gz
 ./hickit pair -v.1 contacts.pairs.gz > contacts.val  # estimate phasing accuracy by holdout
-# Infer 3D structure (`hickit bin -g` will get called multiple times on the input)
+# Infer 3D structure (`hickit bin -g` will get called multiple times)
 ./fdg-multi.pl impute.pairs.gz | sh
 
 # 2D contact map in PNG (bin size determined by the image width)
 ./hickit image2d -w 800 -o impute.png impute.pairs.gz
-# Compute CpG density (optional; easy with your own scripts, too)
+# Compute CpG density (optional)
 ./hickit.js gfeat -r hs37d5.fa.gz impute.3dg.gz | gzip > impute.cpg.3dg.gz
 # Visualize 3D structure (requiring a graphical card)
 ./hickit-gl view3d impute.cpg.3dg.gz
@@ -62,8 +62,8 @@ command) further requires OpenGL and GLUT and can be compiled with `make gl=1`.
 
 ## <a name="guide"></a>Users' Guide
 
-The "Getting Started" section above presents a brief walkthrough of the hickit
-functionality. The following gives more details and explanations.
+The [Getting Started](#start) section above presents an overview of the key
+hickit functionality. The following gives more details and explanations.
 
 ### <a name="term"></a>Terminologies
 
@@ -166,7 +166,7 @@ hickit pair -p contacts.pairs.gz | bgzip > impute.pairs.gz
 The output is still in the pairs format. The last four columns give the
 pseudo-probability of four possible phases, inferred by an EM-like algorithm. A
 number 0.75 or above is generally considered reliable based on held-out
-validation. You can perform such a validation with
+validation, which can be performed with
 ```sh
 hickit pair -v.1 contacts.pairs.gz > impute.val
 ```
@@ -179,7 +179,7 @@ all contacts and accuracy of all contacts.
 
 ### <a name="infer-3d"></a>Inferring 3D structures (single-cell only)
 
-The `hickit bin -g` command infers 3D structures at one resolution. It is
+The `hickit bin -g` command infers 3D structures at a fixed resolution. It is
 recommended to performs the inferrence multiple times at different scales. The
 `fdg-multi.pl` script simplies this procedure:
 ```sh
@@ -195,7 +195,7 @@ density with
 ```sh
 hickit.js gfeat -r hs37d5.fa impute.3dg.gz | gzip > impute.cpg.3dg.gz
 ```
-For PBMC cells and LCL cells, we typically see low-CpG regions placed at the
+For PBMC and LCL cells, we typically see low-CpG regions placed at the
 periphery, which leads to a red ball (on the top; image produced by the
 `view3d` command of hickit). For these cell types, a problematic inference
 often has large areas of greens (high CpG density; on the bottom).
@@ -204,27 +204,25 @@ often has large areas of greens (high CpG density; on the bottom).
 <img src="doc/pbmc_05-bad.png" alt="PBMC05-bad" />
 
 It should be noted that although cells of the same type are generally
-associated with some features (e.g. low-CpG regions at the periphery), but the
+associated with some features (e.g. low-CpG regions at the periphery), the
 spacial adjacencies of chromosomes are often distinct. Don't be supprised if
 you see the 3D structures of two cells look very different.
 
 ## <a name="related"></a>Related Projects
 
-[Dip-c][dip-c-repo] is the primary pipeline used in the Dip-C paper (to
-appear). Hickit optimizes and simplifies multiple steps. We also learned from
-[nuc\_dynamics][nuc-dyn] on single-cell 3D genome modeling.
+[Dip-c][dip-c-repo] is the primary pipeline used in the Dip-C paper (in
+review) and deeply influenced the development of hickit. Hickit in turn
+optimizes and simplifies multiple steps in the dip-c pipeline. It can reproduce
+several main conclusions in the paper and occasionally improve the structure.
+Hickit also learns from [nuc\_dynamics][nuc-dyn] on single-cell 3D genome
+modeling.
 
 ## <a name="limit"></a>Limitations
 
-* Hickit was originally developed for single-cell diploid Hi-C data. Although
-  some of its functionality potentially works with bulk Hi-C, it is not well
-  tested.
-
-* Hickit implements a fast binning-free TAD calling algorithm, but it has not
-  been carefully tested.
-
-Please raise issues or contact me if you want to try hickit on bulk Hi-C and
-have troubles. I will really appreciate.
+Hickit was originally developed for single-cell diploid Hi-C data. Although
+some of its functionality potentially works with bulk Hi-C, it is not well
+tested. Please raise issues or contact me if you want to try hickit on bulk
+Hi-C and have troubles. I will really appreciate.
 
 [zlib]: http://zlib.net
 [pre-pe]: https://github.com/lh3/pre-pe
