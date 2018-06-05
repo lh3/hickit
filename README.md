@@ -211,7 +211,7 @@ you see the 3D structures of two cells look very different.
 ## <a name="related"></a>Related Projects
 
 [Dip-c][dip-c-repo] is the primary pipeline used in the Dip-C paper (in
-review) and deeply influenced the development of hickit. Hickit in turn
+review) and has deeply influenced the development of hickit. Hickit in turn
 optimizes and simplifies multiple steps in the dip-c pipeline. It can reproduce
 several main conclusions in the paper and occasionally improve the structure.
 Hickit also learns from [nuc\_dynamics][nuc-dyn] on single-cell 3D genome
