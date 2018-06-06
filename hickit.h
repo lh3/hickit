@@ -7,17 +7,11 @@
 
 #define HK_SUB_DELIM '!'
 
-#define HK_OUT_PHASE        0x1
-#define HK_OUT_P4           0x2
-#define HK_OUT_CNT          0x4
-#define HK_OUT_PPROB        0x8
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 struct hk_popt {
-	int flag;
 	int min_dist, max_seg, min_mapq, min_flt_cnt;
 	int min_tad_size;
 	float area_weight;
@@ -44,7 +38,8 @@ struct hk_pair {      // a contact pair
 	uint64_t pos;     // pos1<<32 | pos2
 	int8_t strand[2]; // strand
 	int8_t phase[2];  // phase
-	uint32_t n:31, tad_marked:1;
+	uint32_t n_ctn:31, tad_marked:1;
+	uint32_t n_nei, n_nei_corner;
 	union {
 		float p4[4];
 		float phased_prob;

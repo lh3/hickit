@@ -92,7 +92,7 @@ static khash_t(bin_cnt) *hash_count(struct hk_bmap *m, int32_t n_pairs, const st
 		c.bid[0] = hk_bmap_pos2bid(m, p->chr>>32,      hk_ppos1(p));
 		c.bid[1] = hk_bmap_pos2bid(m, (int32_t)p->chr, hk_ppos2(p));
 		c.n = 1, c.p_sum = p->_.phased_prob;
-		c.max_nei = p->n;
+		c.max_nei = p->n_nei;
 		k = kh_put(bin_cnt, h, c, &absent);
 		if (!absent) {
 			struct cnt_aux *q = &kh_key(h, k);

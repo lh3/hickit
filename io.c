@@ -9,12 +9,15 @@
 KSTREAM_INIT(gzFile, gzread, 0x10000)
 
 char *hk_pair_cols[] = { // when modify this array, append; DON'T insert in the middle
-	"phase0",
-	"phase1",
-	"phase_prob00",
-	"phase_prob01",
-	"phase_prob10",
-	"phase_prob11",
+	"phase0",        // 0
+	"phase1",        // 1
+	"phase_prob00",  // 2
+	"phase_prob01",  // 3
+	"phase_prob10",  // 4
+	"phase_prob11",  // 5
+	"n_neighbors",   // 6
+	"n_contained",   // 7
+	"prob",          // 8
 	NULL
 };
 
@@ -210,6 +213,7 @@ static char **split_fields(char *s, char **fields, int32_t *n_fields_, int32_t *
 
 void hk_map_set_cols(struct hk_map *m, int n_extra_cols, int *extra_cols)
 {
+	m->cols = 0;
 	if (m->segs) {
 		int i, t[2];
 		for (i = 0, t[0] = t[1] = 0; i < m->n_segs; ++i) {
@@ -217,21 +221,19 @@ void hk_map_set_cols(struct hk_map *m, int n_extra_cols, int *extra_cols)
 				t[m->segs[i].phase] = 1;
 			if (t[0] && t[1]) break;
 		}
-		if (i < m->n_segs)
-			m->cols |= HK_OUT_PHASE;
+		if (i < m->n_segs) m->cols |= 3;
 	} else if (m->pairs) {
 		int i, extra_flags, t[2];
 		for (i = 0, extra_flags = 0; i < n_extra_cols; ++i)
 			extra_flags |= 1 << extra_cols[i];
 		if ((extra_flags & 0x3c) == 0x3c)
-			m->cols |= HK_OUT_P4;
+			m->cols |= 0x3c;
 		for (i = 0, t[0] = t[1] = 0; i < m->n_pairs; ++i) {
 			if (m->pairs[i].phase[0] >= 0) t[0] = 1;
 			if (m->pairs[i].phase[1] >= 0) t[1] = 1;
 			if (t[0] && t[1]) break;
 		}
-		if (i < m->n_pairs)
-			m->cols |= HK_OUT_PHASE;
+		if (i < m->n_pairs) m->cols |= 3;
 	}
 }
 
@@ -384,10 +386,11 @@ void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs
 	fprintf(fp, "#shape: upper triangle\n");
 	hk_print_chr(fp, d);
 	fprintf(fp, "#columns: readID chr1 pos1 chr2 pos2 strand1 strand2");
-	if (flag & HK_OUT_PHASE) fprintf(fp, " %s %s", hk_pair_cols[0], hk_pair_cols[1]);
-	if (flag & HK_OUT_P4) fprintf(fp, " %s %s %s %s", hk_pair_cols[2], hk_pair_cols[3], hk_pair_cols[4], hk_pair_cols[5]);
-	if (flag & HK_OUT_CNT) fprintf(fp, " count");
-	if (flag & HK_OUT_PPROB) fprintf(fp, " pprob");
+	if ((flag & 3) == 3) fprintf(fp, " %s %s", hk_pair_cols[0], hk_pair_cols[1]);
+	if ((flag & 0x3c) == 0x3c) fprintf(fp, " %s %s %s %s", hk_pair_cols[2], hk_pair_cols[3], hk_pair_cols[4], hk_pair_cols[5]);
+	else if (flag & 1<<8) fprintf(fp, " %s", hk_pair_cols[8]);
+	if (flag & 1<<6) fprintf(fp, " %s", hk_pair_cols[6]);
+	if (flag & 1<<7) fprintf(fp, " %s", hk_pair_cols[7]);
 	fputc('\n', fp);
 	for (i = 0; i < n_pairs; ++i) {
 		const struct hk_pair *p = &pairs[i];
@@ -395,10 +398,11 @@ void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs
 				d->name[(int32_t)p->chr], (int32_t)p->pos,
 				p->strand[0] > 0? '+' : p->strand[0] < 0? '-' : '.',
 				p->strand[1] > 0? '+' : p->strand[1] < 0? '-' : '.');
-		if (flag & HK_OUT_CNT) fprintf(fp, "\t%d", p->n);
-		if (flag & HK_OUT_PHASE) fprintf(fp, "\t%c\t%c", p->phase[0] < 0? '.' : '0' + p->phase[0], p->phase[1] < 0? '.' : '0' + p->phase[1]);
-		if (flag & HK_OUT_P4) fprintf(fp, "\t%.3f\t%.3f\t%.3f\t%.3f", p->_.p4[0], p->_.p4[1], p->_.p4[2], p->_.p4[3]);
-		if (flag & HK_OUT_PPROB) fprintf(fp, "\t%.4f", p->_.phased_prob);
+		if ((flag & 3) == 3) fprintf(fp, "\t%c\t%c", p->phase[0] < 0? '.' : '0' + p->phase[0], p->phase[1] < 0? '.' : '0' + p->phase[1]);
+		if ((flag & 0x3c) == 0x3c) fprintf(fp, "\t%.3f\t%.3f\t%.3f\t%.3f", p->_.p4[0], p->_.p4[1], p->_.p4[2], p->_.p4[3]);
+		else if (flag & 1<<8) fprintf(fp, "\t%.4f", p->_.phased_prob);
+		if (flag & 1<<6) fprintf(fp, " %d", p->n_nei);
+		if (flag & 1<<7) fprintf(fp, " %d", p->n_ctn);
 		fputc('\n', fp);
 	}
 }

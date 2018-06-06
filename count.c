@@ -41,7 +41,7 @@ void hk_pair_count_1chr(int32_t n_pairs, struct hk_pair *pairs)
 				struct hk_pair *q = &pairs[(int32_t)t->end_i];
 				n = n_ends - t->n_ends - (int32_t)t->n_bridges + 1; // +1 for itself
 				assert(n >= 0);
-				q->n = n;
+				q->n_ctn = n;
 				++n_ends;
 				kmp_free(cnt, mp, t);
 			}
@@ -58,7 +58,7 @@ void hk_pair_count_1chr(int32_t n_pairs, struct hk_pair *pairs)
 		q = &pairs[(int32_t)t->end_i];
 		n = n_ends - t->n_ends - (int32_t)t->n_bridges + 1;
 		assert(n >= 0);
-		q->n = n;
+		q->n_ctn = n;
 		++n_ends;
 		kmp_free(cnt, mp, t);
 	}
@@ -142,6 +142,6 @@ void hk_pair_count_nei(int32_t n_pairs, struct hk_pair *pairs, int radius)
 	radix_sort_nei(a, a + n_pairs);
 	hk_count_nei_core(n_pairs, a, radius);
 	for (i = 0; i < n_pairs; ++i)
-		pairs[a[i].i].n = a[i].n;
+		pairs[a[i].i].n_nei = a[i].n;
 	free(a);
 }

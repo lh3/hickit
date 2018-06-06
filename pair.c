@@ -88,6 +88,7 @@ struct hk_pair *hk_seg2pair(int32_t n_segs, const struct hk_seg *segs, int min_d
 					if (n_pairs == m_pairs)
 						EXPAND(pairs, m_pairs);
 					p = &pairs[n_pairs++];
+					memset(p, 0, sizeof(struct hk_pair));
 					if (t->chr < s->chr || (t->chr == s->chr && t->en < s->st)) {
 						p->chr = (uint64_t)t->chr << 32 | s->chr;
 						p->pos = (uint64_t)t->en  << 32 | s->st;
@@ -99,7 +100,6 @@ struct hk_pair *hk_seg2pair(int32_t n_segs, const struct hk_seg *segs, int min_d
 						p->phase[0]  = s->phase,  p->phase[1]  = t->phase;
 						p->strand[0] = s->strand, p->strand[1] = t->strand;
 					}
-					p->n = 0, p->tad_marked = 0;
 					if (p->strand[0] * p->strand[1] >= 0 && t->chr == s->chr && (int32_t)p->pos - (int32_t)(p->pos>>32) < min_dist) {
 						--n_pairs;
 						continue;
@@ -227,12 +227,12 @@ int32_t hk_pair_filter_isolated(int32_t n_pairs, struct hk_pair *pairs, int32_t 
 	hk_pair_count_nei(n_pairs, pairs, max_radius);
 	cnt = CALLOC(int32_t, n_pairs);
 	for (i = 0; i < n_pairs; ++i)
-		cnt[i] = pairs[i].n;
+		cnt[i] = pairs[i].n_nei;
 	min = ks_ksmall_int32_t(n_pairs, cnt, n_pairs * drop_frac);
 	min = min > min_cnt? min : min_cnt;
 	free(cnt);
 	for (i = k = 0; i < n_pairs; ++i)
-		if (pairs[i].n >= min)
+		if (pairs[i].n_nei >= min)
 			pairs[k++] = pairs[i];
 	if (hk_verbose >= 3)
 		fprintf(stderr, "[M::%s] threshold: %d; filtered out %d/%d isolated pairs\n", __func__, min, n_pairs - k, n_pairs);
@@ -302,7 +302,7 @@ static struct hk_pair *hk_tad_call1(int32_t n_pairs, struct hk_pair *pairs, int 
 			}
 		}
 		a[i].i = a[j].mmax_i;
-		f = a[j].mmax_f + ((int32_t)p->n - min_tad_size - area_weight * avg_density * area);
+		f = a[j].mmax_f + ((int32_t)p->n_ctn - min_tad_size - area_weight * avg_density * area);
 		if (f >= mmax_f)
 			mmax_f = f, mmax_i = i;
 		a[i].mmax_f = mmax_f;
@@ -314,7 +314,7 @@ static struct hk_pair *hk_tad_call1(int32_t n_pairs, struct hk_pair *pairs, int 
 	*n_tads_ = n_tads;
 	tads = CALLOC(struct hk_pair, n_tads);
 	for (i = mmax_i, n_tads = 0i, *in_tads_ = 0; i < n_pairs; i = a[i].i) {
-		*in_tads_ += pairs[i].n;
+		*in_tads_ += pairs[i].n_ctn;
 		tads[n_tads++] = pairs[i];
 	}
 

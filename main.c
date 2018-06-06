@@ -6,7 +6,7 @@
 #include <getopt.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r229"
+#define HICKIT_VERSION "r230"
 
 static struct option long_options_pair[] = {
 	{ "out-seg",        no_argument,       0, 0 }, // 0: output the segment format; mostly for testing
@@ -59,7 +59,7 @@ int main_pair(int argc, char *argv[])
 	struct hk_popt opt;
 	struct hk_map *m = 0;
 	int c, long_idx, ret = 0, is_seg_out = 0, is_impute = 0, is_dedup = 1, is_tad_out = 0, mask_tad = 0, use_spacial = 1;
-	int cnt_radius = 0, ploidy = 2, seed = 1;
+	int cnt_radius = 0, ploidy = 2, seed = 1, flag = 0;
 	float val_frac = -1.0f;
 	krng_t rng;
 
@@ -71,10 +71,10 @@ int main_pair(int argc, char *argv[])
 		else if (c == 'D') is_dedup = 0;
 		else if (c == 'P') ploidy = atoi(optarg);
 		else if (c == 'm') opt.min_flt_cnt = atoi(optarg);
-		else if (c == 't') is_tad_out = 1;
+		else if (c == 't') is_tad_out = 1, flag |= 1<<7;
 		else if (c == 'a') opt.area_weight = atof(optarg);
 		else if (c == 'c') opt.min_tad_size = atoi(optarg);
-		else if (c == 'p') is_impute = 1;
+		else if (c == 'p') is_impute = 1, flag |= 0x3c;
 		else if (c == 'r') opt.max_radius = hk_parse_num(optarg);
 		else if (c == 'n') opt.max_nei = atoi(optarg);
 		else if (c == 'k') opt.n_iter = atoi(optarg);
@@ -84,7 +84,7 @@ int main_pair(int argc, char *argv[])
 		else if (c == 0 && long_idx == 0) is_seg_out = 1; // --out-seg
 		else if (c == 0 && long_idx == 1) hk_verbose = atoi(optarg); // --verbose
 		else if (c == 0 && long_idx == 2) mask_tad = 1; // --tad-flag
-		else if (c == 0 && long_idx == 3) cnt_radius = hk_parse_num(optarg), opt.flag |= HK_OUT_CNT; // --radius
+		else if (c == 0 && long_idx == 3) cnt_radius = hk_parse_num(optarg), flag |= 1<<6; // --radius
 	}
 	assert(ploidy >= 1 && ploidy <= 2);
 	if (argc - optind == 0) {
@@ -109,6 +109,7 @@ int main_pair(int argc, char *argv[])
 		}
 		goto main_return;
 	}
+	m->cols |= flag;
 
 	if (m->pairs == 0 && m->segs)
 		m->pairs = hk_seg2pair(m->n_segs, m->segs, opt.min_dist, opt.max_seg, opt.min_mapq, &m->n_pairs);
@@ -116,11 +117,13 @@ int main_pair(int argc, char *argv[])
 		m->n_pairs = hk_pair_filter_close_legs(m->n_pairs, m->pairs, opt.min_dist);
 	if (is_dedup)
 		m->n_pairs = hk_pair_dedup(m->n_pairs, m->pairs, opt.min_dist);
-	if (opt.min_flt_cnt > 0)
+	if (opt.min_flt_cnt > 0) {
 		m->n_pairs = hk_pair_filter_isolated(m->n_pairs, m->pairs, opt.max_radius, opt.min_flt_cnt, 0.0f);
+		m->cols |= 1<<6;
+	}
 	if (cnt_radius > 0) {
 		hk_pair_count_nei(m->n_pairs, m->pairs, cnt_radius);
-		hk_print_pair(stdout, opt.flag | m->cols, m->d, m->n_pairs, m->pairs);
+		hk_print_pair(stdout, m->cols, m->d, m->n_pairs, m->pairs);
 		goto main_return;
 	}
 	if (is_tad_out || mask_tad) {
@@ -129,7 +132,7 @@ int main_pair(int argc, char *argv[])
 		hk_pair_count_contained(m->n_pairs, m->pairs);
 		tads = hk_pair2tad(m->d, m->n_pairs, m->pairs, opt.min_tad_size, opt.area_weight, &n_tads);
 		if (is_tad_out)
-			hk_print_pair(stdout, opt.flag | m->cols, m->d, n_tads, tads);
+			hk_print_pair(stdout, m->cols, m->d, n_tads, tads);
 		else if (mask_tad)
 			hk_mark_by_tad(n_tads, tads, m->n_pairs, m->pairs);
 		free(tads);
@@ -143,13 +146,12 @@ int main_pair(int argc, char *argv[])
 		if (hk_verbose >= 3)
 			fprintf(stderr, "[M::%s] imputing phases from %d pairs\n", __func__, m->n_pairs);
 		hk_impute(m->n_pairs, m->pairs, opt.max_radius, opt.min_radius, opt.max_nei, opt.n_iter, opt.pseudo_cnt, use_spacial);
-		m->cols |= HK_OUT_P4;
 		if (val_frac > 0.0f && val_frac < 1.0f)
 			hk_validate_roc(m->n_pairs, m->pairs);
 		else
 			hk_print_pair(stdout, m->cols, m->d, m->n_pairs, m->pairs);
 	} else {
-		hk_print_pair(stdout, m->cols | opt.flag, m->d, m->n_pairs, m->pairs);
+		hk_print_pair(stdout, m->cols, m->d, m->n_pairs, m->pairs);
 	}
 
 main_return:
@@ -213,6 +215,10 @@ int main_bin(int argc, char *argv[])
 	assert(m && m->pairs);
 	if (ploidy == 2) {
 		struct hk_map *tmp;
+		if ((m->cols & 0x3c) != 0x3c && hk_verbose >= 1) {
+			fprintf(stderr, "[E::%s] no 'phased_prob*' columns in the input\n", __func__);
+			exit(1);
+		}
 		tmp = hk_pair_split_phase(m, phase_thres);
 		hk_map_destroy(m);
 		m = tmp;
@@ -223,7 +229,7 @@ int main_bin(int argc, char *argv[])
 		m->n_pairs = hk_pair_filter_isolated(m->n_pairs, m->pairs, iso_radius, 1, 0.0f);
 	hk_pair_count_nei(m->n_pairs, m->pairs, flt_radius);
 	if (out_pairs) {
-		hk_print_pair(stdout, HK_OUT_PPROB, m->d, m->n_pairs, m->pairs);
+		hk_print_pair(stdout, 1<<8, m->d, m->n_pairs, m->pairs);
 		hk_map_destroy(m);
 		return 0;
 	}
