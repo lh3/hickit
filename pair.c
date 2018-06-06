@@ -218,6 +218,7 @@ struct hk_map *hk_pair_split_phase(const struct hk_map *m, float phase_thres)
 	free(old2new);
 	free(ploidy_XY);
 	hk_pair_sort(p->n_pairs, p->pairs);
+	p->cols = 1<<8;
 	return p;
 }
 

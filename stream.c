@@ -22,6 +22,8 @@ static struct option long_options[] = {
 	{ "fn-val",         required_argument, 0, 0 },   // 13
 	{ "fn-png",         required_argument, 0, 0 },   // 14
 	{ "png-no-dim",     no_argument,       0, 0 },   // 15
+	{ "split-phase",    no_argument,       0, 0 },   // 16
+	{ "fn-3dg",         required_argument, 0, 0 },   // 17
 	{ 0, 0, 0, 0}
 };
 
@@ -41,6 +43,7 @@ int main_stream(int argc, char *argv[])
 	int c, long_idx, has_options = 0;
 	FILE *fp;
 	struct hk_map *m = 0;
+	struct hk_bmap *b = 0;
 	int n_tads = 0;
 	struct hk_pair *tads = 0;
 	krng_t rng;
@@ -58,10 +61,13 @@ int main_stream(int argc, char *argv[])
 	float imput_val_frac = 0.1f, imput_pseudo_cnt = 0.4f;
 	// PNG generation
 	int png_no_dim = 0;
+	// 3D modeling
+	struct hk_fdg_conf fdg_opt;
 
 	kr_srand_r(&rng, 1); // initialize the RNG with seed 1
+	hk_fdg_conf_init(&fdg_opt);
 
-	while ((c = getopt_long(argc, argv, "i:o:r:m:T:P:n:w:p:", long_options, &long_idx)) >= 0) {
+	while ((c = getopt_long(argc, argv, "i:o:r:m:T:P:n:w:p:b:3", long_options, &long_idx)) >= 0) {
 		has_options = 1;
 		if (c == 'i') {
 			if (m) hk_map_destroy(m);
@@ -83,7 +89,7 @@ int main_stream(int argc, char *argv[])
 			radius = hk_parse_num(optarg);
 			assert(radius > 0);
 		} else if (c == 'n') {
-			max_iter = atoi(optarg);
+			max_iter = fdg_opt.n_iter = atoi(optarg);
 			assert(max_iter > 0);
 		} else if (c == 'p') {
 			phase_thres = atof(optarg);
@@ -108,6 +114,15 @@ int main_stream(int argc, char *argv[])
 				m->n_pairs = hk_pair_filter_isolated(m->n_pairs, m->pairs, radius, min_flt_cnt, 0.0f);
 				m->cols |= 1<<6;
 			}
+		} else if (c == 'b') {
+			int bin_size;
+			if (b) hk_bmap_destroy(b);
+			bin_size = hk_parse_num(optarg);
+			assert(bin_size > 0);
+			b = hk_bmap_gen(m->d, m->n_pairs, m->pairs, bin_size);
+		} else if (c == '3') {
+			assert(b);
+			hk_fdg(&fdg_opt, b, 0, &rng);
 		} else if (c == 0) {
 			if (long_idx == 0) min_leg_dist = hk_parse_num(optarg); // --min-leg-dist
 			else if (long_idx ==  1) max_seg = atoi(optarg); // --max-seg
@@ -140,6 +155,14 @@ int main_stream(int argc, char *argv[])
 				if (fp != stdout) fclose(fp);
 			} else if (long_idx == 14) { // --fn-png
 				hk_pair_image(m->d, m->n_pairs, m->pairs, width, phase_thres, png_no_dim, optarg);
+			} else if (long_idx == 16) { // --split-phase
+				if (ploidy == 2) {
+					struct hk_map *tmp;
+					assert((m->cols & 0x3c) == 0x3c);
+					tmp = hk_pair_split_phase(m, phase_thres);
+					hk_map_destroy(m);
+					m = tmp;
+				}
 			}
 		}
 	}
@@ -151,11 +174,15 @@ int main_stream(int argc, char *argv[])
 		fprintf(fp, "  Actions:\n");
 		fprintf(fp, "    -i FILE             read .pairs or .seg FILE and apply input filters []\n");
 		fprintf(fp, "    -o FILE             output .pairs to FILE []\n");
-		fprintf(fp, "    -m INT              filter out isolated pairs [0]\n");
+		fprintf(fp, "    -m INT              filter pairs if within -r, #neighbors<INT [0]\n");
 		fprintf(fp, "    -T FILE             call TADs and write to FILE []\n");
 		fprintf(fp, "    --impute            impute missing phases\n");
 		fprintf(fp, "    --fn-val=FILE       save validation to FILE []\n");
 		fprintf(fp, "    --fn-png=FILE       write 2D contact map to FILE in PNG []\n");
+		fprintf(fp, "    --split-phase       separate homologous chromosomes\n");
+		fprintf(fp, "    -b NUM              create binning matrix at NUM resolution\n");
+		fprintf(fp, "    -3                  3D modeling\n");
+		fprintf(fp, "    --fn-3dg=FILE       write the 3D model to FILE []\n");
 		fprintf(fp, "  General settings:\n");
 		fprintf(fp, "    --seed=INT          random number seed [1]\n");
 		fprintf(fp, "    -P INT              ploidy: 1 or 2 [%d]\n", ploidy);
@@ -174,11 +201,13 @@ int main_stream(int argc, char *argv[])
 		fprintf(fp, "  Imputation:\n");
 		fprintf(fp, "    --imput-nei=INT     max neighbors [%d]\n", imput_max_nei);
 		fprintf(fp, "    --val-frac=FLOAT    fraction to hold out for validation [%g]\n", imput_val_frac);
+		fprintf(fp, "  3D modeling:\n");
 		return 1;
 	}
 
-	free(tads);
-	hk_map_destroy(m);
+	if (tads) free(tads);
+	if (m) hk_map_destroy(m);
+	if (b) hk_bmap_destroy(b);
 
 	return 0;
 }
