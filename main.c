@@ -147,7 +147,7 @@ int main_pair(int argc, char *argv[])
 			fprintf(stderr, "[M::%s] imputing phases from %d pairs\n", __func__, m->n_pairs);
 		hk_impute(m->n_pairs, m->pairs, opt.max_radius, opt.min_radius, opt.max_nei, opt.n_iter, opt.pseudo_cnt, use_spacial);
 		if (val_frac > 0.0f && val_frac < 1.0f)
-			hk_validate_roc(m->n_pairs, m->pairs);
+			hk_validate_roc(stdout, m->n_pairs, m->pairs);
 		else
 			hk_print_pair(stdout, m->cols, m->d, m->n_pairs, m->pairs);
 	} else {
@@ -325,6 +325,8 @@ int main_view3d(int argc, char *argv[])
 }
 #endif
 
+int main_stream(int argc, char *argv[]);
+
 int main(int argc, char *argv[])
 {
 	int ret = 0;
@@ -341,6 +343,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 	if (strcmp(argv[1], "pair") == 0) ret = main_pair(argc-1, argv+1);
+	else if (strcmp(argv[1], "stream") == 0) ret = main_stream(argc-1, argv+1);
 	else if (strcmp(argv[1], "bin") == 0) ret = main_bin(argc-1, argv+1);
 	else if (strcmp(argv[1], "image2d") == 0) ret = main_image2d(argc-1, argv+1);
 #ifdef HAVE_GL

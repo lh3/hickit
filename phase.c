@@ -243,8 +243,8 @@ void hk_impute(int32_t n_pairs, struct hk_pair *pairs, int max_radius, int min_r
 			if (use_spacial) spacial_adj(p, q->p);
 		}
 		tmp = cur, cur = pre, pre = tmp;
-		if (iter && iter%10 == 0 && hk_verbose >= 3)
-			fprintf(stderr, "[M::%s] %d iterations done\n", __func__, iter+1);
+		if ((iter + 1) % 10 == 0 && hk_verbose >= 3)
+			fprintf(stderr, "[M::%s] %d iterations done\n", __func__, iter + 1);
 	}
 
 	// write back
@@ -284,7 +284,7 @@ void hk_validate_revert(int32_t n_pairs, struct hk_pair *pairs)
 	}
 }
 
-void hk_validate_roc(int32_t n_pairs, struct hk_pair *pairs)
+void hk_validate_roc(FILE *fp, int32_t n_pairs, struct hk_pair *pairs)
 {
 	int32_t i, j, all[2][100], cnt[2][2][100], tot[2], sum_all[2], sum_cnt[2][2];
 	memset(all, 0, sizeof(int32_t) * 100 * 2);
@@ -320,7 +320,7 @@ void hk_validate_roc(int32_t n_pairs, struct hk_pair *pairs)
 	for (i = 99; i > 25; --i) {
 		for (j = 0; j < 2; ++j)
 			sum_all[j] += all[j][i], sum_cnt[j][0] += cnt[j][0][i], sum_cnt[j][1] += cnt[j][1][i];
-		printf("%.2f\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\n", .01f * i,
+		fprintf(fp, "%.2f\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\n", .01f * i,
 			   (float)sum_all[0] / tot[0], (sum_cnt[0][1] + .05) / (sum_cnt[0][0] + sum_cnt[0][1] + 0.1),
 			   (float)sum_all[1] / tot[1], (sum_cnt[1][1] + .05) / (sum_cnt[1][0] + sum_cnt[1][1] + 0.1),
 			   (float)(sum_all[0] + sum_all[1]) / (tot[0] + tot[1]),

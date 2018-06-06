@@ -326,6 +326,9 @@ struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk
 {
 	int32_t i, st, *n_tadss, n_tads = 0, tot_in_tads = 0;
 	struct hk_pair *tads = 0, **tadss;
+	for (i = 0; i < n_pairs; ++i)
+		if (pairs[i].n_ctn > 0) break;
+	if (i == n_pairs) hk_pair_count_contained(n_pairs, pairs);
 	tadss = CALLOC(struct hk_pair*, d->n);
 	n_tadss = CALLOC(int32_t, d->n);
 	for (st = 0, i = 1; i <= n_pairs; ++i) {

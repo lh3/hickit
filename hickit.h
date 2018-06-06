@@ -123,7 +123,7 @@ void hk_mark_by_tad(int32_t n_tads, const struct hk_pair *tads, int32_t n_pairs,
 void hk_impute(int32_t n_pairs, struct hk_pair *pairs, int max_radius, int min_radius, int max_nei, int n_iter, float pseudo_cnt, int use_spacial);
 
 void hk_validate_holdback(krng_t *r, float ratio, int32_t n_pairs, struct hk_pair *pairs);
-void hk_validate_roc(int32_t n_pairs, struct hk_pair *pairs);
+void hk_validate_roc(FILE *fp, int32_t n_pairs, struct hk_pair *pairs);
 
 struct hk_bmap *hk_3dg_read(const char *fn);
 struct hk_bmap *hk_bmap_gen(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int size);

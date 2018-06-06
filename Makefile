@@ -29,7 +29,7 @@ endif
 
 all:$(PROG)
 
-hickit:$(OBJS) main.o
+hickit:$(OBJS) stream.o main.o
 		$(CC) -o $@ $^ $(ASAN_FLAG) $(LIBS_GL) $(LIBS)
 
 clean:
@@ -49,4 +49,5 @@ main.o: hickit.h krng.h
 pair.o: hkpriv.h hickit.h krng.h ksort.h
 phase.o: hkpriv.h hickit.h krng.h ksort.h
 sdict.o: hkpriv.h hickit.h krng.h khash.h
+stream.o: hickit.h krng.h
 view3d.o: hkpriv.h hickit.h krng.h
