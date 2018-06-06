@@ -8,6 +8,16 @@
 #include "kseq.h"
 KSTREAM_INIT(gzFile, gzread, 0x10000)
 
+char *hk_pair_cols[] = { // when modify this array, append; DON'T insert in the middle
+	"phase0",
+	"phase1",
+	"phase_prob00",
+	"phase_prob01",
+	"phase_prob10",
+	"phase_prob11",
+	NULL
+};
+
 struct hk_map *hk_map_init(void)
 {
 	struct hk_map *m;
@@ -87,12 +97,17 @@ static void hk_parse_seg(struct hk_seg *s, struct hk_sdict *d, int32_t frag_id, 
 	}
 }
 
-static void hk_parse_pair(struct hk_pair *p, struct hk_sdict *d, int n_fields, char **fields)
+static void hk_parse_pair(struct hk_pair *p, struct hk_sdict *d, int n_extra_cols, int *extra_cols, int n_fields, char **fields)
 {
 	int32_t c1, c2;
 	int64_t p1, p2;
 	char *q;
-	int j, has_digit;
+	int i, has_digit;
+
+	assert(n_fields == 5 || n_fields >= 7); // TODO: turn this into human readable errors
+	if (n_fields >= 7)
+		assert(n_extra_cols == n_fields - 7);
+
 	c1 = hk_sd_put(d, fields[1], 0);
 	p1 = hk_parse_64(fields[2], &q, &has_digit);
 	assert(p1 >= 0 && has_digit);
@@ -106,12 +121,13 @@ static void hk_parse_pair(struct hk_pair *p, struct hk_sdict *d, int n_fields, c
 	if (n_fields >= 7) {
 		p->strand[0] = *fields[5] == '+'? 1 : *fields[5] == '-'? -1 : 0;
 		p->strand[1] = *fields[6] == '+'? 1 : *fields[6] == '-'? -1 : 0;
-		if (n_fields >= 11) { // FIXME: make this more general
-			for (j = 0; j < 4; ++j)
-				p->_.p4[j] = atof(fields[7 + j]);
-		} else if (n_fields >= 9) {
-			p->phase[0] = *fields[7] == '.'? -1 : (int)*fields[7] - '0';
-			p->phase[1] = *fields[8] == '.'? -1 : (int)*fields[8] - '0';
+		for (i = 0; i < n_extra_cols; ++i) {
+			int c = i + 7, e = extra_cols[i];
+			if (e == 0 || e == 1) { // phase0 or phase1
+				p->phase[e] = *fields[c] == '.'? -1 : (int)*fields[c] - '0';
+			} else if (e >= 2 && e <= 5) { // p00, p01, p10 or p11
+				p->_.p4[e - 2] = atof(fields[c]);
+			}
 		}
 	}
 }
@@ -138,6 +154,42 @@ static void parse_chr(struct hk_sdict *d, char *s)
 	hk_sd_put(d, chr, len);
 }
 
+static int *parse_pair_cols(char *s, int *n_extra_cols_)
+{
+	char *p, *q;
+	int i, k, n_cols, n_extra_cols, *extra_cols = 0;
+
+	for (p = s + 9; isspace(*p) && *p != 0; ++p) {} // skip spaces following ':'
+	if (p == 0) return 0;
+	for (q = p, n_cols = 0; *q; ++q)
+		if (isspace(*q)) ++n_cols;
+	++n_cols;
+	if (n_cols <= 7) return 0; // no custom columns
+
+	*n_extra_cols_ = n_extra_cols = n_cols - 7;
+	extra_cols = CALLOC(int, n_extra_cols);
+	for (q = p, k = 0;; ++q) {
+		if (*q == 0 || isspace(*q)) {
+			if (k >= 7) {
+				for (i = 0; hk_pair_cols[i]; ++i)
+					if (strncmp(p, hk_pair_cols[i], q - p) == 0)
+						break;
+				if (hk_pair_cols[i] == 0 && hk_verbose >= 2) {
+					int c = *q;
+					*q = 0;
+					fprintf(stderr, "[W::%s] unrecognized column \"%s\" will be ignored\n", __func__, p);
+					*q = c;
+				}
+				extra_cols[k - 7] = hk_pair_cols[i]? i : -1;
+			}
+			++k;
+			if (*q == 0) break;
+			p = q + 1;
+		}
+	}
+	return extra_cols;
+}
+
 static char **split_fields(char *s, char **fields, int32_t *n_fields_, int32_t *m_fields_)
 {
 	int32_t n_fields, m_fields = *m_fields_;
@@ -161,7 +213,7 @@ struct hk_map *hk_map_read(const char *fn)
 	gzFile fp;
 	kstring_t str = {0,0,0};
 	kstream_t *ks;
-	int dret;
+	int dret, *extra_cols = 0, n_extra_cols = 0;
 	int32_t m_segs = 0, m_pairs = 0, n_fields = 0, m_fields = 0;
 	int64_t n_data_rows = 0;
 	char **fields = 0;
@@ -174,8 +226,12 @@ struct hk_map *hk_map_read(const char *fn)
 	while (ks_getuntil(ks, KS_SEP_LINE, &str, &dret) >= 0) {
 		int32_t k, n_segs = 0;
 		if (str.l && str.s[0] != '#') ++n_data_rows;
-		if (n_data_rows == 0 && str.l >= 12 + 3 && strncmp(str.s, "#chromosome:", 12) == 0)
-			parse_chr(m->d, str.s);
+		if (n_data_rows == 0) {
+			if (str.l >= 12 + 3 && strncmp(str.s, "#chromosome:", 12) == 0)
+				parse_chr(m->d, str.s);
+			else if (str.l >= 9 && strncmp(str.s, "#columns:", 9) == 0)
+				extra_cols = parse_pair_cols(str.s, &n_extra_cols);
+		}
 		if (str.s[0] == '#') continue;
 		fields = split_fields(str.s, fields, &n_fields, &m_fields);
 		if (n_fields < 5) goto parse_seg;
@@ -184,7 +240,7 @@ struct hk_map *hk_map_read(const char *fn)
 			goto parse_seg;
 		if (m->n_pairs == m_pairs)
 			EXPAND(m->pairs, m_pairs);
-		hk_parse_pair(&m->pairs[m->n_pairs++], m->d, n_fields, fields);
+		hk_parse_pair(&m->pairs[m->n_pairs++], m->d, n_extra_cols, extra_cols, n_fields, fields);
 		continue;
 parse_seg:
 		for (k = 1; k < n_fields; ++k) {
@@ -195,6 +251,8 @@ parse_seg:
 		}
 		if (n_segs > 0) ++m->n_frags;
 	}
+	free(fields);
+	free(extra_cols);
 	free(str.s);
 	ks_destroy(ks);
 	gzclose(fp);
@@ -298,7 +356,7 @@ void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs
 	hk_print_chr(fp, d);
 	fprintf(fp, "#columns: readID chr1 pos1 chr2 pos2 strand1 strand2");
 	if (flag & HK_OUT_CNT) fprintf(fp, " count");
-	if (flag & HK_OUT_P4) fprintf(fp, " p00 p01 p10 p11");
+	if (flag & HK_OUT_P4) fprintf(fp, " phase_prob00 phase_prob01 phase_prob10 phase_prob11");
 	if (flag & HK_OUT_PHASE) fprintf(fp, " phase1 phase2");
 	if (flag & HK_OUT_PPROB) fprintf(fp, " pprob");
 	fputc('\n', fp);
