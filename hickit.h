@@ -85,6 +85,7 @@ struct hk_fdg_conf {
 	float target_radius;
 	int n_iter;
 	float step;
+	float coef_moment;
 	float max_f;
 
 	float k_rel_rep;

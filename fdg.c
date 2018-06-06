@@ -70,11 +70,6 @@ static inline void fv3_scale(float a, fvec3_t x)
 	x[0] *= a, x[1] *= a, x[2] *= a;
 }
 
-static inline void fv3_axpy(float a, const fvec3_t x, fvec3_t y)
-{
-	y[0] += a * x[0], y[1] += a * x[1], y[2] += a * x[2];
-}
-
 /******************
  * FDG parameters *
  ******************/
@@ -92,6 +87,7 @@ void hk_fdg_conf_init(struct hk_fdg_conf *opt)
 	opt->target_radius = 10.0f;
 	opt->n_iter = 1000;
 	opt->step = 0.02f;
+	opt->coef_moment = 0.9f;
 	opt->max_f = 50.0f;
 
 	opt->k_rel_rep = 0.05f;
@@ -229,7 +225,7 @@ static inline float update_force(const struct hk_fdg_conf *conf, fvec3_t *x, int
 	return energy;
 }
 
-static double hk_fdg1(const struct hk_fdg_conf *opt, struct hk_bmap *m, khash_t(set64) *h, float unit, int max_nei, int mid_dist, float rel_rep_k, int iter)
+static double hk_fdg1(const struct hk_fdg_conf *opt, struct hk_bmap *m, khash_t(set64) *h, float unit, int max_nei, int mid_dist, float rel_rep_k, int iter, fvec3_t *x0)
 {
 	const double a_third = 1.0 / 3.0;
 	int32_t i, j, n_y, left, n_bb = 0, n_rep = 0, n_con = 0;
@@ -323,7 +319,11 @@ static double hk_fdg1(const struct hk_fdg_conf *opt, struct hk_bmap *m, khash_t(
 		if (t > opt->max_f)
 			for (j = 0; j < 3; ++j)
 				f[i][j] = f[i][j] / t * opt->max_f;
-		fv3_axpy(step, f[i], m->x[i]);
+		for (j = 0; j < 3; ++j) {
+			float t = x[i][j];
+			x[i][j] += opt->coef_moment * (t - x0[i][j]) + f[i][j] * step;
+			x0[i][j] = t;
+		}
 	}
 
 	// free
@@ -344,7 +344,7 @@ void hk_fdg(const struct hk_fdg_conf *opt, struct hk_bmap *m, const struct hk_bm
 	const float alpha = 10.0f, turning = 0.333f;
 	int32_t iter, i, j, absent, max_nei, *tmp, mid_dist;
 	khash_t(set64) *h;
-	fvec3_t *best_x;
+	fvec3_t *best_x, *x0;
 	double best = 1e30;
 	float unit;
 
@@ -386,12 +386,14 @@ void hk_fdg(const struct hk_fdg_conf *opt, struct hk_bmap *m, const struct hk_bm
 
 	// FDG
 	best_x = CALLOC(fvec3_t, m->n_beads);
+	x0 = CALLOC(fvec3_t, m->n_beads);
+	memcpy(x0, m->x, m->n_beads * sizeof(fvec3_t));
 	for (iter = 0; iter < opt->n_iter; ++iter) {
 		double s, rel_rep_k;
 		rel_rep_k = (double)(iter + 1) / opt->n_iter;
 		rel_rep_k = 1.0 / (1.0 + exp(-alpha * (rel_rep_k - turning)));
 		//rel_rep_k = 1.0;
-		s = hk_fdg1(opt, m, h, unit, max_nei, mid_dist, rel_rep_k, iter);
+		s = hk_fdg1(opt, m, h, unit, max_nei, mid_dist, rel_rep_k, iter, x0);
 		if (s < best) {
 			memcpy(best_x, m->x, sizeof(fvec3_t) * m->n_beads);
 			best = s;
@@ -399,6 +401,7 @@ void hk_fdg(const struct hk_fdg_conf *opt, struct hk_bmap *m, const struct hk_bm
 	}
 	kh_destroy(set64, h);
 	memcpy(m->x, best_x, sizeof(fvec3_t) * m->n_beads);
+	free(x0);
 	free(best_x);
 }
 
