@@ -52,6 +52,7 @@ struct hk_pair {      // a contact pair
 };
 
 struct hk_map {
+	uint32_t cols;
 	struct hk_sdict *d;
 	int32_t n_frags, n_segs, n_pairs;
 	struct hk_seg  *segs;

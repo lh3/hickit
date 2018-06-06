@@ -6,18 +6,13 @@
 #include <getopt.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r228"
+#define HICKIT_VERSION "r229"
 
 static struct option long_options_pair[] = {
-	{ "out-phase",      no_argument,       0, 0 }, // 0
-	{ "out-seg",        no_argument,       0, 0 }, // 1: output the segment format; mostly for testing
-	{ "seed",           required_argument, 0, 'S' },
-	{ "no-dedup",       no_argument,       0, 'D' },
-	{ "verbose",        required_argument, 0, 0 },
-	{ "select-phased",  no_argument,       0, 0 }, // 5: unused!!!
-	{ "no-spacial",     no_argument,       0, 'u' },
-	{ "tad-flag",       no_argument,       0, 0 }, // 7
-	{ "radius",         required_argument, 0, 0 }, // 8
+	{ "out-seg",        no_argument,       0, 0 }, // 0: output the segment format; mostly for testing
+	{ "verbose",        required_argument, 0, 0 }, // 1
+	{ "tad-flag",       no_argument,       0, 0 }, // 2
+	{ "radius",         required_argument, 0, 0 }, // 3
 	{ 0, 0, 0, 0}
 };
 
@@ -86,11 +81,10 @@ int main_pair(int argc, char *argv[])
 		else if (c == 'v') val_frac = atof(optarg), is_impute = 1;
 		else if (c == 'u') use_spacial = 0;
 		else if (c == 'S') seed = atoi(optarg);
-		else if (c == 0 && long_idx == 0) opt.flag |= HK_OUT_PHASE;
-		else if (c == 0 && long_idx == 1) is_seg_out = 1;
-		else if (c == 0 && long_idx == 4) hk_verbose = atoi(optarg); // --verbose
-		else if (c == 0 && long_idx == 7) mask_tad = 1; // --tad-flag
-		else if (c == 0 && long_idx == 8) cnt_radius = hk_parse_num(optarg), opt.flag |= HK_OUT_CNT; // --radius
+		else if (c == 0 && long_idx == 0) is_seg_out = 1; // --out-seg
+		else if (c == 0 && long_idx == 1) hk_verbose = atoi(optarg); // --verbose
+		else if (c == 0 && long_idx == 2) mask_tad = 1; // --tad-flag
+		else if (c == 0 && long_idx == 3) cnt_radius = hk_parse_num(optarg), opt.flag |= HK_OUT_CNT; // --radius
 	}
 	assert(ploidy >= 1 && ploidy <= 2);
 	if (argc - optind == 0) {
@@ -126,7 +120,7 @@ int main_pair(int argc, char *argv[])
 		m->n_pairs = hk_pair_filter_isolated(m->n_pairs, m->pairs, opt.max_radius, opt.min_flt_cnt, 0.0f);
 	if (cnt_radius > 0) {
 		hk_pair_count_nei(m->n_pairs, m->pairs, cnt_radius);
-		hk_print_pair(stdout, opt.flag, m->d, m->n_pairs, m->pairs);
+		hk_print_pair(stdout, opt.flag | m->cols, m->d, m->n_pairs, m->pairs);
 		goto main_return;
 	}
 	if (is_tad_out || mask_tad) {
@@ -135,7 +129,7 @@ int main_pair(int argc, char *argv[])
 		hk_pair_count_contained(m->n_pairs, m->pairs);
 		tads = hk_pair2tad(m->d, m->n_pairs, m->pairs, opt.min_tad_size, opt.area_weight, &n_tads);
 		if (is_tad_out)
-			hk_print_pair(stdout, opt.flag, m->d, n_tads, tads);
+			hk_print_pair(stdout, opt.flag | m->cols, m->d, n_tads, tads);
 		else if (mask_tad)
 			hk_mark_by_tad(n_tads, tads, m->n_pairs, m->pairs);
 		free(tads);
@@ -149,12 +143,13 @@ int main_pair(int argc, char *argv[])
 		if (hk_verbose >= 3)
 			fprintf(stderr, "[M::%s] imputing phases from %d pairs\n", __func__, m->n_pairs);
 		hk_impute(m->n_pairs, m->pairs, opt.max_radius, opt.min_radius, opt.max_nei, opt.n_iter, opt.pseudo_cnt, use_spacial);
+		m->cols |= HK_OUT_P4;
 		if (val_frac > 0.0f && val_frac < 1.0f)
 			hk_validate_roc(m->n_pairs, m->pairs);
 		else
-			hk_print_pair(stdout, HK_OUT_P4, m->d, m->n_pairs, m->pairs);
+			hk_print_pair(stdout, m->cols, m->d, m->n_pairs, m->pairs);
 	} else {
-		hk_print_pair(stdout, opt.flag, m->d, m->n_pairs, m->pairs);
+		hk_print_pair(stdout, m->cols | opt.flag, m->d, m->n_pairs, m->pairs);
 	}
 
 main_return:

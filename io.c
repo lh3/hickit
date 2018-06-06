@@ -208,6 +208,33 @@ static char **split_fields(char *s, char **fields, int32_t *n_fields_, int32_t *
 	return fields;
 }
 
+void hk_map_set_cols(struct hk_map *m, int n_extra_cols, int *extra_cols)
+{
+	if (m->segs) {
+		int i, t[2];
+		for (i = 0, t[0] = t[1] = 0; i < m->n_segs; ++i) {
+			if (m->segs[i].phase >= 0 && m->segs[i].phase <= 1)
+				t[m->segs[i].phase] = 1;
+			if (t[0] && t[1]) break;
+		}
+		if (i < m->n_segs)
+			m->cols |= HK_OUT_PHASE;
+	} else if (m->pairs) {
+		int i, extra_flags, t[2];
+		for (i = 0, extra_flags = 0; i < n_extra_cols; ++i)
+			extra_flags |= 1 << extra_cols[i];
+		if ((extra_flags & 0x3c) == 0x3c)
+			m->cols |= HK_OUT_P4;
+		for (i = 0, t[0] = t[1] = 0; i < m->n_pairs; ++i) {
+			if (m->pairs[i].phase[0] >= 0) t[0] = 1;
+			if (m->pairs[i].phase[1] >= 0) t[1] = 1;
+			if (t[0] && t[1]) break;
+		}
+		if (i < m->n_pairs)
+			m->cols |= HK_OUT_PHASE;
+	}
+}
+
 struct hk_map *hk_map_read(const char *fn)
 {
 	gzFile fp;
@@ -251,11 +278,13 @@ parse_seg:
 		}
 		if (n_segs > 0) ++m->n_frags;
 	}
+	hk_map_set_cols(m, n_extra_cols, extra_cols);
 	free(fields);
 	free(extra_cols);
 	free(str.s);
 	ks_destroy(ks);
 	gzclose(fp);
+
 	if (m->pairs && !hk_pair_is_sorted(m->n_pairs, m->pairs))
 		hk_pair_sort(m->n_pairs, m->pairs);
 	if (hk_verbose >= 3) {
@@ -355,9 +384,9 @@ void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs
 	fprintf(fp, "#shape: upper triangle\n");
 	hk_print_chr(fp, d);
 	fprintf(fp, "#columns: readID chr1 pos1 chr2 pos2 strand1 strand2");
+	if (flag & HK_OUT_PHASE) fprintf(fp, " %s %s", hk_pair_cols[0], hk_pair_cols[1]);
+	if (flag & HK_OUT_P4) fprintf(fp, " %s %s %s %s", hk_pair_cols[2], hk_pair_cols[3], hk_pair_cols[4], hk_pair_cols[5]);
 	if (flag & HK_OUT_CNT) fprintf(fp, " count");
-	if (flag & HK_OUT_P4) fprintf(fp, " phase_prob00 phase_prob01 phase_prob10 phase_prob11");
-	if (flag & HK_OUT_PHASE) fprintf(fp, " phase1 phase2");
 	if (flag & HK_OUT_PPROB) fprintf(fp, " pprob");
 	fputc('\n', fp);
 	for (i = 0; i < n_pairs; ++i) {
@@ -367,8 +396,8 @@ void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs
 				p->strand[0] > 0? '+' : p->strand[0] < 0? '-' : '.',
 				p->strand[1] > 0? '+' : p->strand[1] < 0? '-' : '.');
 		if (flag & HK_OUT_CNT) fprintf(fp, "\t%d", p->n);
-		if (flag & HK_OUT_P4) fprintf(fp, "\t%.3f\t%.3f\t%.3f\t%.3f", p->_.p4[0], p->_.p4[1], p->_.p4[2], p->_.p4[3]);
 		if (flag & HK_OUT_PHASE) fprintf(fp, "\t%c\t%c", p->phase[0] < 0? '.' : '0' + p->phase[0], p->phase[1] < 0? '.' : '0' + p->phase[1]);
+		if (flag & HK_OUT_P4) fprintf(fp, "\t%.3f\t%.3f\t%.3f\t%.3f", p->_.p4[0], p->_.p4[1], p->_.p4[2], p->_.p4[3]);
 		if (flag & HK_OUT_PPROB) fprintf(fp, "\t%.4f", p->_.phased_prob);
 		fputc('\n', fp);
 	}
