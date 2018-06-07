@@ -127,6 +127,7 @@ void hk_validate_roc(FILE *fp, int32_t n_pairs, struct hk_pair *pairs);
 
 struct hk_bmap *hk_3dg_read(const char *fn);
 struct hk_bmap *hk_bmap_gen(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int size);
+struct hk_bmap *hk_bmap_bead_dup(const struct hk_bmap *m0);
 int32_t hk_pair_flt_3d(const struct hk_bmap *m, int32_t n_pairs, struct hk_pair *pairs, float max_factor);
 void hk_bmap_destroy(struct hk_bmap *m);
 

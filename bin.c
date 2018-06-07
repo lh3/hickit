@@ -172,6 +172,22 @@ struct hk_bmap *hk_bmap_gen(const struct hk_sdict *d, int32_t n_pairs, const str
 	return m;
 }
 
+struct hk_bmap *hk_bmap_bead_dup(const struct hk_bmap *m0)
+{
+	struct hk_bmap *m;
+	m = CALLOC(struct hk_bmap, 1);
+	m->d = hk_sd_dup(m0->d);
+	m->n_beads = m0->n_beads;
+	m->beads = CALLOC(struct hk_bead, m->n_beads);
+	memcpy(m->beads, m0->beads, m->n_beads * sizeof(struct hk_bead));
+	hk_bmap_set_offcnt(m);
+	if (m0->x) {
+		m->x = CALLOC(fvec3_t, m->n_beads);
+		memcpy(m->x, m0->x, m->n_beads * sizeof(fvec3_t));
+	}
+	return m;
+}
+
 void hk_bmap_destroy(struct hk_bmap *m)
 {
 	if (m->d) hk_sd_destroy(m->d);
