@@ -21,7 +21,7 @@ cd hickit-0.1_x64-linux
 # Compute CpG density (optional)
 ./hickit.js gfeat -r hs37d5.fa.gz imput.3dg | gzip > imput.cpg.3dg.gz
 # Visualize 3D structure (requiring a graphical card)
-./hickit-gl view3d imput.cpg.3dg.gz
+./hickit-gl -i imput.cpg.3dg.gz --view
 ```
 
 ## Table of Contents
@@ -223,7 +223,7 @@ hickit.js gfeat -r hs37d5.fa impute.3dg.gz | gzip > impute.cpg.3dg.gz
 ```
 For PBMC and LCL cells, we typically see low-CpG regions placed at the
 periphery, which leads to a magenta ball (on the left; image produced by the
-`view3d` command of hickit). For these cell types, a problematic inference
+`--view` action of hickit). For these cell types, a problematic inference
 often has large areas of greens (high CpG density; on the bottom).
 
 <img src="doc/pbmc_05.png" alt="pbmc_05" />
