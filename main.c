@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r237"
+#define HICKIT_VERSION "r239"
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -30,7 +30,7 @@ static struct option long_options[] = {
 	{ "keep-dup",       no_argument,       0, 0 },   // 9
 	{ "imput-nei",      required_argument, 0, 0 },   // 10
 	{ "val-frac",       required_argument, 0, 0 },   // 11
-	{ "impute",         no_argument,       0, 0 },   // 12
+	{ "version",        no_argument,       0, 0 },   // 12
 	{ "out-val",        required_argument, 0, 0 },   // 13
 	{ "out-png",        required_argument, 0, 0 },   // 14
 	{ "png-no-dim",     no_argument,       0, 0 },   // 15
@@ -115,6 +115,9 @@ int main(int argc, char *argv[])
 		} else if (c == 'w') {
 			width = atoi(optarg);
 			assert(width > 0);
+		} else if (c == 'u') {
+			hk_impute(m->n_pairs, m->pairs, radius, imput_min_radius, imput_max_nei, max_iter, imput_pseudo_cnt, 1);
+			m->cols |= 0x3c;
 		} else if (c == 'T') {
 			assert(m && m->pairs);
 			tads = hk_pair2tad(m->d, m->n_pairs, m->pairs, tad_min_size, tad_area_weight, &n_tads);
@@ -198,9 +201,8 @@ int main(int argc, char *argv[])
 				assert(fp);
 				hk_print_seg(fp, m->d, m->n_segs, m->segs);
 				if (fp != stdout) fclose(fp);
-			} else if (long_idx == 12) { // --impute
-				m->cols |= 0x3c;
-				hk_impute(m->n_pairs, m->pairs, radius, imput_min_radius, imput_max_nei, max_iter, imput_pseudo_cnt, 1);
+			} else if (long_idx == 12) { // --version
+				printf("%s\n", HICKIT_VERSION);
 			} else if (long_idx == 13) { // --out-val
 				fp = strcmp(optarg, "-") == 0? stdout : fopen(optarg, "w");
 				assert(fp);
@@ -236,7 +238,7 @@ int main(int argc, char *argv[])
 		fprintf(fp, "    -O FILE             write the 3D model to FILE []\n");
 		fprintf(fp, "    -c INT              filter pairs if within -r, #neighbors<INT []\n");
 		fprintf(fp, "    -T FILE             call TADs and write to FILE []\n");
-		fprintf(fp, "    --impute            impute missing phases\n");
+		fprintf(fp, "    -u                  impute missing phases\n");
 		fprintf(fp, "    --out-val=FILE      save validation to FILE []\n");
 		fprintf(fp, "    --out-png=FILE      write 2D contact map to FILE in PNG []\n");
 		fprintf(fp, "    -S                  separate homologous chromosomes\n");
@@ -275,7 +277,7 @@ int main(int argc, char *argv[])
 #endif
 		fprintf(fp, "\n");
 		fprintf(fp, "Examples:\n");
-		fprintf(fp, "  hickit -i in.raw.pairs.gz --impute -o - | bgzip > imput.pairs.gz\n");
+		fprintf(fp, "  hickit -i in.raw.pairs.gz -u -o - | bgzip > imput.pairs.gz\n");
 		fprintf(fp, "  hickit -i imput.pairs -Sc5 -r1m -c1 -r10m -c0 -n1500 -b4m -b1m -n1000 -b200k -D5 -n750 -b50k -D5 -e.05 -b20k -O out.3dg\n");
 		return 1;
 	}
