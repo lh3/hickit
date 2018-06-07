@@ -276,7 +276,7 @@ int main(int argc, char *argv[])
 		fprintf(fp, "\n");
 		fprintf(fp, "Examples:\n");
 		fprintf(fp, "  hickit -i in.raw.pairs.gz --impute -o - | bgzip > imput.pairs.gz\n");
-		fprintf(fp, "  hickit -i imput.pairs -Sc5 -r1m -c1 -r10m -c0 -n1500 -b4m -b1m -n1000 -b200k -D5 -n750 -b50k -D5 -b20k -O out.3dg\n");
+		fprintf(fp, "  hickit -i imput.pairs -Sc5 -r1m -c1 -r10m -c0 -n1500 -b4m -b1m -n1000 -b200k -D5 -n750 -b50k -D5 -e.05 -b20k -O out.3dg\n");
 		return 1;
 	}
 
