@@ -3,6 +3,13 @@
 #include <math.h>
 #include "hkpriv.h"
 
+void hk_v3d_opt_init(struct hk_v3d_opt *opt)
+{
+	opt->width = 780;
+	opt->line_width = 2.0f;
+	opt->bead_radius = 0.015f;
+}
+
 #ifdef HAVE_GL
 #ifdef __APPLE__
 #include <GLUT/glut.h>
@@ -220,13 +227,6 @@ static void init_gl(void)
 
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
-}
-
-void hk_v3d_opt_init(struct hk_v3d_opt *opt)
-{
-	opt->width = 780;
-	opt->line_width = 2.0f;
-	opt->bead_radius = 0.015f;
 }
 
 void hk_v3d_view(struct hk_bmap *m, const struct hk_v3d_opt *opt, int color_seed, const char *hl)
