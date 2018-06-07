@@ -22,8 +22,7 @@ static struct option long_options[] = {
 	{ "out-val",        required_argument, 0, 0 },   // 13
 	{ "out-png",        required_argument, 0, 0 },   // 14
 	{ "png-no-dim",     no_argument,       0, 0 },   // 15
-	{ "split-phase",    no_argument,       0, 0 },   // 16
-	{ "view",           no_argument,       0, 0 },   // 17
+	{ "view",           no_argument,       0, 0 },   // 16
 	{ 0, 0, 0, 0}
 };
 
@@ -43,7 +42,7 @@ int main_stream(int argc, char *argv[])
 	int c, long_idx, has_options = 0;
 	FILE *fp;
 	struct hk_map *m = 0;
-	struct hk_bmap *b = 0, *d3 = 0;
+	struct hk_bmap *d3 = 0;
 	int n_tads = 0;
 	struct hk_pair *tads = 0;
 	krng_t rng;
@@ -71,7 +70,7 @@ int main_stream(int argc, char *argv[])
 	hk_fdg_conf_init(&fdg_opt);
 	hk_v3d_opt_init(&v3d_opt);
 
-	while ((c = getopt_long(argc, argv, "i:o:r:c:T:P:n:w:p:b:e:k:R:as:I:O:D:", long_options, &long_idx)) >= 0) {
+	while ((c = getopt_long(argc, argv, "i:o:r:c:T:P:n:w:p:b:e:k:R:as:I:O:D:S", long_options, &long_idx)) >= 0) {
 		has_options = 1;
 		if (c == 'i') {
 			if (m) hk_map_destroy(m);
@@ -114,10 +113,11 @@ int main_stream(int argc, char *argv[])
 		} else if (c == 'c') {
 			int min_flt_cnt;
 			min_flt_cnt = atoi(optarg);
-			if (min_flt_cnt > 0) {
+			if (min_flt_cnt > 0)
 				m->n_pairs = hk_pair_filter_isolated(m->n_pairs, m->pairs, radius, min_flt_cnt, 0.0f);
-				m->cols |= 1<<6;
-			}
+			else
+				hk_pair_count_nei(m->n_pairs, m->pairs, radius);
+			m->cols |= 1<<6;
 		} else if (c == 'a') {
 			tad_area_weight = atof(optarg);
 			assert(tad_area_weight > 0.0f);
@@ -128,7 +128,7 @@ int main_stream(int argc, char *argv[])
 		} else if (c == 'O') {
 			fp = strcmp(optarg, "-") == 0? stdout : fopen(optarg, "w");
 			assert(fp);
-			hk_print_3dg(fp, b);
+			hk_print_3dg(fp, d3);
 			if (fp != stdout) fclose(fp);
 		} else if (c == 'D') {
 			if (d3) {
@@ -137,17 +137,25 @@ int main_stream(int argc, char *argv[])
 				assert(max_dist > 1.0f);
 				m->n_pairs = hk_pair_flt_3d(d3, m->n_pairs, m->pairs, max_dist);
 			}
+		} else if (c == 'S') {
+			if (ploidy == 2) {
+				struct hk_map *tmp;
+				assert((m->cols & 0x3c) == 0x3c);
+				tmp = hk_pair_split_phase(m, phase_thres);
+				hk_map_destroy(m);
+				m = tmp;
+			}
 		} else if (c == 'b') {
 			int bin_size;
-			if (b) {
-				if (d3) hk_bmap_destroy(d3);
-				d3 = hk_bmap_bead_dup(b);
-				hk_bmap_destroy(b);
-			}
+			struct hk_bmap *b;
 			bin_size = hk_parse_num(optarg);
 			assert(bin_size > 0);
+			if (!(m->cols & 1<<6)) hk_pair_count_nei(m->n_pairs, m->pairs, radius);
 			b = hk_bmap_gen(m->d, m->n_pairs, m->pairs, bin_size);
 			hk_fdg(&fdg_opt, b, d3, &rng);
+			if (d3) hk_bmap_destroy(d3);
+			d3 = hk_bmap_bead_dup(b);
+			hk_bmap_destroy(b);
 		} else if (c == 'e') {
 			fdg_opt.step = atof(optarg);
 			assert(fdg_opt.step > 0.0f && fdg_opt.step < 1.0f);
@@ -193,16 +201,8 @@ int main_stream(int argc, char *argv[])
 				if (fp != stdout) fclose(fp);
 			} else if (long_idx == 14) { // --out-png
 				hk_pair_image(m->d, m->n_pairs, m->pairs, width, phase_thres, png_no_dim, optarg);
-			} else if (long_idx == 16) { // --split-phase
-				if (ploidy == 2) {
-					struct hk_map *tmp;
-					assert((m->cols & 0x3c) == 0x3c);
-					tmp = hk_pair_split_phase(m, phase_thres);
-					hk_map_destroy(m);
-					m = tmp;
-				}
 #ifdef HAVE_GL
-			} else if (long_idx == 17) { // --view
+			} else if (long_idx == 16) { // --view
 				int fake_argc = 1;
 				char *fake_argv[1];
 				fake_argv[0] = "hickit";
@@ -227,9 +227,9 @@ int main_stream(int argc, char *argv[])
 		fprintf(fp, "    --impute            impute missing phases\n");
 		fprintf(fp, "    --out-val=FILE      save validation to FILE []\n");
 		fprintf(fp, "    --out-png=FILE      write 2D contact map to FILE in PNG []\n");
-		fprintf(fp, "    --split-phase       separate homologous chromosomes\n");
+		fprintf(fp, "    -S                  separate homologous chromosomes\n");
 		fprintf(fp, "    -b NUM              3D modeling at NUM resolution []\n");
-		fprintf(fp, "    --3d-max-dist=FLOAT filter contacts with large 3D distance []\n");
+		fprintf(fp, "    -D FLOAT            filter contacts with large 3D distance []\n");
 #ifdef HAVE_GL
 		fprintf(fp, "    --view              3D view\n");
 #endif
@@ -264,9 +264,8 @@ int main_stream(int argc, char *argv[])
 		return 1;
 	}
 
-	if (d3) hk_bmap_destroy(d3);
-	if (b) hk_bmap_destroy(b);
 	if (tads) free(tads);
+	if (d3) hk_bmap_destroy(d3);
 	if (m) hk_map_destroy(m);
 
 	return 0;
