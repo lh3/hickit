@@ -86,7 +86,7 @@ void hk_fdg_conf_init(struct hk_fdg_conf *opt)
 {
 	opt->target_radius = 10.0f;
 	opt->n_iter = 1000;
-	opt->step = 0.03f;
+	opt->step = 0.01f;
 	opt->coef_moment = 0.9f;
 	opt->max_f = 50.0f;
 
@@ -234,7 +234,7 @@ static double hk_fdg1(const struct hk_fdg_conf *opt, struct hk_bmap *m, khash_t(
 	double sum = 0.0, e_bb = 0.0, e_con = 0.0, e_rep = 0.0, d_bb = 0.0, d_con = 0.0, d_rep = 0.0;
 	float step, rep_radius, dist;
 
-	step = opt->step * unit;
+	step = opt->step * unit * pow(m->n_beads / 1500.0, a_third);
 	f = CALLOC(fvec3_t, m->n_beads);
 
 	// apply attractive forces
