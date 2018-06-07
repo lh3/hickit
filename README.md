@@ -8,20 +8,20 @@ cd hickit-0.1_x64-linux
 ./seqtk mergepe read1.fq.gz read2.fq.gz | ./pre-dip-c - | bwa mem -p hs37d5.fa - | gzip > aln.sam.gz
 ./k8 hickit.js vcf2tsv phased.vcf > phased_SNP.tsv   # extract phased SNPs from VCF
 ./k8 hickit.js sam2seg -v phased_SNP.tsv aln.sam.gz | ./k8 hickit.js chronly - | gzip > contacts.seg.gz
-./hickit pair --out-phase -Dd0 contacts.seg.gz | bgzip > contacts.pairs.gz  # optional
+./hickit -i contacts.seg.gz -o - | bgzip > contacts.pairs.gz  # optional
 
-# Impute phases (the input file can also be contacts.seg.gz)
-./hickit pair -p contacts.pairs.gz | bgzip > impute.pairs.gz
-./hickit pair -v.1 contacts.pairs.gz > contacts.val  # estimate phasing accuracy by holdout
-# Infer 3D structure (`hickit bin -g` will get called multiple times)
-./fdg-multi.pl impute.pairs.gz | sh
+# Impute phases (-i also works with contacts.seg.gz)
+./hickit -i contacts.pairs.gz -u -o - | bgzip > impute.pairs.gz
+./hickit -i contacts.pairs.gz --out-val=impute.val     # estimate imputation accuracy by holdout
+# Infer 3D structure
+./hickit -i impute.pairs.gz -Sr1m -c1 -r10m -c5 -b4m -b1m -b200k -D5 -b50k -D5 -b20k -O imput.3dg
 
 # 2D contact map in PNG (bin size determined by the image width)
-./hickit image2d -w 800 -o impute.png impute.pairs.gz
+./hickit -i impute.pairs.gz --out-png impute.png
 # Compute CpG density (optional)
-./hickit.js gfeat -r hs37d5.fa.gz impute.3dg.gz | gzip > impute.cpg.3dg.gz
+./hickit.js gfeat -r hs37d5.fa.gz imput.3dg | gzip > imput.cpg.3dg.gz
 # Visualize 3D structure (requiring a graphical card)
-./hickit-gl view3d impute.cpg.3dg.gz
+./hickit-gl view3d imput.cpg.3dg.gz
 ```
 
 ## Table of Contents
@@ -57,13 +57,41 @@ calling.
 ## <a name="install"></a>Installation
 
 Hickit depends on [zlib][zlib]. The command-line tools can be compiled by
-typing `make` in the source code directory. The 3D viewer (i.e. the `view3d`
-command) further requires OpenGL and GLUT and can be compiled with `make gl=1`.
+typing `make` in the source code directory. The 3D viewer further requires
+OpenGL and GLUT and can be compiled with `make gl=1`.
 
 ## <a name="guide"></a>Users' Guide
 
-The [Getting Started](#start) section above presents an overview of the key
-hickit functionality. The following gives more details and explanations.
+Hickit keeps one list of contacts and sometimes one 3D structure in memory. It
+has two types of command-line switches: actions and settings. An action switch
+modifies the in-memory bulk data or outputs them; a setting switch changes
+parameters but doesn't modify bulk data. Hickit applies switches sequentially
+as they appear on the command line. As such, **the order of command-line switches
+often affects the final result**.
+
+The following command line does imputation and multiple rounds of 3D
+reconstruction altogether:
+```sh
+hickit -i in.pairs -u -o imput.pairs -Sr1m -c1 -r10m -c5 -b4m -b1m -b200k -D5 -b50k -D5 -b20k -O out.3dg
+```
+It reads input contacts (action `-i`), imputes missing phases (action `-u`) and
+outputs imputed contacts (action `-o`), which are still stored in memory. Then
+hickit separates the two homologous chromosomes (action `-S`), filters isolated
+contacts in two rounds (`-r1m -c1 -r10m -c5`, where `-r` is a setting and `-c`
+is an action), and applies five rounds of 3D modeling (the four `-b` actions)
+with each at a higher resolution. The final resolution is at 20kb and written
+to file `out.3dg` (action `-O`).
+
+This long command line can be decomposed into shorter ones by keeping more
+intermediate files:
+```sh
+hickit -i in.pairs -u -o imput.pairs
+hickit -i imput.pairs -Sr1m -c1 -r10m -c5 -o imput.flt.pairs
+hickit -i imput.flt.pairs -b4m -b1m -b200k -O coarse.3dg
+hickit -i imput.flt.pairs -I coarse.3dg -D5 -b50k -D5 -b20k -O out.3dg
+```
+It is also possible to output intermediate files by using more output actions
+in the long command line.
 
 ### <a name="term"></a>Terminologies
 
@@ -112,7 +140,7 @@ This is an intermediate format used by hickit to store raw contacts directly
 inferred from read alignment. It is generally adviced to convert this format to
 pairs with:
 ```sh
-./hickit pair --out-phase -Dd0 contacts.seg.gz | bgzip > contacts.pairs.gz
+./hickit -i contacts.seg.gz --keep-dup --min-leg-dist=0 -o contacts.pairs
 ```
 
 ### <a name="gen-pairs"></a>Generating contacts in the pairs format
@@ -140,13 +168,13 @@ seqtk mergepe read1.fq.gz read2.fq.gz | pre-dip-c - | bwa mem -p hs37d5.fa - | g
 When you don't have phasing information, you can generate contact pairs with
 ```sh
 hickit.js sam2seg aln.sam.gz | hickit.js chronly - | gzip > contacts.seg.gz
-hickit pair -Dd0 contacts.seg.gz | bgzip > contacts.pairs.gz
+hickit -i contacts.seg.gz -o - | bgzip > contacts.pairs.gz
 ```
 When you have phased SNPs in VCF, you can generate contact pairs with the phase columns
 ```sh
 hickit.js vcf2tsv NA12878_phased.vcf.gz > phased_SNP.tsv
 hickit.js sam2seg -v phased_SNP.tsv aln.sam.gz | hickit.js chronly - | gzip > contacts.seg.gz
-hickit pair --out-phase -Dd0 contacts.seg.gz | bgzip > contacts.pairs.gz
+hickit -i contacts.seg.gz -o - | bgzip > contacts.pairs.gz
 ```
 where `hickit.js chronly` filters out non-chromosomal contigs and
 `phased_SNP.tsv` keeps phased SNPs, which looks like
@@ -161,14 +189,14 @@ chr1    1013136 C       G
 Because SNPs are sparse, only a tiny fraction of contacts are fully phased. To
 impute missing phases, you can
 ```sh
-hickit pair -p contacts.pairs.gz | bgzip > impute.pairs.gz
+hickit -i contacts.pairs.gz -u -o - | bgzip > impute.pairs.gz
 ```
 The output is still in the pairs format. The last four columns give the
 pseudo-probability of four possible phases, inferred by an EM-like algorithm. A
 number 0.75 or above is generally considered reliable based on held-out
 validation, which can be performed with
 ```sh
-hickit pair -v.1 contacts.pairs.gz > impute.val
+hickit -i contacts.pairs.gz --out-val impute.val
 ```
 This command line holds out 10% of legs with known phases, impute them back
 from other contacts and then estimate the accuracy. The output is TAB-delimited
@@ -179,16 +207,14 @@ all contacts and accuracy of all contacts.
 
 ### <a name="infer-3d"></a>Inferring 3D structures (single-cell only)
 
-The `hickit bin -g` command infers 3D structures at a fixed resolution. It is
-recommended to performs the inferrence multiple times at different scales. The
-`fdg-multi.pl` script simplies this procedure:
+The following command line is used to infer the 3D structures of data published
+in the Dip-C paper.
 ```sh
-./fdg-multi.pl impute.pairs.gz | sh
+hickit -i impute.pairs.gz -Sr1m -c1 -r10m -c5 -b4m -b1m -b200k -D5 -b50k -D5 -b20k -O out.3dg
 ```
-Without the `| sh` pipe at the end, `fdg-multi.pl` prints the hickit command
-lines. You can see that the script asks hickit to infer at the 4M, 1M, 200k,
-50k and 20k resolutions, with each command takes the previous inferred
-structure as input. We learned the idea from [nuc\_dynamics][nuc-dyn].
+It filters isolated contacts and then iteratively infers structures in multiple
+round. Each round takes the previous structure as the base line and infers a
+structure of higher resolution.
 
 To check the crude quality of a 3D structure, we encourage to compute the CpG
 density with
