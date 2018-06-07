@@ -86,7 +86,7 @@ void hk_fdg_conf_init(struct hk_fdg_conf *opt)
 {
 	opt->target_radius = 10.0f;
 	opt->n_iter = 1000;
-	opt->step = 0.02f;
+	opt->step = 0.03f;
 	opt->coef_moment = 0.9f;
 	opt->max_f = 50.0f;
 

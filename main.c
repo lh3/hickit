@@ -5,6 +5,18 @@
 #include <stdio.h>
 #include "hickit.h"
 
+#define HICKIT_VERSION "r237"
+
+#include <sys/resource.h>
+#include <sys/time.h>
+
+double cputime(void)
+{
+	struct rusage r;
+	getrusage(RUSAGE_SELF, &r);
+	return r.ru_utime.tv_sec + r.ru_stime.tv_sec + 1e-6 * (r.ru_utime.tv_usec + r.ru_stime.tv_usec);
+}
+
 static struct option long_options[] = {
 	{ "min-leg-dist",   required_argument, 0, 0 },   // 0
 	{ "max-seg",        required_argument, 0, 0 },   // 1
@@ -37,7 +49,7 @@ static inline int64_t hk_parse_num(const char *str)
 	return (int64_t)(x + .499);
 }
 
-int main_stream(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
 	int c, long_idx, has_options = 0;
 	FILE *fp;
@@ -215,7 +227,7 @@ int main_stream(int argc, char *argv[])
 
 	if (!has_options) {
 		FILE *fp = stderr;
-		fprintf(fp, "Usage: hickit stream [options]\n");
+		fprintf(fp, "Usage: hickit [options]\n");
 		fprintf(fp, "Options:\n");
 		fprintf(fp, "  Actions:\n");
 		fprintf(fp, "    -i FILE             read .pairs or .seg FILE and apply input filters []\n");
@@ -261,6 +273,10 @@ int main_stream(int argc, char *argv[])
 		fprintf(fp, "    --bead-radius=FLOAT bead radius [%g]\n", v3d_opt.bead_radius);
 		fprintf(fp, "    --highlight=STR     comma-delimited list of chromosome names to highlight []\n");
 #endif
+		fprintf(fp, "\n");
+		fprintf(fp, "Examples:\n");
+		fprintf(fp, "  hickit -i in.raw.pairs.gz --impute -o - | bgzip > imput.pairs.gz\n");
+		fprintf(fp, "  hickit -i imput.pairs -Sc5 -r1m -c1 -r10m -c0 -n1500 -b4m -b1m -n1000 -b200k -D5 -n750 -b50k -D5 -b20k -O out.3dg\n");
 		return 1;
 	}
 
@@ -268,5 +284,14 @@ int main_stream(int argc, char *argv[])
 	if (d3) hk_bmap_destroy(d3);
 	if (m) hk_map_destroy(m);
 
+	if (hk_verbose >= 3) {
+		int i;
+		fprintf(stderr, "[M::%s] Version: %s\n", __func__, HICKIT_VERSION);
+		fprintf(stderr, "[M::%s] CMD:", __func__);
+		for (i = 0; i < argc; ++i)
+			fprintf(stderr, " %s", argv[i]);
+		fputc('\n', stderr);
+		fprintf(stderr, "[M::%s] CPU time: %.3f sec\n", __func__, cputime());
+	}
 	return 0;
 }
