@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r240"
+#define HICKIT_VERSION "r243"
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
 	hk_fdg_conf_init(&fdg_opt);
 	hk_v3d_opt_init(&v3d_opt);
 
-	while ((c = getopt_long(argc, argv, "i:o:r:c:T:P:n:w:p:b:e:k:R:as:I:O:D:S", long_options, &long_idx)) >= 0) {
+	while ((c = getopt_long(argc, argv, "i:o:r:c:T:P:n:w:p:b:e:k:R:as:I:O:D:Su", long_options, &long_idx)) >= 0) {
 		has_options = 1;
 		if (c == 'i') {
 			if (m) hk_map_destroy(m);
