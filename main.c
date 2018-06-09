@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r243"
+#define HICKIT_VERSION "r244"
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
 	hk_fdg_conf_init(&fdg_opt);
 	hk_v3d_opt_init(&v3d_opt);
 
-	while ((c = getopt_long(argc, argv, "i:o:r:c:T:P:n:w:p:b:e:k:R:as:I:O:D:Su", long_options, &long_idx)) >= 0) {
+	while ((c = getopt_long(argc, argv, "i:o:r:c:T:P:n:w:p:b:e:k:R:a:s:I:O:D:Su", long_options, &long_idx)) >= 0) {
 		has_options = 1;
 		if (c == 'i') {
 			if (m) hk_map_destroy(m);
@@ -260,7 +260,7 @@ int main(int argc, char *argv[])
 		fprintf(fp, "    --min-leg-dist=NUM  min base-pair distance between the two legs [%d]\n", min_leg_dist);
 		fprintf(fp, "    --keep-dup          don't filter potential duplicates\n");
 		fprintf(fp, "  TAD calling:\n");
-		fprintf(fp, "    -a FLOAT            area weight [%g]\n", tad_area_weight);
+		fprintf(fp, "    -a FLOAT            area weight (larger for smaller TADs) [%g]\n", tad_area_weight);
 		fprintf(fp, "    --tad-min-size=INT  min TAD size [%d]\n", tad_min_size);
 		fprintf(fp, "  Imputation:\n");
 		fprintf(fp, "    --imput-nei=INT     max neighbors [%d]\n", imput_max_nei);
