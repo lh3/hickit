@@ -242,7 +242,7 @@ struct hk_map *hk_map_read(const char *fn)
 	gzFile fp;
 	kstring_t str = {0,0,0};
 	kstream_t *ks;
-	int dret, *extra_cols = 0, n_extra_cols = 0;
+	int dret, *extra_cols = 0, n_extra_cols = 0, is_pairs = 0;
 	int32_t m_segs = 0, m_pairs = 0, n_fields = 0, m_fields = 0;
 	int64_t n_data_rows = 0;
 	char **fields = 0;
@@ -258,15 +258,19 @@ struct hk_map *hk_map_read(const char *fn)
 		if (n_data_rows == 0) {
 			if (str.l >= 12 + 3 && strncmp(str.s, "#chromosome:", 12) == 0)
 				parse_chr(m->d, str.s);
-			else if (str.l >= 9 && strncmp(str.s, "#columns:", 9) == 0)
+			else if (str.l >= 9 && strncmp(str.s, "#columns:", 9) == 0) {
 				extra_cols = parse_pair_cols(str.s, &n_extra_cols);
+				is_pairs = 1;
+			}
 		}
 		if (str.s[0] == '#') continue;
 		fields = split_fields(str.s, fields, &n_fields, &m_fields);
-		if (n_fields < 5) goto parse_seg;
-		if (!is_pos_int(fields[2]) || !is_pos_int(fields[4])) goto parse_seg;
-		if (n_fields >= 7 && (strlen(fields[5]) != 1 || strlen(fields[6]) != 1))
-			goto parse_seg;
+		if (!is_pairs) {
+			if (n_fields < 5) goto parse_seg;
+			if (!is_pos_int(fields[2]) || !is_pos_int(fields[4])) goto parse_seg;
+			if (n_fields >= 7 && (strlen(fields[5]) != 1 || strlen(fields[6]) != 1))
+				goto parse_seg;
+		}
 		if (m->n_pairs == m_pairs)
 			EXPAND(m->pairs, m_pairs);
 		hk_parse_pair(&m->pairs[m->n_pairs++], m->d, n_extra_cols, extra_cols, n_fields, fields);
@@ -401,8 +405,8 @@ void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs
 		if ((flag & 3) == 3) fprintf(fp, "\t%c\t%c", p->phase[0] < 0? '.' : '0' + p->phase[0], p->phase[1] < 0? '.' : '0' + p->phase[1]);
 		if ((flag & 0x3c) == 0x3c) fprintf(fp, "\t%.3f\t%.3f\t%.3f\t%.3f", p->_.p4[0], p->_.p4[1], p->_.p4[2], p->_.p4[3]);
 		else if (flag & 1<<8) fprintf(fp, "\t%.4f", p->_.phased_prob);
-		if (flag & 1<<6) fprintf(fp, " %d", p->n_nei);
-		if (flag & 1<<7) fprintf(fp, " %d", p->n_ctn);
+		if (flag & 1<<6) fprintf(fp, "\t%d", p->n_nei);
+		if (flag & 1<<7) fprintf(fp, "\t%d", p->n_ctn);
 		fputc('\n', fp);
 	}
 }

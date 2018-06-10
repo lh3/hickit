@@ -13,7 +13,7 @@ struct cnt_aux {
 	uint32_t tot;
 };
 
-void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int w, float phase_thres, int no_grad, const char *fn)
+void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int w, float phase_thres, int no_grad, int n_tads, const struct hk_pair *tads, const char *fn)
 {
 	int64_t tot_len, *off;
 	int32_t i, j, ww = w * w, pixel_bp, m_tmp, n_tmp;
@@ -119,6 +119,24 @@ void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pa
 			p[0] = 32, p[1] = 32, p[2] = 32;
 		for (j = 0, p = &buf[x * 3]; j < w; ++j, p += w * 3)
 			p[0] = 32, p[1] = 32, p[2] = 32;
+	}
+
+	// draw TAD lines
+	for (i = 0; i < n_tads; ++i) {
+		const struct hk_pair *p = &tads[i];
+		int64_t x[2];
+		int32_t y[2];
+		x[0] = off[p->chr>>32] + hk_ppos1(p);
+		x[1] = off[(int32_t)p->chr] + hk_ppos2(p);
+		y[0] = (int32_t)(x[0] * s);
+		y[1] = (int32_t)(x[1] * s);
+		assert(y[0] < w && y[1] < w);
+		for (j = y[0]; j < y[1]; ++j) {
+			uint8_t *p = &buf[(y[0] * w + j) * 3];
+			*p++ = 255, *p++ = 0, *p++ = 0;
+			p = &buf[(j * w + y[1]) * 3];
+			*p++ = 255, *p++ = 0, *p++ = 0;
+		}
 	}
 
 	stbi_write_png(fn, w, w, 3, buf, w * 3);

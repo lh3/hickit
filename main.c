@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r246"
+#define HICKIT_VERSION "r247"
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -24,7 +24,7 @@ static struct option long_options[] = {
 	{ "out-pairs",      required_argument, 0, 'o' }, // 3
 	{ "out-seg",        required_argument, 0, 0 },   // 4
 	{ "highlight",      required_argument, 0, 0 },   // 5
-	{ "tad-min-size",   required_argument, 0, 'z' }, // 6
+	{ "tads",           optional_argument, 0, 0 }, // 6
 	{ "bead-radius",    required_argument, 0, 0 },   // 7
 	{ "line-width",     required_argument, 0, 0 },   // 8
 	{ "keep-dup",       no_argument,       0, 0 },   // 9
@@ -123,6 +123,7 @@ int main(int argc, char *argv[])
 			assert(tad_min_size > 0);
 		} else if (c == 'T') {
 			assert(m && m->pairs);
+			if (tads) free(tads);
 			tads = hk_pair2tad(m->d, m->n_pairs, m->pairs, tad_min_size, tad_area_weight, &n_tads);
 			m->cols |= 1<<7;
 			fp = strcmp(optarg, "-") == 0? stdout : fopen(optarg, "w");
@@ -203,6 +204,21 @@ int main(int argc, char *argv[])
 				assert(fp);
 				hk_print_seg(fp, m->d, m->n_segs, m->segs);
 				if (fp != stdout) fclose(fp);
+			} else if (long_idx == 6) { // --tads
+				if (!optarg) {
+					assert(m && m->pairs);
+					if (tads) free(tads);
+					tads = hk_pair2tad(m->d, m->n_pairs, m->pairs, tad_min_size, tad_area_weight, &n_tads);
+					m->cols |= 1<<7;
+				} else {
+					struct hk_map *t;
+					t = hk_map_read(optarg);
+					assert(t);
+					n_tads = t->n_pairs;
+					tads = t->pairs;
+					t->pairs = 0;
+					hk_map_destroy(t);
+				}
 			} else if (long_idx == 12) { // --version
 				printf("%s\n", HICKIT_VERSION);
 			} else if (long_idx == 13) { // --out-val
@@ -216,7 +232,7 @@ int main(int argc, char *argv[])
 				hk_validate_roc(fp, m->n_pairs, m->pairs);
 				if (fp != stdout) fclose(fp);
 			} else if (long_idx == 14) { // --out-png
-				hk_pair_image(m->d, m->n_pairs, m->pairs, width, (m->cols&0x3c) == 0x3c? phase_thres : -1.0, png_no_dim, optarg);
+				hk_pair_image(m->d, m->n_pairs, m->pairs, width, (m->cols&0x3c) == 0x3c? phase_thres : -1.0, png_no_dim, n_tads, tads, optarg);
 #ifdef HAVE_GL
 			} else if (long_idx == 16) { // --view
 				int fake_argc = 1;
