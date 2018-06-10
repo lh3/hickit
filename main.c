@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r244"
+#define HICKIT_VERSION "r245"
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -24,7 +24,7 @@ static struct option long_options[] = {
 	{ "out-pairs",      required_argument, 0, 'o' }, // 3
 	{ "out-seg",        required_argument, 0, 0 },   // 4
 	{ "highlight",      required_argument, 0, 0 },   // 5
-	{ "tad-min-size",   required_argument, 0, 0 },   // 6
+	{ "tad-min-size",   required_argument, 0, 'z' }, // 6
 	{ "bead-radius",    required_argument, 0, 0 },   // 7
 	{ "line-width",     required_argument, 0, 0 },   // 8
 	{ "keep-dup",       no_argument,       0, 0 },   // 9
@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
 	hk_fdg_conf_init(&fdg_opt);
 	hk_v3d_opt_init(&v3d_opt);
 
-	while ((c = getopt_long(argc, argv, "i:o:r:c:T:P:n:w:p:b:e:k:R:a:s:I:O:D:Su", long_options, &long_idx)) >= 0) {
+	while ((c = getopt_long(argc, argv, "i:o:r:c:T:P:n:w:p:b:e:k:R:a:s:I:O:D:Suz:", long_options, &long_idx)) >= 0) {
 		has_options = 1;
 		if (c == 'i') {
 			if (m) hk_map_destroy(m);
@@ -118,6 +118,9 @@ int main(int argc, char *argv[])
 		} else if (c == 'u') {
 			hk_impute(m->n_pairs, m->pairs, radius, imput_min_radius, imput_max_nei, max_iter, imput_pseudo_cnt, 1);
 			m->cols |= 0x3c;
+		} else if (c == 'z') {
+			tad_min_size = atoi(optarg);
+			assert(tad_min_size > 0);
 		} else if (c == 'T') {
 			assert(m && m->pairs);
 			tads = hk_pair2tad(m->d, m->n_pairs, m->pairs, tad_min_size, tad_area_weight, &n_tads);
@@ -188,7 +191,6 @@ int main(int argc, char *argv[])
 			else if (long_idx ==  1) max_seg = atoi(optarg); // --max-seg
 			else if (long_idx ==  2) min_mapq = atoi(optarg); // --min-mapq
 			else if (long_idx ==  5) v3d_hl = optarg; // --highlight
-			else if (long_idx ==  6) tad_min_size = atoi(optarg); // --tad-min-size
 			else if (long_idx ==  7) v3d_opt.bead_radius = atof(optarg); // --bead-radius
 			else if (long_idx ==  8) v3d_opt.line_width = atof(optarg); // --line-width
 			else if (long_idx ==  9) dedup = 0; // --keep-dup
@@ -261,7 +263,7 @@ int main(int argc, char *argv[])
 		fprintf(fp, "    --keep-dup          don't filter potential duplicates\n");
 		fprintf(fp, "  TAD calling:\n");
 		fprintf(fp, "    -a FLOAT            area weight (larger for smaller TADs) [%g]\n", tad_area_weight);
-		fprintf(fp, "    --tad-min-size=INT  min TAD size [%d]\n", tad_min_size);
+		fprintf(fp, "    -z INT              min TAD size [%d]\n", tad_min_size);
 		fprintf(fp, "  Imputation:\n");
 		fprintf(fp, "    --imput-nei=INT     max neighbors [%d]\n", imput_max_nei);
 		fprintf(fp, "    --val-frac=FLOAT    fraction to hold out for validation [%g]\n", imput_val_frac);
