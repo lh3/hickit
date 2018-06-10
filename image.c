@@ -55,16 +55,23 @@ void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pa
 	m_tmp = n_tmp = 0, tmp = 0;
 	for (i = 0; i < w; ++i) {
 		for (j = i; j < w; ++j) {
-			int32_t k, z = i * w + j;
-			double max = -1.0;
+			int32_t z = i * w + j;
 			struct cnt_aux *c = &cnt[z];
 			if (c->tot == 0) continue;
-			for (k = 0; k < 4; ++k)
-				max = max > c->cnt[k]? max : c->cnt[k];
-			if (max / c->tot >= phase_thres) {
+			if (phase_thres > 0.0) {
+				int32_t k;
+				double max = -1.0;
+				for (k = 0; k < 4; ++k)
+					max = max > c->cnt[k]? max : c->cnt[k];
+				if (max / c->tot >= phase_thres) {
+					if (n_tmp == m_tmp)
+						EXPAND(tmp, m_tmp);
+					tmp[n_tmp++] = max;
+				}
+			} else {
 				if (n_tmp == m_tmp)
 					EXPAND(tmp, m_tmp);
-				tmp[n_tmp++] = max;
+				tmp[n_tmp++] = c->tot;
 			}
 		}
 	}
@@ -82,19 +89,24 @@ void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pa
 			if (c->tot == 0) {
 				*p++ = 0, *p++ = 0, *p++ = 0, *q++ = 0, *q++ = 0, *q++ = 0;
 			} else {
-				int x, k, max_k = -1;
-				double max = -1.0;
-				for (k = 0; k < 4; ++k)
-					if (c->cnt[k] > max)
-						max_k = k, max = c->cnt[k];
-				x = max >= c->tot * phase_thres? (int)(max * t) : (int)(c->tot * t);
-				if (x > 255) x = 255;
-				if (no_grad) x = 255;
-				if (max < c->tot * phase_thres) *p++ = x/2, *p++ = x/2, *p++ = x/2, *q++ = x/2, *q++ = x/2, *q++ = x/2;
-				else if (max_k == 0) *p++ = x, *p++ = 0, *p++ = 0, *q++ = x, *q++ = 0, *q++ = 0;
-				else if (max_k == 1) *p++ = x, *p++ = 0, *p++ = x, *q++ = 0, *q++ = x, *q++ = x;
-				else if (max_k == 2) *p++ = 0, *p++ = x, *p++ = x, *q++ = x, *q++ = 0, *q++ = x;
-				else if (max_k == 3) *p++ = 0, *p++ = x, *p++ = 0, *q++ = 0, *q++ = x, *q++ = 0;
+				if (phase_thres > 0.0) {
+					int x, k, max_k = -1;
+					double max = -1.0;
+					for (k = 0; k < 4; ++k)
+						if (c->cnt[k] > max)
+							max_k = k, max = c->cnt[k];
+					x = max >= c->tot * phase_thres? (int)(max * t) : (int)(c->tot * t);
+					if (no_grad || x > 255) x = 255;
+					if (max < c->tot * phase_thres) *p++ = x/2, *p++ = x/2, *p++ = x/2, *q++ = x/2, *q++ = x/2, *q++ = x/2;
+					else if (max_k == 0) *p++ = x, *p++ = 0, *p++ = 0, *q++ = x, *q++ = 0, *q++ = 0;
+					else if (max_k == 1) *p++ = x, *p++ = 0, *p++ = x, *q++ = 0, *q++ = x, *q++ = x;
+					else if (max_k == 2) *p++ = 0, *p++ = x, *p++ = x, *q++ = x, *q++ = 0, *q++ = x;
+					else if (max_k == 3) *p++ = 0, *p++ = x, *p++ = 0, *q++ = 0, *q++ = x, *q++ = 0;
+				} else {
+					int x = (int)(c->tot * t);
+					if (no_grad || x > 255) x = 255;
+					*p++ = x, *p++ = x, *p++ = x, *q++ = x, *q++ = x, *q++ = x;
+				}
 			}
 		}
 	}

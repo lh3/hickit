@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r245"
+#define HICKIT_VERSION "r246"
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -216,7 +216,7 @@ int main(int argc, char *argv[])
 				hk_validate_roc(fp, m->n_pairs, m->pairs);
 				if (fp != stdout) fclose(fp);
 			} else if (long_idx == 14) { // --out-png
-				hk_pair_image(m->d, m->n_pairs, m->pairs, width, phase_thres, png_no_dim, optarg);
+				hk_pair_image(m->d, m->n_pairs, m->pairs, width, (m->cols&0x3c) == 0x3c? phase_thres : -1.0, png_no_dim, optarg);
 #ifdef HAVE_GL
 			} else if (long_idx == 16) { // --view
 				int fake_argc = 1;
