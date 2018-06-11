@@ -141,7 +141,8 @@ void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs
 void hk_print_bmap(FILE *fp, const struct hk_bmap *m);
 void hk_print_3dg(FILE *fp, const struct hk_bmap *m);
 
-void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int w, float phase_thres, int no_grad, int n_tads, const struct hk_pair *tads, const char *fn);
+void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int w, float phase_thres, int no_grad,
+				   int n_tads, const struct hk_pair *tads, int n_tads_prev, const struct hk_pair *tads_prev, const char *fn);
 
 void hk_v3d_opt_init(struct hk_v3d_opt *opt);
 void hk_v3d_prep(int *argc, char *argv[]);

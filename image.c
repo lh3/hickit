@@ -13,7 +13,36 @@ struct cnt_aux {
 	uint32_t tot;
 };
 
-void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int w, float phase_thres, int no_grad, int n_tads, const struct hk_pair *tads, const char *fn)
+static void draw_tads(uint8_t *buf, const int64_t *off, int w, double s, int is_upper, int n_tads, const struct hk_pair *tads)
+{
+	int i, j;
+	for (i = 0; i < n_tads; ++i) {
+		const struct hk_pair *p = &tads[i];
+		int64_t x[2];
+		int32_t y[2];
+		x[0] = off[p->chr>>32] + hk_ppos1(p);
+		x[1] = off[(int32_t)p->chr] + hk_ppos2(p);
+		y[0] = (int32_t)(x[0] * s);
+		y[1] = (int32_t)(x[1] * s);
+		assert(y[0] < w && y[1] < w);
+		for (j = y[0]; j < y[1]; ++j) {
+			if (is_upper) {
+				uint8_t *p = &buf[(y[0] * w + j) * 3];
+				*p++ = 255, *p++ = 0, *p++ = 0;
+				p = &buf[(j * w + y[1]) * 3];
+				*p++ = 255, *p++ = 0, *p++ = 0;
+			} else {
+				uint8_t *p = &buf[(y[1] * w + j) * 3];
+				*p++ = 255, *p++ = 0, *p++ = 0;
+				p = &buf[(j * w + y[0]) * 3];
+				*p++ = 255, *p++ = 0, *p++ = 0;
+			}
+		}
+	}
+}
+
+void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int w, float phase_thres, int no_grad,
+				   int n_tads, const struct hk_pair *tads, int n_tads_prev, const struct hk_pair *tads_prev, const char *fn)
 {
 	int64_t tot_len, *off;
 	int32_t i, j, ww = w * w, pixel_bp, m_tmp, n_tmp;
@@ -75,7 +104,7 @@ void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pa
 			}
 		}
 	}
-	c_max = ks_ksmall_float(n_tmp, tmp, (int)(n_tmp * .95 + .499));
+	c_max = ks_ksmall_float(n_tmp, tmp, (int)(n_tmp * .99 + .499));
 	free(tmp);
 
 	t = 255.0 / c_max;
@@ -122,22 +151,8 @@ void hk_pair_image(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pa
 	}
 
 	// draw TAD lines
-	for (i = 0; i < n_tads; ++i) {
-		const struct hk_pair *p = &tads[i];
-		int64_t x[2];
-		int32_t y[2];
-		x[0] = off[p->chr>>32] + hk_ppos1(p);
-		x[1] = off[(int32_t)p->chr] + hk_ppos2(p);
-		y[0] = (int32_t)(x[0] * s);
-		y[1] = (int32_t)(x[1] * s);
-		assert(y[0] < w && y[1] < w);
-		for (j = y[0]; j < y[1]; ++j) {
-			uint8_t *p = &buf[(y[0] * w + j) * 3];
-			*p++ = 255, *p++ = 0, *p++ = 0;
-			p = &buf[(j * w + y[1]) * 3];
-			*p++ = 255, *p++ = 0, *p++ = 0;
-		}
-	}
+	draw_tads(buf, off, w, s, 1, n_tads, tads);
+	draw_tads(buf, off, w, s, 0, n_tads_prev, tads_prev);
 
 	stbi_write_png(fn, w, w, 3, buf, w * 3);
 

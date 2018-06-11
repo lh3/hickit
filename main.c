@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r247"
+#define HICKIT_VERSION "r248"
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -24,7 +24,7 @@ static struct option long_options[] = {
 	{ "out-pairs",      required_argument, 0, 'o' }, // 3
 	{ "out-seg",        required_argument, 0, 0 },   // 4
 	{ "highlight",      required_argument, 0, 0 },   // 5
-	{ "tads",           optional_argument, 0, 0 }, // 6
+	{ "tads",           optional_argument, 0, 0 },   // 6
 	{ "bead-radius",    required_argument, 0, 0 },   // 7
 	{ "line-width",     required_argument, 0, 0 },   // 8
 	{ "keep-dup",       no_argument,       0, 0 },   // 9
@@ -55,8 +55,8 @@ int main(int argc, char *argv[])
 	FILE *fp;
 	struct hk_map *m = 0;
 	struct hk_bmap *d3 = 0;
-	int n_tads = 0;
-	struct hk_pair *tads = 0;
+	int n_tads = 0, n_tads_prev = 0;
+	struct hk_pair *tads = 0, *tads_prev = 0;
 	krng_t rng;
 
 	// general parameters
@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
 	// immediate input filters
 	int max_seg = 3, min_mapq = 20, min_leg_dist = 1000, dedup = 1;
 	// TAD calling parameters
-	float tad_area_weight = 5.0f;
+	float tad_area_weight = 50.0f;
 	int tad_min_size = 10;
 	// imputation parameters
 	int imput_max_nei = 50, imput_min_radius = 50000;
@@ -123,7 +123,8 @@ int main(int argc, char *argv[])
 			assert(tad_min_size > 0);
 		} else if (c == 'T') {
 			assert(m && m->pairs);
-			if (tads) free(tads);
+			if (tads_prev) free(tads_prev);
+			if (tads) tads_prev = tads, n_tads_prev = n_tads;
 			tads = hk_pair2tad(m->d, m->n_pairs, m->pairs, tad_min_size, tad_area_weight, &n_tads);
 			m->cols |= 1<<7;
 			fp = strcmp(optarg, "-") == 0? stdout : fopen(optarg, "w");
@@ -205,9 +206,10 @@ int main(int argc, char *argv[])
 				hk_print_seg(fp, m->d, m->n_segs, m->segs);
 				if (fp != stdout) fclose(fp);
 			} else if (long_idx == 6) { // --tads
+				if (tads_prev) free(tads_prev);
+				if (tads) tads_prev = tads, n_tads_prev = n_tads;
 				if (!optarg) {
 					assert(m && m->pairs);
-					if (tads) free(tads);
 					tads = hk_pair2tad(m->d, m->n_pairs, m->pairs, tad_min_size, tad_area_weight, &n_tads);
 					m->cols |= 1<<7;
 				} else {
@@ -232,7 +234,8 @@ int main(int argc, char *argv[])
 				hk_validate_roc(fp, m->n_pairs, m->pairs);
 				if (fp != stdout) fclose(fp);
 			} else if (long_idx == 14) { // --out-png
-				hk_pair_image(m->d, m->n_pairs, m->pairs, width, (m->cols&0x3c) == 0x3c? phase_thres : -1.0, png_no_dim, n_tads, tads, optarg);
+				hk_pair_image(m->d, m->n_pairs, m->pairs, width, (m->cols&0x3c) == 0x3c? phase_thres : -1.0, png_no_dim,
+							  n_tads, tads, n_tads_prev, tads_prev, optarg);
 #ifdef HAVE_GL
 			} else if (long_idx == 16) { // --view
 				int fake_argc = 1;
