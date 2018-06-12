@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r248"
+#define HICKIT_VERSION "r250"
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -136,9 +136,8 @@ int main(int argc, char *argv[])
 			if (min_flt_cnt > 0)
 				m->n_pairs = hk_pair_filter_isolated(m->n_pairs, m->pairs, radius, min_flt_cnt, 0.0f);
 			else
-				hk_pair_count_nei(m->n_pairs, m->pairs, radius);
-				//hk_pair_count_nei2(m->n_pairs, m->pairs, radius, radius);
-			m->cols |= 1<<6;
+				hk_pair_count_nei(m->n_pairs, m->pairs, radius, radius);
+			m->cols |= 1<<6 | 1<<9;
 		} else if (c == 'a') {
 			tad_area_weight = atof(optarg);
 			assert(tad_area_weight > 0.0f);
@@ -171,7 +170,7 @@ int main(int argc, char *argv[])
 			struct hk_bmap *b;
 			bin_size = hk_parse_num(optarg);
 			assert(bin_size > 0);
-			if (!(m->cols & 1<<6)) hk_pair_count_nei(m->n_pairs, m->pairs, radius);
+			if (!(m->cols & 1<<6)) hk_pair_count_nei(m->n_pairs, m->pairs, radius, radius);
 			b = hk_bmap_gen(m->d, m->n_pairs, m->pairs, bin_size);
 			hk_fdg(&fdg_opt, b, d3, &rng);
 			if (d3) hk_bmap_destroy(d3);

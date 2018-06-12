@@ -395,6 +395,7 @@ void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs
 	if ((flag & 0x3c) == 0x3c) fprintf(fp, " %s %s %s %s", hk_pair_cols[2], hk_pair_cols[3], hk_pair_cols[4], hk_pair_cols[5]);
 	else if (flag & 1<<8) fprintf(fp, " %s", hk_pair_cols[8]);
 	if (flag & 1<<6) fprintf(fp, " %s", hk_pair_cols[6]);
+	if (flag & 1<<9) fprintf(fp, " %s", hk_pair_cols[9]);
 	if (flag & 1<<7) fprintf(fp, " %s", hk_pair_cols[7]);
 	fputc('\n', fp);
 	for (i = 0; i < n_pairs; ++i) {
@@ -407,6 +408,7 @@ void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs
 		if ((flag & 0x3c) == 0x3c) fprintf(fp, "\t%.3f\t%.3f\t%.3f\t%.3f", p->_.p4[0], p->_.p4[1], p->_.p4[2], p->_.p4[3]);
 		else if (flag & 1<<8) fprintf(fp, "\t%.4f", p->_.phased_prob);
 		if (flag & 1<<6) fprintf(fp, "\t%d", p->n_nei);
+		if (flag & 1<<9) fprintf(fp, "\t%d", p->n_nei_corner);
 		if (flag & 1<<7) fprintf(fp, "\t%d", p->n_ctn);
 		fputc('\n', fp);
 	}

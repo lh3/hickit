@@ -225,7 +225,7 @@ struct hk_map *hk_pair_split_phase(const struct hk_map *m, float phase_thres)
 int32_t hk_pair_filter_isolated(int32_t n_pairs, struct hk_pair *pairs, int32_t max_radius, int32_t min_cnt, float drop_frac)
 {
 	int32_t i, k, *cnt, min;
-	hk_pair_count_nei(n_pairs, pairs, max_radius);
+	hk_pair_count_nei(n_pairs, pairs, max_radius, max_radius);
 	cnt = CALLOC(int32_t, n_pairs);
 	for (i = 0; i < n_pairs; ++i)
 		cnt[i] = pairs[i].n_nei;
