@@ -137,6 +137,7 @@ int main(int argc, char *argv[])
 				m->n_pairs = hk_pair_filter_isolated(m->n_pairs, m->pairs, radius, min_flt_cnt, 0.0f);
 			else
 				hk_pair_count_nei(m->n_pairs, m->pairs, radius);
+				//hk_pair_count_nei2(m->n_pairs, m->pairs, radius, radius);
 			m->cols |= 1<<6;
 		} else if (c == 'a') {
 			tad_area_weight = atof(optarg);

@@ -18,6 +18,7 @@ char *hk_pair_cols[] = { // when modify this array, append; DON'T insert in the 
 	"n_neighbors",   // 6
 	"n_contained",   // 7
 	"prob",          // 8
+	"n_nei_corner",  // 9
 	NULL
 };
 
