@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r250"
+#define HICKIT_VERSION "r251"
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
 	// immediate input filters
 	int max_seg = 3, min_mapq = 20, min_leg_dist = 1000, dedup = 1;
 	// TAD calling parameters
-	float tad_area_weight = 50.0f;
+	float tad_area_weight = 15.0f;
 	int tad_min_size = 10;
 	// imputation parameters
 	int imput_max_nei = 50, imput_min_radius = 50000;

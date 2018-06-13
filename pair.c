@@ -262,21 +262,12 @@ struct tad_aux {
 	int32_t i, mmax_i;
 };
 
-static struct hk_pair *hk_tad_call1(int32_t n_pairs, struct hk_pair *pairs, int min_tad_size, float area_weight, int32_t *n_tads_, int32_t *in_tads_)
+static struct hk_pair *hk_tad_call1(int32_t n_pairs, struct hk_pair *pairs, int min_tad_size, float area_weight, float density_sqmb, int32_t *n_tads_, int32_t *in_tads_)
 {
-	int32_t i, min_pos, max_pos, mmax_i, n_tads;
-	float mmax_f, avg_density;
+	int32_t i, mmax_i, n_tads;
+	float mmax_f;
 	struct tad_aux *a;
 	struct hk_pair *tads;
-
-	min_pos = INT32_MAX, max_pos = INT32_MIN;
-	for (i = 0; i < n_pairs; ++i) {
-		struct hk_pair *p = &pairs[i];
-		int32_t p1 = hk_ppos1(p), p2 = hk_ppos2(p);
-		min_pos = min_pos < p1? min_pos : p1;
-		max_pos = max_pos > p2? max_pos : p2;
-	}
-	avg_density = n_pairs / (0.5e-12f * (max_pos - min_pos) * (max_pos - min_pos));
 
 	a = CALLOC(struct tad_aux, n_pairs + 1);
 	a[n_pairs].mmax_f = mmax_f = 0.0f;
@@ -284,7 +275,7 @@ static struct hk_pair *hk_tad_call1(int32_t n_pairs, struct hk_pair *pairs, int 
 	for (i = n_pairs - 1; i >= 0; --i) {
 		struct hk_pair *p = &pairs[i];
 		int32_t p1 = hk_ppos1(p), p2 = hk_ppos2(p);
-		float f, area = 0.5e-12f * (p2 - p1) * (p2 - p1);
+		float f, area = 0.5e-12 * (p2 - p1) * (p2 - p1);
 		int32_t j = n_pairs, lo = i + 1, hi = n_pairs - 1;
 		while (lo <= hi) { // binary search for the nearest pair that starts at or after _p2_
 			int32_t mid = (lo + hi) / 2;
@@ -303,7 +294,7 @@ static struct hk_pair *hk_tad_call1(int32_t n_pairs, struct hk_pair *pairs, int 
 			}
 		}
 		a[i].i = a[j].mmax_i;
-		f = a[j].mmax_f + ((int32_t)p->n_ctn - min_tad_size - area_weight * avg_density * area);
+		f = a[j].mmax_f + ((int32_t)p->n_ctn - min_tad_size - area_weight * density_sqmb * area);
 		if (f >= mmax_f)
 			mmax_f = f, mmax_i = i;
 		a[i].mmax_f = mmax_f;
@@ -325,8 +316,22 @@ static struct hk_pair *hk_tad_call1(int32_t n_pairs, struct hk_pair *pairs, int 
 
 struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int min_tad_size, float area_weight, int32_t *n_tads_)
 {
-	int32_t i, st, *n_tadss, n_tads = 0, tot_in_tads = 0;
+	const int band_width = 10000000;
+	int32_t i, st, *n_tadss, n_tads = 0, tot_in_tads = 0, n_in_band = 0;
+	double band_area, density_sqmb;
 	struct hk_pair *tads = 0, **tadss;
+
+	for (i = 0, band_area = 0.0; i < d->n; ++i) {
+		if (d->len[i] > band_width) band_area += (double)band_width * (d->len[i] - band_width);
+		else band_area += 0.5 * d->len[i] * d->len[i];
+	}
+	for (i = 0; i < n_pairs; ++i) {
+		struct hk_pair *p = &pairs[i];
+		if (hk_intra(p) && hk_ppos2(p) - hk_ppos1(p) <= band_width)
+			++n_in_band;
+	}
+	density_sqmb = n_in_band / (1e-12 * band_area);
+
 	for (i = 0; i < n_pairs; ++i)
 		if (pairs[i].n_ctn > 0) break;
 	if (i == n_pairs) hk_pair_count_contained(n_pairs, pairs);
@@ -336,7 +341,7 @@ struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk
 		if (i == n_pairs || pairs[i].chr != pairs[i-1].chr) {
 			if (pairs[st].chr>>32 == (int32_t)pairs[st].chr) {
 				int32_t chr = (int32_t)pairs[st].chr, in_tads;
-				tadss[chr] = hk_tad_call1(i - st, &pairs[st], min_tad_size, area_weight, &n_tadss[chr], &in_tads);
+				tadss[chr] = hk_tad_call1(i - st, &pairs[st], min_tad_size, area_weight, density_sqmb, &n_tadss[chr], &in_tads);
 				n_tads += n_tadss[chr];
 				tot_in_tads += in_tads;
 			}
