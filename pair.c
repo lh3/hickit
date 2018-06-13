@@ -258,14 +258,14 @@ int32_t hk_pair_filter_close_legs(int32_t n_pairs, struct hk_pair *pairs, int mi
  ***************/
 
 struct tad_aux {
-	float mmax_f;
+	double mmax_f;
 	int32_t i, mmax_i;
 };
 
-static struct hk_pair *hk_tad_call1(int32_t n_pairs, struct hk_pair *pairs, int min_tad_size, float area_weight, float density_sqmb, int32_t *n_tads_, int32_t *in_tads_)
+static struct hk_pair *hk_tad_call1(int32_t n_pairs, struct hk_pair *pairs, int min_tad_size, float area_weight, double density_sqmb, int32_t *n_tads_, int32_t *in_tads_)
 {
 	int32_t i, mmax_i, n_tads;
-	float mmax_f;
+	double mmax_f;
 	struct tad_aux *a;
 	struct hk_pair *tads;
 
@@ -275,7 +275,7 @@ static struct hk_pair *hk_tad_call1(int32_t n_pairs, struct hk_pair *pairs, int 
 	for (i = n_pairs - 1; i >= 0; --i) {
 		struct hk_pair *p = &pairs[i];
 		int32_t p1 = hk_ppos1(p), p2 = hk_ppos2(p);
-		float f, area = 0.5e-12 * (p2 - p1) * (p2 - p1);
+		double f, area = 0.5e-12 * (p2 - p1) * (p2 - p1);
 		int32_t j = n_pairs, lo = i + 1, hi = n_pairs - 1;
 		while (lo <= hi) { // binary search for the nearest pair that starts at or after _p2_
 			int32_t mid = (lo + hi) / 2;
