@@ -157,3 +157,85 @@ void hk_pair_count_nei(int32_t n_pairs, struct hk_pair *pairs, int r1, int r2)
 		}
 	}
 }
+
+/******************
+ * Cluster by nei *
+ ******************/
+
+static void hk_select_by_nei_core(int32_t n_pairs, struct cnt_nei2_aux *a, int radius)
+{
+	struct cnt_nei2_aux *root = 0;
+	int32_t i, j, left, m_del = 0, n_del = 0, *del = 0;
+	left = 0;
+	kavl_insert(nei2, &root, &a[0], 0);
+	for (i = 1; i < n_pairs; ++i) {
+		struct cnt_nei2_aux *p, t;
+		int to_add = 1;
+		for (j = left; j < i; ++j) {
+			if (a[i].pos1 - a[j].pos1 < radius) break;
+			p = kavl_erase(nei2, &root, &a[j]);
+			if (p) p->n_corner = 1;
+		}
+		left = j;
+		n_del = 0;
+		if (root) {
+			kavl_itr_t(nei2) itr;
+			t.pos2 = a[i].pos2 > radius? a[i].pos2 - radius : 0;
+			t.i = -1;
+			kavl_itr_find(nei2, root, &t, &itr);
+			while ((p = (struct cnt_nei2_aux*)kavl_at(&itr)) != 0) {
+				if (p->pos2 > a[i].pos2 + radius) break;
+				if (p->n >= a[i].n) { // there is a better overlapping contact in the tree; then don't add
+					to_add = 0;
+					break;
+				} else {
+					if (m_del == n_del)
+						EXPAND(del, m_del);
+					del[n_del++] = p->i;
+				}
+				if (!kavl_itr_next(nei2, &itr)) break;
+			}
+		}
+		if (to_add) {
+			for (j = 0; j < n_del; ++j)
+				kavl_erase(nei2, &root, &a[del[j]]);
+			kavl_insert(nei2, &root, &a[i], 0);
+		}
+	}
+	while (root) {
+		struct cnt_nei2_aux *p;
+		p = kavl_erase_first(nei2, &root);
+		p->n_corner = 1;
+	}
+	free(del);
+}
+
+int32_t hk_select_by_nei(int32_t n_pairs, struct hk_pair *pairs, int radius)
+{
+	int32_t k, st, n_pairs_new = 0;
+	for (k = 1; k < n_pairs; ++k)
+		if (pairs[k-1].chr > pairs[k].chr || (pairs[k-1].chr == pairs[k].chr && pairs[k-1].pos > pairs[k].pos))
+			break;
+	assert(k == n_pairs); // otherwise, pairs[] is not sorted
+	for (k = 1, st = 0; k <= n_pairs; ++k) {
+		if (k == n_pairs || pairs[k-1].chr != pairs[k].chr) {
+			struct cnt_nei2_aux *a;
+			int i, n = k - st;
+			a = CALLOC(struct cnt_nei2_aux, n);
+			for (i = 0; i < n; ++i) {
+				struct hk_pair *p = &pairs[st + i];
+				a[i].pos1 = hk_ppos1(p);
+				a[i].pos2 = hk_ppos2(p);
+				a[i].n = p->n_nei;
+				a[i].i = i;
+			}
+			hk_select_by_nei_core(n, a, radius);
+			for (i = 0; i < n; ++i)
+				if (a[i].n_corner)
+					pairs[n_pairs_new++] = pairs[st + a[i].i];
+			free(a);
+			st = k;
+		}
+	}
+	return n_pairs_new;
+}
