@@ -262,7 +262,7 @@ struct tad_aux {
 	int32_t i, mmax_i;
 };
 
-static struct hk_pair *hk_tad_call1(int32_t n_pairs, struct hk_pair *pairs, int min_tad_size, float area_weight, double density_sqmb, int32_t *n_tads_, int32_t *in_tads_)
+static struct hk_pair *hk_tad_call1(int32_t n_pairs, struct hk_pair *pairs, double min_tad_cnt, float area_weight, double density_sqmb, int32_t *n_tads_, int32_t *in_tads_)
 {
 	int32_t i, mmax_i, n_tads;
 	double mmax_f;
@@ -294,7 +294,7 @@ static struct hk_pair *hk_tad_call1(int32_t n_pairs, struct hk_pair *pairs, int 
 			}
 		}
 		a[i].i = a[j].mmax_i;
-		f = a[j].mmax_f + ((int32_t)p->n_ctn - min_tad_size - area_weight * density_sqmb * area);
+		f = a[j].mmax_f + ((double)p->n_ctn - min_tad_cnt - area_weight * density_sqmb * area);
 		if (f >= mmax_f)
 			mmax_f = f, mmax_i = i;
 		a[i].mmax_f = mmax_f;
@@ -314,23 +314,26 @@ static struct hk_pair *hk_tad_call1(int32_t n_pairs, struct hk_pair *pairs, int 
 	return tads;
 }
 
-struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int min_tad_size, float area_weight, int32_t *n_tads_)
+struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, float min_cnt_weight, float area_weight, int32_t *n_tads_)
 {
 	const int band_width = 10000000;
-	int32_t i, st, *n_tadss, n_tads = 0, tot_in_tads = 0, n_in_band = 0;
-	double band_area, density_sqmb;
+	int32_t i, st, *n_tadss, n_tads = 0, tot_in_tads = 0, n_in_band;
+	double min_tad_cnt, band_area, density_sqmb;
 	struct hk_pair *tads = 0, **tadss;
 
 	for (i = 0, band_area = 0.0; i < d->n; ++i) {
 		if (d->len[i] > band_width) band_area += (double)band_width * (d->len[i] - band_width);
 		else band_area += 0.5 * d->len[i] * d->len[i];
 	}
-	for (i = 0; i < n_pairs; ++i) {
+	for (i = n_in_band = 0; i < n_pairs; ++i) {
 		struct hk_pair *p = &pairs[i];
 		if (hk_intra(p) && hk_ppos2(p) - hk_ppos1(p) <= band_width)
 			++n_in_band;
 	}
 	density_sqmb = n_in_band / (1e-12 * band_area);
+	min_tad_cnt = min_cnt_weight * density_sqmb;
+	if (hk_verbose >= 3)
+		fprintf(stderr, "[M::%s] min_tad_cnt = %.3f\n", __func__, min_tad_cnt);
 
 	for (i = 0; i < n_pairs; ++i)
 		if (pairs[i].n_ctn > 0) break;
@@ -341,7 +344,7 @@ struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk
 		if (i == n_pairs || pairs[i].chr != pairs[i-1].chr) {
 			if (pairs[st].chr>>32 == (int32_t)pairs[st].chr) {
 				int32_t chr = (int32_t)pairs[st].chr, in_tads;
-				tadss[chr] = hk_tad_call1(i - st, &pairs[st], min_tad_size, area_weight, density_sqmb, &n_tadss[chr], &in_tads);
+				tadss[chr] = hk_tad_call1(i - st, &pairs[st], min_tad_cnt, area_weight, density_sqmb, &n_tadss[chr], &in_tads);
 				n_tads += n_tadss[chr];
 				tot_in_tads += in_tads;
 			}
@@ -363,4 +366,58 @@ struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk
 		fprintf(stderr, "[M::%s] %d pairs (%.2f%%) in %d TADs\n", __func__,
 				tot_in_tads, 100.0 * tot_in_tads / n_pairs, n_tads);
 	return tads;
+}
+
+/****************
+ * Loop calling *
+ ****************/
+
+struct hk_pair *hk_pair2loop(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int r_inner, int r_outer, int min_inner, float min_rel_height, int32_t *n_loops_)
+{
+	const int band_width = 10000000;
+	struct hk_pair *loops = 0;
+	int32_t i, n_loops = 0, m_loops = 0;
+
+	hk_pair_count_nei(n_pairs, pairs, r_outer, r_outer);
+	for (i = 0; i < n_pairs; ++i) {
+		struct hk_pair *p = &pairs[i];
+		p->_.n_nei[1][0] = p->n_nei;
+		p->_.n_nei[1][1] = p->n_nei_corner;
+	}
+	hk_pair_count_nei(n_pairs, pairs, r_inner, r_inner);
+	for (i = 0; i < n_pairs; ++i) {
+		struct hk_pair *p = &pairs[i];
+		p->_.n_nei[0][0] = p->n_nei;
+		p->_.n_nei[0][1] = p->n_nei_corner;
+	}
+	for (i = 0; i < n_pairs; ++i) {
+		struct hk_pair *p = &pairs[i];
+		double r, area_inner, area_outer, area_ratio;
+		int d = hk_ppos2(p) - hk_ppos1(p);
+		if (hk_intra(p) && d < r_inner) continue;
+		if (p->_.n_nei[0][0] < min_inner) continue;
+		area_inner = 4.0 * r_inner * r_inner - (d >= r_inner * 2? 0.0 : 0.5 * (r_inner + r_inner - d) * (r_inner + r_inner - d));
+		area_outer = 4.0 * r_outer * r_outer - (d >= r_outer * 2? 0.0 : 0.5 * (r_outer + r_outer - d) * (r_outer + r_outer - d));
+		area_ratio = (area_outer - area_inner) / area_inner;
+		if (hk_intra(p) && d <= band_width) {
+			int m1, m2;
+			double r1, r2;
+			m1 = (p->_.n_nei[1][0] - p->_.n_nei[1][1]) - (p->_.n_nei[0][0] - p->_.n_nei[0][1]);
+			m2 = p->_.n_nei[1][1] - p->_.n_nei[0][1];
+			r1 = area_ratio * (p->_.n_nei[0][0] - p->_.n_nei[0][1]) / (m1 + 0.5);
+			r2 = area_ratio * p->_.n_nei[0][1] / (m2 + 0.5);
+			r = r1 < r2? r1 : r2;
+		} else {
+			int32_t m;
+			m = p->_.n_nei[1][0] - p->_.n_nei[0][0];
+			if (m == 0) m = 1;
+			r = area_ratio * p->_.n_nei[0][0] / (m + 0.5);
+		}
+		if (r < min_rel_height) continue;
+		if (m_loops == n_loops)
+			EXPAND(loops, m_loops);
+		loops[n_loops++] = *p;
+	}
+	*n_loops_ = n_loops;
+	return loops;
 }

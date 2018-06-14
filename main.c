@@ -35,6 +35,11 @@ static struct option long_options[] = {
 	{ "out-png",        required_argument, 0, 0 },   // 14
 	{ "png-no-dim",     no_argument,       0, 0 },   // 15
 	{ "view",           no_argument,       0, 0 },   // 16
+	{ "loops",          optional_argument, 0, 0 },   // 17
+	{ "loop-inner",     required_argument, 0, 0 },   // 18
+	{ "loop-outer",     required_argument, 0, 0 },   // 19
+	{ "loop-height",    required_argument, 0, 0 },   // 20
+	{ "loop-min",       required_argument, 0, 0 },   // 21
 	{ 0, 0, 0, 0}
 };
 
@@ -55,8 +60,8 @@ int main(int argc, char *argv[])
 	FILE *fp;
 	struct hk_map *m = 0;
 	struct hk_bmap *d3 = 0;
-	int n_tads = 0, n_tads_prev = 0;
-	struct hk_pair *tads = 0, *tads_prev = 0;
+	int n_tads = 0, n_tads_prev = 0, n_loops = 0;
+	struct hk_pair *tads = 0, *tads_prev = 0, *loops = 0;
 	krng_t rng;
 
 	// general parameters
@@ -65,8 +70,10 @@ int main(int argc, char *argv[])
 	// immediate input filters
 	int max_seg = 3, min_mapq = 20, min_leg_dist = 1000, dedup = 1;
 	// TAD calling parameters
-	float tad_area_weight = 15.0f;
-	int tad_min_size = 10;
+	float tad_area_weight = 15.0f, tad_min_cnt_weight = 0.1f;
+	// loop calling parameters
+	int loop_inner = 5000, loop_outer = 10000, loop_min = 5;
+	float loop_rel_height = 2.0f;
 	// imputation parameters
 	int imput_max_nei = 50, imput_min_radius = 50000;
 	float imput_val_frac = 0.1f, imput_pseudo_cnt = 0.4f;
@@ -82,7 +89,7 @@ int main(int argc, char *argv[])
 	hk_fdg_conf_init(&fdg_opt);
 	hk_v3d_opt_init(&v3d_opt);
 
-	while ((c = getopt_long(argc, argv, "i:o:r:c:T:P:n:w:p:b:e:k:R:a:s:I:O:D:Suz:", long_options, &long_idx)) >= 0) {
+	while ((c = getopt_long(argc, argv, "i:o:r:c:T:P:n:w:p:b:e:k:R:a:s:I:O:D:Suz:L:", long_options, &long_idx)) >= 0) {
 		has_options = 1;
 		if (c == 'i') {
 			if (m) hk_map_destroy(m);
@@ -119,16 +126,23 @@ int main(int argc, char *argv[])
 			hk_impute(m->n_pairs, m->pairs, radius, imput_min_radius, imput_max_nei, max_iter, imput_pseudo_cnt, 1);
 			m->cols |= 0x3c;
 		} else if (c == 'z') {
-			tad_min_size = atoi(optarg);
-			assert(tad_min_size > 0);
+			tad_min_cnt_weight = atof(optarg);
 		} else if (c == 'T') {
 			assert(m && m->pairs);
 			if (tads_prev) free(tads_prev);
 			if (tads) tads_prev = tads, n_tads_prev = n_tads;
-			tads = hk_pair2tad(m->d, m->n_pairs, m->pairs, tad_min_size, tad_area_weight, &n_tads);
+			tads = hk_pair2tad(m->d, m->n_pairs, m->pairs, tad_min_cnt_weight, tad_area_weight, &n_tads);
 			m->cols |= 1<<7;
 			fp = strcmp(optarg, "-") == 0? stdout : fopen(optarg, "w");
 			hk_print_pair(fp, 1<<7, m->d, n_tads, tads);
+			if (fp != stdout) fclose(fp);
+		} else if (c == 'L') {
+			assert(m && m->pairs);
+			if (loops) free(loops);
+			loops = hk_pair2loop(m->d, m->n_pairs, m->pairs, loop_inner, loop_outer, loop_min, loop_rel_height, &n_loops);
+			m->cols |= 1<<6 | 1<<9;
+			fp = strcmp(optarg, "-") == 0? stdout : fopen(optarg, "w");
+			hk_print_pair(fp, 1<<6|1<<9, m->d, n_loops, loops);
 			if (fp != stdout) fclose(fp);
 		} else if (c == 'c') {
 			int min_flt_cnt;
@@ -210,7 +224,7 @@ int main(int argc, char *argv[])
 				if (tads) tads_prev = tads, n_tads_prev = n_tads;
 				if (!optarg) {
 					assert(m && m->pairs);
-					tads = hk_pair2tad(m->d, m->n_pairs, m->pairs, tad_min_size, tad_area_weight, &n_tads);
+					tads = hk_pair2tad(m->d, m->n_pairs, m->pairs, tad_min_cnt_weight, tad_area_weight, &n_tads);
 					m->cols |= 1<<7;
 				} else {
 					struct hk_map *t;
@@ -221,12 +235,19 @@ int main(int argc, char *argv[])
 					t->pairs = 0;
 					hk_map_destroy(t);
 				}
+			} else if (long_idx == 17) { // --loops
+				if (loops) free(loops);
+				if (!optarg) {
+					assert(m && m->pairs);
+					loops = hk_pair2loop(m->d, m->n_pairs, m->pairs, loop_inner, loop_outer, loop_min, loop_rel_height, &n_loops);
+					m->cols |= 1<<6 | 1<<9;
+				}
 			} else if (long_idx == 12) { // --version
 				printf("%s\n", HICKIT_VERSION);
 			} else if (long_idx == 13) { // --out-val
 				fp = strcmp(optarg, "-") == 0? stdout : fopen(optarg, "w");
 				assert(fp);
-				if (tads == 0) tads = hk_pair2tad(m->d, m->n_pairs, m->pairs, tad_min_size, tad_area_weight, &n_tads);
+				if (tads == 0) tads = hk_pair2tad(m->d, m->n_pairs, m->pairs, tad_min_cnt_weight, tad_area_weight, &n_tads);
 				m->cols |= 1<<7;
 				hk_mark_by_tad(n_tads, tads, m->n_pairs, m->pairs);
 				hk_validate_holdback(&rng, imput_val_frac, m->n_pairs, m->pairs);
@@ -236,6 +257,14 @@ int main(int argc, char *argv[])
 			} else if (long_idx == 14) { // --out-png
 				hk_pair_image(m->d, m->n_pairs, m->pairs, width, (m->cols&0x3c) == 0x3c? phase_thres : -1.0, png_no_dim,
 							  n_tads, tads, n_tads_prev, tads_prev, optarg);
+			} else if (long_idx == 18) { // --loop-inner
+				loop_inner = hk_parse_num(optarg);
+			} else if (long_idx == 19) { // --loop-outer
+				loop_outer = hk_parse_num(optarg);
+			} else if (long_idx == 20) { // --loop-height
+				loop_rel_height = atof(optarg);
+			} else if (long_idx == 21) { // --loop-min
+				loop_min = atoi(optarg);
 #ifdef HAVE_GL
 			} else if (long_idx == 16) { // --view
 				int fake_argc = 1;
@@ -282,7 +311,7 @@ int main(int argc, char *argv[])
 		fprintf(fp, "    --keep-dup          don't filter potential duplicates\n");
 		fprintf(fp, "  TAD calling:\n");
 		fprintf(fp, "    -a FLOAT            area weight (larger for smaller TADs) [%g]\n", tad_area_weight);
-		fprintf(fp, "    -z INT              min TAD size [%d]\n", tad_min_size);
+		fprintf(fp, "    -z INT              min TAD count weight [%g]\n", tad_min_cnt_weight);
 		fprintf(fp, "  Imputation:\n");
 		fprintf(fp, "    --imput-nei=INT     max neighbors [%d]\n", imput_max_nei);
 		fprintf(fp, "    --val-frac=FLOAT    fraction to hold out for validation [%g]\n", imput_val_frac);
