@@ -19,6 +19,9 @@ char *hk_pair_cols[] = { // when modify this array, append; DON'T insert in the 
 	"n_contained",   // 7
 	"prob",          // 8
 	"n_nei_corner",  // 9
+	"peak_density0", // 10
+	"peak_density1", // 11
+	"peak_density2", // 12
 	NULL
 };
 
@@ -129,8 +132,18 @@ static void hk_parse_pair(struct hk_pair *p, struct hk_sdict *d, int n_extra_col
 			int c = i + 7, e = extra_cols[i];
 			if (e == 0 || e == 1) { // phase0 or phase1
 				p->phase[e] = *fields[c] == '.'? -1 : (int)*fields[c] - '0';
-			} else if (e >= 2 && e <= 5) { // p00, p01, p10 or p11
+			} else if (e >= 2 && e <= 5) { // phase_prob00, 01, 10 and 11
 				p->_.p4[e - 2] = atof(fields[c]);
+			} else if (e == 6) { // n_neighbors
+				p->n_nei = atoi(fields[c]);
+			} else if (e == 7) { // phased_prob
+				p->_.phased_prob = atof(fields[c]);
+			} else if (e == 8) { // n_contained
+				p->n_ctn = atoi(fields[c]);
+			} else if (e == 9) { // n_nei_corner
+				p->n_nei_corner = atoi(fields[c]);
+			} else if (e >= 10 && e <= 12) { // peak_density0, 1 and 2
+				p->_.peak_density[e - 10] = atof(fields[c]);
 			}
 		}
 	}
@@ -392,11 +405,12 @@ void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs
 	hk_print_chr(fp, d);
 	fprintf(fp, "#columns: readID chr1 pos1 chr2 pos2 strand1 strand2");
 	if ((flag & 3) == 3) fprintf(fp, " %s %s", hk_pair_cols[0], hk_pair_cols[1]);
-	if ((flag & 0x3c) == 0x3c) fprintf(fp, " %s %s %s %s", hk_pair_cols[2], hk_pair_cols[3], hk_pair_cols[4], hk_pair_cols[5]);
-	else if (flag & 1<<8) fprintf(fp, " %s", hk_pair_cols[8]);
 	if (flag & 1<<6) fprintf(fp, " %s", hk_pair_cols[6]);
 	if (flag & 1<<9) fprintf(fp, " %s", hk_pair_cols[9]);
 	if (flag & 1<<7) fprintf(fp, " %s", hk_pair_cols[7]);
+	if ((flag & 0x3c) == 0x3c) fprintf(fp, " %s %s %s %s", hk_pair_cols[2], hk_pair_cols[3], hk_pair_cols[4], hk_pair_cols[5]);
+	else if (flag & 1<<8) fprintf(fp, " %s", hk_pair_cols[8]);
+	else if ((flag & 0x1c00) == 0x1c00) fprintf(fp, " %s %s %s", hk_pair_cols[10], hk_pair_cols[11], hk_pair_cols[12]);
 	fputc('\n', fp);
 	for (i = 0; i < n_pairs; ++i) {
 		const struct hk_pair *p = &pairs[i];
@@ -405,11 +419,12 @@ void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs
 				p->strand[0] > 0? '+' : p->strand[0] < 0? '-' : '.',
 				p->strand[1] > 0? '+' : p->strand[1] < 0? '-' : '.');
 		if ((flag & 3) == 3) fprintf(fp, "\t%c\t%c", p->phase[0] < 0? '.' : '0' + p->phase[0], p->phase[1] < 0? '.' : '0' + p->phase[1]);
-		if ((flag & 0x3c) == 0x3c) fprintf(fp, "\t%.3f\t%.3f\t%.3f\t%.3f", p->_.p4[0], p->_.p4[1], p->_.p4[2], p->_.p4[3]);
-		else if (flag & 1<<8) fprintf(fp, "\t%.4f", p->_.phased_prob);
 		if (flag & 1<<6) fprintf(fp, "\t%d", p->n_nei);
 		if (flag & 1<<9) fprintf(fp, "\t%d", p->n_nei_corner);
 		if (flag & 1<<7) fprintf(fp, "\t%d", p->n_ctn);
+		if ((flag & 0x3c) == 0x3c) fprintf(fp, "\t%.3f\t%.3f\t%.3f\t%.3f", p->_.p4[0], p->_.p4[1], p->_.p4[2], p->_.p4[3]);
+		else if (flag & 1<<8) fprintf(fp, "\t%.4f", p->_.phased_prob);
+		else if ((flag & 0x1c00) == 0x1c00) fprintf(fp, "\t%.4f\t%.4f\t%.4f", p->_.peak_density[0]*1e6, p->_.peak_density[1]*1e6, p->_.peak_density[2]*1e6);
 		fputc('\n', fp);
 	}
 }

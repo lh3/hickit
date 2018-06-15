@@ -372,53 +372,71 @@ struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk
  * Loop calling *
  ****************/
 
-struct hk_pair *hk_pair2loop(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int r_inner, int r_outer, int min_inner, float min_rel_height, int32_t *n_loops_)
+struct hk_pair *hk_pair2loop(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int radius[3], int min_inner, float min_rel_height, int32_t *n_loops_)
 {
 	const int band_width = 10000000;
 	struct hk_pair *loops = 0;
 	int32_t i, n_loops = 0, m_loops = 0;
 
-	hk_pair_count_nei(n_pairs, pairs, r_outer, r_outer);
+	assert(radius[0] < radius[1] && radius[1] < radius[2] && min_rel_height > 1.0 && min_inner > 0);
+
+	hk_pair_count_nei(n_pairs, pairs, radius[2], radius[2]);
 	for (i = 0; i < n_pairs; ++i) {
 		struct hk_pair *p = &pairs[i];
 		p->_.n_nei[1][0] = p->n_nei;
 		p->_.n_nei[1][1] = p->n_nei_corner;
 	}
-	hk_pair_count_nei(n_pairs, pairs, r_inner, r_inner);
+	hk_pair_count_nei(n_pairs, pairs, radius[1], radius[1]);
 	for (i = 0; i < n_pairs; ++i) {
 		struct hk_pair *p = &pairs[i];
 		p->_.n_nei[0][0] = p->n_nei;
 		p->_.n_nei[0][1] = p->n_nei_corner;
 	}
+	hk_pair_count_nei(n_pairs, pairs, radius[0], radius[0]);
+
 	for (i = 0; i < n_pairs; ++i) {
-		struct hk_pair *p = &pairs[i];
-		double r, area_inner, area_outer, area_ratio;
-		int d = hk_ppos2(p) - hk_ppos1(p);
-		if (hk_intra(p) && d < r_inner) continue;
-		if (p->_.n_nei[0][0] < min_inner) continue;
-		area_inner = 4.0 * r_inner * r_inner - (d >= r_inner * 2? 0.0 : 0.5 * (r_inner + r_inner - d) * (r_inner + r_inner - d));
-		area_outer = 4.0 * r_outer * r_outer - (d >= r_outer * 2? 0.0 : 0.5 * (r_outer + r_outer - d) * (r_outer + r_outer - d));
-		area_ratio = (area_outer - area_inner) / area_inner;
-		if (hk_intra(p) && d <= band_width) {
-			int m1, m2;
-			double r1, r2;
-			m1 = (p->_.n_nei[1][0] - p->_.n_nei[1][1]) - (p->_.n_nei[0][0] - p->_.n_nei[0][1]);
-			m2 = p->_.n_nei[1][1] - p->_.n_nei[0][1];
-			r1 = area_ratio * (p->_.n_nei[0][0] - p->_.n_nei[0][1]) / (m1 + 0.5);
-			r2 = area_ratio * p->_.n_nei[0][1] / (m2 + 0.5);
-			r = r1 < r2? r1 : r2;
+		struct hk_pair tmp, *p = &pairs[i];
+		double den_inner, den_outer, den_mid;
+		int j, d = hk_ppos2(p) - hk_ppos1(p);
+		if (hk_intra(p) && d < radius[0]) continue;
+		if (p->n_nei < min_inner) continue;
+		if (!hk_intra(p) || d > band_width) {
+			double area[3];
+			for (j = 0; j < 3; ++j)
+				area[j] = 4.0 * radius[j] * radius[j] - (d >= radius[j] * 2? 0.0 : .5 * (radius[j] * 2 - d) * (radius[j] * 2 - d));
+			den_inner = p->n_nei / area[0];
+			den_mid   = (p->_.n_nei[0][0] - p->n_nei) / (area[1] - area[0]);
+			den_outer = (p->_.n_nei[1][0] - p->_.n_nei[0][0]) / (area[2] - area[1]);
 		} else {
-			int32_t m;
-			m = p->_.n_nei[1][0] - p->_.n_nei[0][0];
-			if (m == 0) m = 1;
-			r = area_ratio * p->_.n_nei[0][0] / (m + 0.5);
+			double area[3][2], den_outer_corner, den_mid_corner;
+			for (j = 0; j < 3; ++j) {
+				area[j][0] = 4.0 * radius[j] * radius[j];
+				area[j][1] = radius[j] * radius[j];
+				if (d < radius[j] * 2) {
+					double t = .5 * (radius[j] * 2 - d) * (radius[j] * 2 - d);
+					area[j][0] -= t;
+					area[j][1] = d < radius[j]? .5 * d * d : area[j][1] - t;
+				}
+			}
+			den_inner = p->n_nei / area[0][0];
+			den_mid   = (p->_.n_nei[0][0] - p->n_nei) / (area[1][0] - area[0][0]);
+			den_outer = (p->_.n_nei[1][0] - p->_.n_nei[0][0]) / (area[2][0] - area[1][0]);
+			den_mid_corner   = (p->_.n_nei[0][1] - p->n_nei_corner) / (area[1][1] - area[0][1]);
+			den_outer_corner = (p->_.n_nei[1][1] - p->_.n_nei[0][1]) / (area[2][1] - area[1][1]);
+			if (den_mid   < den_mid_corner)   den_mid   = den_mid_corner;
+			if (den_outer < den_outer_corner) den_outer = den_outer_corner;
 		}
-		if (r < min_rel_height) continue;
-		if (m_loops == n_loops)
-			EXPAND(loops, m_loops);
-		loops[n_loops++] = *p;
+		if (den_inner < den_mid) continue;
+		if (den_inner < den_outer * min_rel_height) continue;
+		if (m_loops == n_loops) EXPAND(loops, m_loops);
+		tmp = *p;
+		tmp._.peak_density[0] = den_inner;
+		tmp._.peak_density[1] = den_mid;
+		tmp._.peak_density[2] = den_outer;
+		loops[n_loops++] = tmp;
 	}
-	n_loops = hk_select_by_nei(n_loops, loops, r_outer);
+
+	n_loops = hk_select_by_nei(n_loops, loops, radius[2]);
 	*n_loops_ = n_loops;
 	return loops;
 }

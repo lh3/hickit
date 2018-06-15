@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r255"
+#define HICKIT_VERSION "r256"
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -37,9 +37,10 @@ static struct option long_options[] = {
 	{ "view",           no_argument,       0, 0 },   // 16
 	{ "loops",          optional_argument, 0, 0 },   // 17
 	{ "loop-inner",     required_argument, 0, 0 },   // 18
-	{ "loop-outer",     required_argument, 0, 0 },   // 19
-	{ "loop-height",    required_argument, 0, 0 },   // 20
-	{ "loop-min",       required_argument, 0, 0 },   // 21
+	{ "loop-mid",       required_argument, 0, 0 },   // 19
+	{ "loop-outer",     required_argument, 0, 0 },   // 20
+	{ "loop-height",    required_argument, 0, 0 },   // 21
+	{ "loop-min",       required_argument, 0, 0 },   // 22
 	{ 0, 0, 0, 0}
 };
 
@@ -72,7 +73,7 @@ int main(int argc, char *argv[])
 	// TAD calling parameters
 	float tad_area_weight = 15.0f, tad_min_cnt_weight = 0.1f;
 	// loop calling parameters
-	int loop_inner = 5000, loop_outer = 10000, loop_min = 5;
+	int loop_radius[3] = { 5000, 25000, 55000}, loop_min = 5;
 	float loop_rel_height = 2.0f;
 	// imputation parameters
 	int imput_max_nei = 50, imput_min_radius = 50000;
@@ -141,10 +142,10 @@ int main(int argc, char *argv[])
 		} else if (c == 'L') {
 			assert(m && m->pairs);
 			if (loops) free(loops);
-			loops = hk_pair2loop(m->d, m->n_pairs, m->pairs, loop_inner, loop_outer, loop_min, loop_rel_height, &n_loops);
-			m->cols |= 1<<6 | 1<<9;
+			loops = hk_pair2loop(m->d, m->n_pairs, m->pairs, loop_radius, loop_min, loop_rel_height, &n_loops);
+			m->cols |= 1<<6 | 1<<9 | 0x1c00;
 			fp = strcmp(optarg, "-") == 0? stdout : fopen(optarg, "w");
-			hk_print_pair(fp, 1<<6|1<<9, m->d, n_loops, loops);
+			hk_print_pair(fp, m->cols, m->d, n_loops, loops);
 			if (fp != stdout) fclose(fp);
 		} else if (c == 'c') {
 			int min_flt_cnt;
@@ -214,6 +215,11 @@ int main(int argc, char *argv[])
 			else if (long_idx == 10) imput_max_nei = atoi(optarg); // --imput-nei
 			else if (long_idx == 11) imput_val_frac = atof(optarg); // --val-frac
 			else if (long_idx == 15) png_no_dim = 1; // --png-no-dim
+			else if (long_idx == 18) loop_radius[0] = hk_parse_num(optarg); // --loop-inner
+			else if (long_idx == 19) loop_radius[1] = hk_parse_num(optarg); // --loop-mid
+			else if (long_idx == 20) loop_radius[2] = hk_parse_num(optarg); // --loop-outer
+			else if (long_idx == 21) loop_rel_height = atof(optarg); // --loop-height
+			else if (long_idx == 22) loop_min = atoi(optarg); // --loop-min
 			else if (long_idx ==  4) { // --out-seg
 				assert(m && m->segs);
 				fp = strcmp(optarg, "-") == 0? stdout : fopen(optarg, "w");
@@ -240,8 +246,8 @@ int main(int argc, char *argv[])
 				if (loops) free(loops);
 				if (!optarg) {
 					assert(m && m->pairs);
-					loops = hk_pair2loop(m->d, m->n_pairs, m->pairs, loop_inner, loop_outer, loop_min, loop_rel_height, &n_loops);
-					m->cols |= 1<<6 | 1<<9;
+					loops = hk_pair2loop(m->d, m->n_pairs, m->pairs, loop_radius, loop_min, loop_rel_height, &n_loops);
+					m->cols |= 1<<6 | 1<<9 | 0x1c00;
 				}
 			} else if (long_idx == 12) { // --version
 				printf("%s\n", HICKIT_VERSION);
@@ -258,14 +264,6 @@ int main(int argc, char *argv[])
 			} else if (long_idx == 14) { // --out-png
 				hk_pair_image(m->d, m->n_pairs, m->pairs, width, (m->cols&0x3c) == 0x3c? phase_thres : -1.0, png_no_dim,
 							  n_tads, tads, n_tads_prev, tads_prev, optarg);
-			} else if (long_idx == 18) { // --loop-inner
-				loop_inner = hk_parse_num(optarg);
-			} else if (long_idx == 19) { // --loop-outer
-				loop_outer = hk_parse_num(optarg);
-			} else if (long_idx == 20) { // --loop-height
-				loop_rel_height = atof(optarg);
-			} else if (long_idx == 21) { // --loop-min
-				loop_min = atoi(optarg);
 #ifdef HAVE_GL
 			} else if (long_idx == 16) { // --view
 				int fake_argc = 1;

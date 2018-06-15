@@ -44,6 +44,7 @@ struct hk_pair {      // a contact pair
 		float p4[4];
 		float phased_prob;
 		int32_t n_nei[2][2];
+		float peak_density[3];
 	} _;
 };
 
@@ -120,7 +121,7 @@ struct hk_map *hk_pair_split_phase(const struct hk_map *m, float phase_thres);
 
 struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, float min_cnt_weight, float area_weight, int32_t *n_tads_);
 void hk_mark_by_tad(int32_t n_tads, const struct hk_pair *tads, int32_t n_pairs, struct hk_pair *pairs);
-struct hk_pair *hk_pair2loop(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int r_inner, int r_outer, int min_inner, float min_rel_height, int32_t *n_loops_);
+struct hk_pair *hk_pair2loop(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int radius[3], int min_inner, float min_rel_height, int32_t *n_loops_);
 
 void hk_impute(int32_t n_pairs, struct hk_pair *pairs, int max_radius, int min_radius, int max_nei, int n_iter, float pseudo_cnt, int use_spacial);
 
