@@ -20,6 +20,7 @@ char *hk_pair_cols[] = { // when modify this array, append; DON'T insert in the 
 	"prob",          // 8
 	"n_nei_corner",  // 9
 	"qloop",         // 10
+	"exp_count",     // 11
 	NULL
 };
 
@@ -409,6 +410,7 @@ void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs
 	if ((flag & 0x3c) == 0x3c) fprintf(fp, " %s %s %s %s", hk_pair_cols[2], hk_pair_cols[3], hk_pair_cols[4], hk_pair_cols[5]);
 	else if (flag & 1<<8) fprintf(fp, " %s", hk_pair_cols[8]);
 	else if (flag & 1<<10) fprintf(fp, " %s", hk_pair_cols[10]);
+	else if (flag & 1<<11) fprintf(fp, " %s", hk_pair_cols[11]);
 	fputc('\n', fp);
 	for (i = 0; i < n_pairs; ++i) {
 		const struct hk_pair *p = &pairs[i];
@@ -423,6 +425,7 @@ void hk_print_pair(FILE *fp, int flag, const struct hk_sdict *d, int32_t n_pairs
 		if ((flag & 0x3c) == 0x3c) fprintf(fp, "\t%.3f\t%.3f\t%.3f\t%.3f", p->_.p4[0], p->_.p4[1], p->_.p4[2], p->_.p4[3]);
 		else if (flag & 1<<8) fprintf(fp, "\t%.4f", p->_.phased_prob);
 		else if (flag & 1<<10) fprintf(fp, "\t%.1f", p->_.qloop);
+		else if (flag & 1<<11) fprintf(fp, "\t%.4f", p->_.ecnt.e);
 		fputc('\n', fp);
 	}
 }

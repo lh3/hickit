@@ -2,7 +2,6 @@
 #include "hkpriv.h"
 #include "kavl.h"
 #include "klist.h"
-#include "ksort.h"
 
 /*************************
  * Count contained pairs *
@@ -239,4 +238,65 @@ int32_t hk_select_by_nei(int32_t n_pairs, struct hk_pair *pairs, int radius, int
 		}
 	}
 	return n_pairs_new;
+}
+
+/***************************
+ * Compute expected counts *
+ ***************************/
+
+#include "ksort.h"
+
+struct ecnt_aux {
+	uint64_t pos;
+	int32_t i, n;
+};
+
+#define ecnt_key(p) ((p).pos)
+KRADIX_SORT_INIT(ecnt, struct ecnt_aux, ecnt_key, 8)
+
+void hk_expected_count(int32_t n_pairs, struct hk_pair *pairs, int r1, int r2)
+{
+	int32_t i, j, left;
+	struct ecnt_aux *a;
+	double tmp = 1.0 / n_pairs;
+	a = CALLOC(struct ecnt_aux, n_pairs);
+	for (i = 0; i < n_pairs; ++i) {
+		struct hk_pair *p = &pairs[i];
+		a[i].i = i;
+		a[i].pos = p->chr>>32<<32 | hk_ppos1(p);
+	}
+	radix_sort_ecnt(a, a + n_pairs);
+	for (i = left = 0; i < n_pairs; ++i) {
+		struct ecnt_aux *p = &a[i];
+		for (j = left; j < i; ++j) {
+			if (p->pos - a[j].pos < r1) break;
+			a[j].n += i - j;
+		}
+		left = j;
+		p->n = i - left;
+	}
+	for (i = 0; i < n_pairs; ++i) {
+		struct hk_pair *p = &pairs[i];
+		pairs[a[i].i]._.ecnt.n[0] = a[i].n;
+		a[i].i = i;
+		a[i].pos = p->chr<<32 | hk_ppos2(p);
+		a[i].n = 0;
+	}
+	radix_sort_ecnt(a, a + n_pairs);
+	for (i = left = 0; i < n_pairs; ++i) {
+		struct ecnt_aux *p = &a[i];
+		for (j = left; j < i; ++j) {
+			if (p->pos - a[j].pos < r2) break;
+			a[j].n += i - j;
+		}
+		left = j;
+		p->n = i - left;
+	}
+	for (i = 0; i < n_pairs; ++i)
+		pairs[a[i].i]._.ecnt.n[1] = a[i].n;
+	free(a);
+	for (i = 0; i < n_pairs; ++i) {
+		struct hk_pair *p = &pairs[i];
+		p->_.ecnt.e = tmp * p->_.ecnt.n[0] * p->_.ecnt.n[1];
+	}
 }

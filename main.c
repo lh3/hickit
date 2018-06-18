@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r264"
+#define HICKIT_VERSION "r266"
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -54,6 +54,8 @@ static inline int64_t hk_parse_num(const char *str)
 	return (int64_t)(x + .499);
 }
 
+#define clear_union_flags(flag) ((flag) &= ~(0x3c | 1<<8 | 1<<10 | 1<<11))
+
 int main(int argc, char *argv[])
 {
 	int c, long_idx, has_options = 0;
@@ -89,7 +91,7 @@ int main(int argc, char *argv[])
 	hk_fdg_conf_init(&fdg_opt);
 	hk_v3d_opt_init(&v3d_opt);
 
-	while ((c = getopt_long(argc, argv, "i:o:r:c:T:P:n:w:p:b:e:k:R:a:s:I:O:D:Suz:L:", long_options, &long_idx)) >= 0) {
+	while ((c = getopt_long(argc, argv, "i:o:r:c:T:P:n:w:p:b:e:k:R:a:s:I:O:D:Suz:L:E", long_options, &long_idx)) >= 0) {
 		has_options = 1;
 		if (c == 'i') {
 			if (m) hk_map_destroy(m);
@@ -122,6 +124,10 @@ int main(int argc, char *argv[])
 		} else if (c == 'w') {
 			width = atoi(optarg);
 			assert(width > 0);
+		} else if (c == 'E') {
+			hk_expected_count(m->n_pairs, m->pairs, radius, radius);
+			clear_union_flags(m->cols);
+			m->cols |= 1<<11;
 		} else if (c == 'u') {
 			hk_impute(m->n_pairs, m->pairs, radius, imput_min_radius, imput_max_nei, max_iter, imput_pseudo_cnt, 1);
 			m->cols |= 0x3c;

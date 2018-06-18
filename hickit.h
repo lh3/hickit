@@ -45,6 +45,7 @@ struct hk_pair {      // a contact pair
 		float phased_prob;
 		int32_t n_nei[2][2];
 		float qloop;
+		struct { double e; int32_t n[2]; } ecnt;
 	} _;
 };
 
@@ -117,6 +118,7 @@ int32_t hk_pair_filter_close_legs(int32_t n_pairs, struct hk_pair *pairs, int mi
 int32_t hk_pair_filter_isolated(int32_t n_pairs, struct hk_pair *pairs, int32_t max_radius, int32_t min_cnt, float drop_frac);
 void hk_pair_count_contained(int32_t n_pairs, struct hk_pair *pairs);
 void hk_pair_count_nei(int32_t n_pairs, struct hk_pair *pairs, int r1, int r2);
+void hk_expected_count(int32_t n_pairs, struct hk_pair *pairs, int r1, int r2);
 struct hk_map *hk_pair_split_phase(const struct hk_map *m, float phase_thres);
 
 struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, float min_cnt_weight, float area_weight, int32_t *n_tads_);
