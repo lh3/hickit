@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r256"
+#define HICKIT_VERSION "r259"
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -27,7 +27,7 @@ static struct option long_options[] = {
 	{ "tads",           optional_argument, 0, 0 },   // 6
 	{ "bead-radius",    required_argument, 0, 0 },   // 7
 	{ "line-width",     required_argument, 0, 0 },   // 8
-	{ "keep-dup",       no_argument,       0, 'U' }, // 9
+	{ "dup-dist",       required_argument, 0, 0 },   // 9
 	{ "imput-nei",      required_argument, 0, 0 },   // 10
 	{ "val-frac",       required_argument, 0, 0 },   // 11
 	{ "version",        no_argument,       0, 0 },   // 12
@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
 	int ploidy = 2, seed = 1, max_iter = 1000, radius = 10000000, width = 780;
 	float phase_thres = 0.75f;
 	// immediate input filters
-	int max_seg = 3, min_mapq = 20, min_leg_dist = 1000, dedup = 1;
+	int max_seg = 3, min_mapq = 20, min_leg_dist = 1000, dup_dist = 100;
 	// TAD calling parameters
 	float tad_area_weight = 15.0f, tad_min_cnt_weight = 0.1f;
 	// loop calling parameters
@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
 	hk_fdg_conf_init(&fdg_opt);
 	hk_v3d_opt_init(&v3d_opt);
 
-	while ((c = getopt_long(argc, argv, "i:o:r:c:T:P:n:w:p:b:e:k:R:a:s:I:O:D:Suz:L:U", long_options, &long_idx)) >= 0) {
+	while ((c = getopt_long(argc, argv, "i:o:r:c:T:P:n:w:p:b:e:k:R:a:s:I:O:D:Suz:L:", long_options, &long_idx)) >= 0) {
 		has_options = 1;
 		if (c == 'i') {
 			if (m) hk_map_destroy(m);
@@ -100,8 +100,8 @@ int main(int argc, char *argv[])
 				m->pairs = hk_seg2pair(m->n_segs, m->segs, min_leg_dist, max_seg, min_mapq, &m->n_pairs);
 			else if (m->pairs && min_leg_dist > 0)
 				m->n_pairs = hk_pair_filter_close_legs(m->n_pairs, m->pairs, min_leg_dist);
-			if (dedup)
-				m->n_pairs = hk_pair_dedup(m->n_pairs, m->pairs, min_leg_dist);
+			if (dup_dist)
+				m->n_pairs = hk_pair_dedup(m->n_pairs, m->pairs, dup_dist);
 		} else if (c == 'o') {
 			fp = strcmp(optarg, "-") == 0? stdout : fopen(optarg, "w");
 			assert(fp);
@@ -122,8 +122,6 @@ int main(int argc, char *argv[])
 		} else if (c == 'w') {
 			width = atoi(optarg);
 			assert(width > 0);
-		} else if (c == 'U') {
-			dedup = 0;
 		} else if (c == 'u') {
 			hk_impute(m->n_pairs, m->pairs, radius, imput_min_radius, imput_max_nei, max_iter, imput_pseudo_cnt, 1);
 			m->cols |= 0x3c;
@@ -211,6 +209,7 @@ int main(int argc, char *argv[])
 			else if (long_idx ==  5) v3d_hl = optarg; // --highlight
 			else if (long_idx ==  7) v3d_opt.bead_radius = atof(optarg); // --bead-radius
 			else if (long_idx ==  8) v3d_opt.line_width = atof(optarg); // --line-width
+			else if (long_idx == 9)  dup_dist = hk_parse_num(optarg); // --dup-dist
 			else if (long_idx == 10) imput_max_nei = atoi(optarg); // --imput-nei
 			else if (long_idx == 11) imput_val_frac = atof(optarg); // --val-frac
 			else if (long_idx == 15) png_no_dim = 1; // --png-no-dim
@@ -249,6 +248,7 @@ int main(int argc, char *argv[])
 				}
 			} else if (long_idx == 12) { // --version
 				printf("%s\n", HICKIT_VERSION);
+				exit(0);
 			} else if (long_idx == 13) { // --out-val
 				fp = strcmp(optarg, "-") == 0? stdout : fopen(optarg, "w");
 				assert(fp);
@@ -302,10 +302,10 @@ int main(int argc, char *argv[])
 		fprintf(fp, "    -w INT              image or viewer width [%d]\n", width);
 		fprintf(fp, "    -p FLOAT            prob. threshold for a contact considered phased [%g]\n", phase_thres);
 		fprintf(fp, "  Input filters:\n");
-		fprintf(fp, "    --max-seg=NUM       ignore fragments with >INT segments [%d]\n", max_seg);
-		fprintf(fp, "    --min-mapq=NUM      min mapping quality [%d]\n", min_mapq);
+		fprintf(fp, "    --max-seg=NUM       ignore fragments with >INT segments (.seg only) [%d]\n", max_seg);
+		fprintf(fp, "    --min-mapq=NUM      min mapping quality (.seg only) [%d]\n", min_mapq);
 		fprintf(fp, "    --min-leg-dist=NUM  min base-pair distance between the two legs [%d]\n", min_leg_dist);
-		fprintf(fp, "    -U                  don't filter potential duplicates\n");
+		fprintf(fp, "    --dup-dist=NUM      remove contacts within NUM-bp (dedup; 0 to disable) [%d]\n", dup_dist);
 		fprintf(fp, "  TAD calling:\n");
 		fprintf(fp, "    -a FLOAT            area weight (larger for smaller TADs) [%g]\n", tad_area_weight);
 		fprintf(fp, "    -z INT              min TAD count weight [%g]\n", tad_min_cnt_weight);
@@ -324,7 +324,7 @@ int main(int argc, char *argv[])
 #endif
 		fprintf(fp, "\n");
 		fprintf(fp, "Examples:\n");
-		fprintf(fp, "  hickit -i raw.pairs.gz -u -o imput.pairs\n");
+		fprintf(fp, "  hickit -i raw.pairs.gz -U1k -u -o imput.pairs\n");
 		fprintf(fp, "  hickit -i imput.pairs -Sr1m -c1 -r10m -c5 -b4m -b1m -b200k -D5 -b50k -D5 -b20k -O out.3dg\n");
 		return 1;
 	}
