@@ -211,7 +211,7 @@ static void hk_select_by_nei_core(int32_t n_pairs, struct cnt_nei2_aux *a, int r
 	free(del);
 }
 
-int32_t hk_select_by_nei(int32_t n_pairs, struct hk_pair *pairs, int radius)
+int32_t hk_select_by_nei(int32_t n_pairs, struct hk_pair *pairs, int radius, int by_qloop)
 {
 	int32_t k, st, n_pairs_new = 0;
 	for (k = 1; k < n_pairs; ++k)
@@ -227,7 +227,7 @@ int32_t hk_select_by_nei(int32_t n_pairs, struct hk_pair *pairs, int radius)
 				struct hk_pair *p = &pairs[st + i];
 				a[i].pos1 = hk_ppos1(p);
 				a[i].pos2 = hk_ppos2(p);
-				a[i].n = p->n_nei;
+				a[i].n = by_qloop? (int)(p->_.qloop * 100.0 + .499) : p->n_nei;
 				a[i].i = i;
 			}
 			hk_select_by_nei_core(n, a, radius);

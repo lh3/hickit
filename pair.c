@@ -476,7 +476,7 @@ struct hk_pair *hk_pair2loop(const struct hk_sdict *d, int32_t n_pairs, struct h
 		loops[n_loops++] = tmp;
 	}
 
-	n_loops = hk_select_by_nei(n_loops, loops, radius[2]);
+	n_loops = hk_select_by_nei(n_loops, loops, radius[2], 1);
 	*n_loops_ = n_loops;
 	return loops;
 }
