@@ -442,7 +442,7 @@ struct hk_pair *hk_pair2loop(const struct hk_sdict *d, int32_t n_pairs, struct h
 			den_mid   = (p->_.n_nei[0][0] - p->n_nei) / (area[1] - area[0]);
 			den_outer = (p->_.n_nei[1][0] - p->_.n_nei[0][0]) / (area[2] - area[1]);
 			if (den_inner < den_outer || den_inner < den_mid) continue;
-			pv = kf_binomial_test_right(p->_.n_nei[1][0] - p->_.n_nei[0][0], p->n_nei, (area[2] - area[1]) / area[0], 0.01, 20);
+			pv = kf_binomial_test_right(p->_.n_nei[1][0] - p->_.n_nei[0][0] + p->n_nei, p->n_nei, (area[2] - area[1]) / area[0], 0.01, 20);
 		} else {
 			double area[3][2], den_inner, den_outer, den_mid, pv_corner;
 			for (j = 0; j < 3; ++j) {
@@ -458,13 +458,13 @@ struct hk_pair *hk_pair2loop(const struct hk_sdict *d, int32_t n_pairs, struct h
 			den_mid   = (p->_.n_nei[0][0] - p->n_nei) / (area[1][0] - area[0][0]);
 			den_outer = (p->_.n_nei[1][0] - p->_.n_nei[0][0]) / (area[2][0] - area[1][0]);
 			if (den_inner < den_outer || den_inner < den_mid) continue;
-			pv = kf_binomial_test_right(p->_.n_nei[1][0] - p->_.n_nei[0][0], p->n_nei, area[0][0] / (area[2][0] - area[1][0]), 0.01, 20);
+			pv = kf_binomial_test_right(p->_.n_nei[1][0] - p->_.n_nei[0][0] + p->n_nei, p->n_nei, area[0][0] / (area[2][0] - area[1][0]), 0.01, 20);
 			if (area[2][1] - area[1][1] > area[0][0]) {
 				den_mid   = (p->_.n_nei[0][1] - p->n_nei_corner) / (area[1][1] - area[0][1]);
 				den_outer = (p->_.n_nei[1][1] - p->_.n_nei[0][1]) / (area[2][1] - area[1][1]);
 				if (den_inner < den_outer || den_inner < den_mid) continue;
-				pv_corner = kf_binomial_test_right(p->_.n_nei[1][1] - p->_.n_nei[0][1], p->n_nei, area[0][0] / (area[2][1] - area[1][1]), 0.01, 20);
-				//if (hk_ppos1(p) == 335987 && hk_ppos2(p) == 412293) fprintf(stderr, "%g,%g\n", pv, pv_corner);
+				pv_corner = kf_binomial_test_right(p->_.n_nei[1][1] - p->_.n_nei[0][1] + p->n_nei, p->n_nei, area[0][0] / (area[2][1] - area[1][1]), 0.01, 20);
+				//if (hk_ppos1(p) == 335987 && hk_ppos2(p) == 412293) fprintf(stderr, "%d,%d; %g,%g\n", p->n_nei, p->_.n_nei[1][1] - p->_.n_nei[0][1], pv, pv_corner);
 				if (pv < pv_corner) pv = pv_corner;
 			}
 		}
