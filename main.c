@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r262"
+#define HICKIT_VERSION "r263"
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -285,6 +285,7 @@ int main(int argc, char *argv[])
 		fprintf(fp, "    -O FILE             write the 3D model to FILE []\n");
 		fprintf(fp, "    -c INT              filter pairs if within -r, #neighbors<INT []\n");
 		fprintf(fp, "    -T FILE             call TADs and write to FILE []\n");
+		fprintf(fp, "    -L FILE             call loops and write to FILE []\n");
 		fprintf(fp, "    -u                  impute missing phases\n");
 		fprintf(fp, "    --out-val=FILE      save validation to FILE []\n");
 		fprintf(fp, "    --out-png=FILE      write 2D contact map to FILE in PNG []\n");
@@ -309,6 +310,11 @@ int main(int argc, char *argv[])
 		fprintf(fp, "  TAD calling:\n");
 		fprintf(fp, "    -a FLOAT            area weight (larger for smaller TADs) [%g]\n", tad_area_weight);
 		fprintf(fp, "    -z INT              min TAD count weight [%g]\n", tad_min_cnt_weight);
+		fprintf(fp, "  Loop calling:\n");
+		fprintf(fp, "    --loop-inner=NUM    peak radius [%d]\n", loop_radius[0]);
+		fprintf(fp, "    --loop-mid=NUM      gap radius [%d]\n", loop_radius[1]);
+		fprintf(fp, "    --loop-outer=NUM    outer radius [%d]\n", loop_radius[2]);
+		fprintf(fp, "    --loop-p=FLOAT      pseudo P-value threshold [%g]\n", loop_pv);
 		fprintf(fp, "  Imputation:\n");
 		fprintf(fp, "    --imput-nei=INT     max neighbors [%d]\n", imput_max_nei);
 		fprintf(fp, "    --val-frac=FLOAT    fraction to hold out for validation [%g]\n", imput_val_frac);
