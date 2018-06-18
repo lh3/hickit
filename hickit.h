@@ -44,7 +44,7 @@ struct hk_pair {      // a contact pair
 		float p4[4];
 		float phased_prob;
 		int32_t n_nei[2][2];
-		float peak_density[3];
+		float qloop;
 	} _;
 };
 

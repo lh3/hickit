@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r259"
+#define HICKIT_VERSION "r260"
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -140,7 +140,7 @@ int main(int argc, char *argv[])
 			assert(m && m->pairs);
 			if (loops) free(loops);
 			loops = hk_pair2loop(m->d, m->n_pairs, m->pairs, loop_radius, loop_pv, &n_loops);
-			m->cols |= 1<<6 | 1<<9 | 0x1c00;
+			m->cols |= 1<<6 | 1<<9 | 1<<10;
 			fp = strcmp(optarg, "-") == 0? stdout : fopen(optarg, "w");
 			hk_print_pair(fp, m->cols, m->d, n_loops, loops);
 			if (fp != stdout) fclose(fp);
@@ -244,7 +244,7 @@ int main(int argc, char *argv[])
 				if (!optarg) {
 					assert(m && m->pairs);
 					loops = hk_pair2loop(m->d, m->n_pairs, m->pairs, loop_radius, loop_pv, &n_loops);
-					m->cols |= 1<<6 | 1<<9 | 0x1c00;
+					m->cols |= 1<<6 | 1<<9 | 1<<10;
 				}
 			} else if (long_idx == 12) { // --version
 				printf("%s\n", HICKIT_VERSION);
