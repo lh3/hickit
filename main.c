@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r263"
+#define HICKIT_VERSION "r264"
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -330,7 +330,7 @@ int main(int argc, char *argv[])
 #endif
 		fprintf(fp, "\n");
 		fprintf(fp, "Examples:\n");
-		fprintf(fp, "  hickit -i raw.pairs.gz -U1k -u -o imput.pairs\n");
+		fprintf(fp, "  hickit -i raw.pairs.gz -u -o imput.pairs\n");
 		fprintf(fp, "  hickit -i imput.pairs -Sr1m -c1 -r10m -c5 -b4m -b1m -b200k -D5 -b50k -D5 -b20k -O out.3dg\n");
 		return 1;
 	}
