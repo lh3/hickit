@@ -39,8 +39,7 @@ static struct option long_options[] = {
 	{ "loop-inner",     required_argument, 0, 0 },   // 18
 	{ "loop-mid",       required_argument, 0, 0 },   // 19
 	{ "loop-outer",     required_argument, 0, 0 },   // 20
-	{ "loop-height",    required_argument, 0, 0 },   // 21
-	{ "loop-min",       required_argument, 0, 0 },   // 22
+	{ "loop-p",         required_argument, 0, 0 },   // 21
 	{ 0, 0, 0, 0}
 };
 
@@ -73,8 +72,8 @@ int main(int argc, char *argv[])
 	// TAD calling parameters
 	float tad_area_weight = 15.0f, tad_min_cnt_weight = 0.1f;
 	// loop calling parameters
-	int loop_radius[3] = { 5000, 25000, 55000 }, loop_min = 5;
-	float loop_rel_height = 2.0f;
+	int loop_radius[3] = { 5000, 25000, 55000 };
+	float loop_pv = 1e-5;
 	// imputation parameters
 	int imput_max_nei = 50, imput_min_radius = 50000;
 	float imput_val_frac = 0.1f, imput_pseudo_cnt = 0.4f;
@@ -142,7 +141,7 @@ int main(int argc, char *argv[])
 		} else if (c == 'L') {
 			assert(m && m->pairs);
 			if (loops) free(loops);
-			loops = hk_pair2loop(m->d, m->n_pairs, m->pairs, loop_radius, loop_min, loop_rel_height, &n_loops);
+			loops = hk_pair2loop(m->d, m->n_pairs, m->pairs, loop_radius, loop_pv, &n_loops);
 			m->cols |= 1<<6 | 1<<9 | 0x1c00;
 			fp = strcmp(optarg, "-") == 0? stdout : fopen(optarg, "w");
 			hk_print_pair(fp, m->cols, m->d, n_loops, loops);
@@ -218,8 +217,7 @@ int main(int argc, char *argv[])
 			else if (long_idx == 18) loop_radius[0] = hk_parse_num(optarg); // --loop-inner
 			else if (long_idx == 19) loop_radius[1] = hk_parse_num(optarg); // --loop-mid
 			else if (long_idx == 20) loop_radius[2] = hk_parse_num(optarg); // --loop-outer
-			else if (long_idx == 21) loop_rel_height = atof(optarg); // --loop-height
-			else if (long_idx == 22) loop_min = atoi(optarg); // --loop-min
+			else if (long_idx == 21) loop_pv = atof(optarg); // --loop-p
 			else if (long_idx ==  4) { // --out-seg
 				assert(m && m->segs);
 				fp = strcmp(optarg, "-") == 0? stdout : fopen(optarg, "w");
@@ -246,7 +244,7 @@ int main(int argc, char *argv[])
 				if (loops) free(loops);
 				if (!optarg) {
 					assert(m && m->pairs);
-					loops = hk_pair2loop(m->d, m->n_pairs, m->pairs, loop_radius, loop_min, loop_rel_height, &n_loops);
+					loops = hk_pair2loop(m->d, m->n_pairs, m->pairs, loop_radius, loop_pv, &n_loops);
 					m->cols |= 1<<6 | 1<<9 | 0x1c00;
 				}
 			} else if (long_idx == 12) { // --version
