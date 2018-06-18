@@ -107,24 +107,25 @@ static void hk_count_nei2_core(int32_t n_pairs, struct cnt_nei2_aux *a, int r1, 
 {
 	struct cnt_nei2_aux *root = 0;
 	int32_t i, j, left;
-	unsigned cl, cm;
+	unsigned cl;
 	left = 0;
 	kavl_insert(nei2, &root, &a[0], 0);
 	for (i = 1; i < n_pairs; ++i) {
 		for (j = left; j < i; ++j) {
+			unsigned cm;
 			if (a[i].pos1 - a[j].pos1 < r1) break;
-			kavl_erase(nei2, &root, &a[j]);
+			kavl_erase(nei2, &root, &a[j], &cm);
 			a[j].n += count_in_tree2(root, a[j].pos2, r2, &cl);
+			assert(cm >= cl + 1);
+			a[j].n_corner = cm - 1 - cl;
 		}
 		left = j;
 		assert(i - left == kavl_size(head, root));
 		a[i].n = count_in_tree2(root, a[i].pos2, r2, &cl);
-		kavl_insert(nei2, &root, &a[i], &cm);
-		assert(cm >= cl);
-		a[i].n_corner = cm - cl;
+		kavl_insert(nei2, &root, &a[i], 0);
 	}
 	for (j = left; j < n_pairs; ++j) {
-		kavl_erase(nei2, &root, &a[j]);
+		kavl_erase(nei2, &root, &a[j], 0);
 		a[j].n += count_in_tree2(root, a[j].pos2, r2, &cl);
 	}
 }
@@ -173,7 +174,7 @@ static void hk_select_by_nei_core(int32_t n_pairs, struct cnt_nei2_aux *a, int r
 		int to_add = 1;
 		for (j = left; j < i; ++j) {
 			if (a[i].pos1 - a[j].pos1 < radius) break;
-			p = kavl_erase(nei2, &root, &a[j]);
+			p = kavl_erase(nei2, &root, &a[j], 0);
 			if (p) p->n_corner = 1;
 		}
 		left = j;
@@ -198,7 +199,7 @@ static void hk_select_by_nei_core(int32_t n_pairs, struct cnt_nei2_aux *a, int r
 		}
 		if (to_add) {
 			for (j = 0; j < n_del; ++j)
-				kavl_erase(nei2, &root, &a[del[j]]);
+				kavl_erase(nei2, &root, &a[del[j]], 0);
 			kavl_insert(nei2, &root, &a[i], 0);
 		}
 	}

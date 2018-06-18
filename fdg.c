@@ -281,7 +281,7 @@ static double hk_fdg1(const struct hk_fdg_conf *opt, struct hk_bmap *m, khash_t(
 		float x0 = q->x[0] - rep_radius;
 		for (j = left; j < i; ++j) {
 			if (y[j].x[0] >= x0) break;
-			kavl_erase(cy, &root, &y[j]);
+			kavl_erase(cy, &root, &y[j], 0);
 		}
 		left = j;
 		assert(kavl_size(head, root) == i - left);

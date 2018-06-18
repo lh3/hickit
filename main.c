@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
 	// TAD calling parameters
 	float tad_area_weight = 15.0f, tad_min_cnt_weight = 0.1f;
 	// loop calling parameters
-	int loop_radius[3] = { 5000, 25000, 55000}, loop_min = 5;
+	int loop_radius[3] = { 5000, 25000, 55000 }, loop_min = 5;
 	float loop_rel_height = 2.0f;
 	// imputation parameters
 	int imput_max_nei = 50, imput_min_radius = 50000;

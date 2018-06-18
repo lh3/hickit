@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <string.h>
+#include <math.h>
 #include "hkpriv.h"
 #include "ksort.h"
 #define pair_lt(a, b) ((a).chr < (b).chr || ((a).chr == (b).chr && (a).pos < (b).pos))
@@ -372,6 +373,39 @@ struct hk_pair *hk_pair2tad(const struct hk_sdict *d, int32_t n_pairs, struct hk
  * Loop calling *
  ****************/
 
+double kf_lgamma(double z)
+{
+	double x = 0;
+	x += 0.1659470187408462e-06 / (z+7);
+	x += 0.9934937113930748e-05 / (z+6);
+	x -= 0.1385710331296526     / (z+5);
+	x += 12.50734324009056      / (z+4);
+	x -= 176.6150291498386      / (z+3);
+	x += 771.3234287757674      / (z+2);
+	x -= 1259.139216722289      / (z+1);
+	x += 676.5203681218835      / z;
+	x += 0.9999999999995183;
+	return log(x) - 5.58106146679532777 - z + (z-0.5) * log(z+6.5);
+}
+
+double kf_binomial_test_right(int n, int k, double p, double rel_eps, int max_iter)
+{
+	double pq, s, t, t_stop;
+	int i, top;
+	if (k < n * p) return 1.0;
+	pq = p / (1.0 - p);
+	s = t = exp(kf_lgamma(n + 1) - (kf_lgamma(k + 1) + kf_lgamma(n - k + 1)) + (k * log(p) + (n - k) * log(1.0 - p)));
+	t_stop = t * rel_eps;
+	top = n < k + max_iter + 1? n : k + max_iter + 1;
+	for (i = k + 1; i < top; ++i) {
+		t *= pq * (n - i + 1) / i;
+		if (s + t == s) return s;
+		s += t;
+		if (t < t_stop) break;
+	}
+	return s;
+}
+
 struct hk_pair *hk_pair2loop(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int radius[3], int min_inner, float min_rel_height, int32_t *n_loops_)
 {
 	const int band_width = 10000000;
@@ -398,6 +432,7 @@ struct hk_pair *hk_pair2loop(const struct hk_sdict *d, int32_t n_pairs, struct h
 		struct hk_pair tmp, *p = &pairs[i];
 		double den_inner, den_outer, den_mid;
 		int j, d = hk_ppos2(p) - hk_ppos1(p);
+		double pv;
 		if (hk_intra(p) && d < radius[0]) continue;
 		if (p->n_nei < min_inner) continue;
 		if (!hk_intra(p) || d > band_width) {
@@ -407,11 +442,12 @@ struct hk_pair *hk_pair2loop(const struct hk_sdict *d, int32_t n_pairs, struct h
 			den_inner = p->n_nei / area[0];
 			den_mid   = (p->_.n_nei[0][0] - p->n_nei) / (area[1] - area[0]);
 			den_outer = (p->_.n_nei[1][0] - p->_.n_nei[0][0]) / (area[2] - area[1]);
+			pv = kf_binomial_test_right(p->_.n_nei[1][0] - p->_.n_nei[0][0], p->n_nei, (area[2] - area[1]) / area[0], 0.01, 20);
 		} else {
-			double area[3][2], den_outer_corner, den_mid_corner;
+			double area[3][2], den_outer_corner, den_mid_corner, pv_corner;
 			for (j = 0; j < 3; ++j) {
 				area[j][0] = 4.0 * radius[j] * radius[j];
-				area[j][1] = radius[j] * radius[j];
+				area[j][1] = (double)radius[j] * radius[j];
 				if (d < radius[j] * 2) {
 					double t = .5 * (radius[j] * 2 - d) * (radius[j] * 2 - d);
 					area[j][0] -= t;
@@ -421,13 +457,22 @@ struct hk_pair *hk_pair2loop(const struct hk_sdict *d, int32_t n_pairs, struct h
 			den_inner = p->n_nei / area[0][0];
 			den_mid   = (p->_.n_nei[0][0] - p->n_nei) / (area[1][0] - area[0][0]);
 			den_outer = (p->_.n_nei[1][0] - p->_.n_nei[0][0]) / (area[2][0] - area[1][0]);
-			den_mid_corner   = (p->_.n_nei[0][1] - p->n_nei_corner) / (area[1][1] - area[0][1]);
-			den_outer_corner = (p->_.n_nei[1][1] - p->_.n_nei[0][1]) / (area[2][1] - area[1][1]);
-			if (den_mid   < den_mid_corner)   den_mid   = den_mid_corner;
-			if (den_outer < den_outer_corner) den_outer = den_outer_corner;
+			pv = kf_binomial_test_right(p->_.n_nei[1][0] - p->_.n_nei[0][0], p->n_nei, area[0][0] / (area[2][0] - area[1][0]), 0.01, 20);
+			fprintf(stderr, "[0] %d\t%d\t%d\t%d\t%d\t%d\n", p->n_nei, p->n_nei_corner, p->_.n_nei[0][0], p->_.n_nei[0][1], p->_.n_nei[1][0], p->_.n_nei[1][1]);
+			fprintf(stderr, "[1] %d\t%d\t%f\t%g\t%f\t%d\t%g\n", p->_.n_nei[1][0] - p->_.n_nei[0][0], p->n_nei, area[0][0] / (area[2][0] - area[1][0]), pv, den_inner / den_outer, d, area[2][1] - area[1][1]);
+			if (area[1][1] < area[2][1]) {
+				den_mid_corner   = (p->_.n_nei[0][1] - p->n_nei_corner) / (area[1][1] - area[0][1]);
+				den_outer_corner = (p->_.n_nei[1][1] - p->_.n_nei[0][1]) / (area[2][1] - area[1][1]);
+				pv_corner = kf_binomial_test_right(p->_.n_nei[1][1] - p->_.n_nei[0][1], p->n_nei, area[0][0] / (area[2][1] - area[1][1]), 0.01, 20);
+				fprintf(stderr, "[2] %d\t%d\t%f\t%g\t%f\t%d\n", p->_.n_nei[1][1] - p->_.n_nei[0][1], p->n_nei, area[0][0] / (area[2][1] - area[1][1]), pv_corner, den_inner / den_outer_corner, d);
+				if (pv < pv_corner) pv = pv_corner;
+				if (den_mid   < den_mid_corner)   den_mid   = den_mid_corner;
+				if (den_outer < den_outer_corner) den_outer = den_outer_corner;
+			}
 		}
-		if (den_inner < den_mid) continue;
+		if (den_inner < den_mid || den_inner < den_outer) continue;
 		if (den_inner < den_outer * min_rel_height) continue;
+		if (pv > 1e-3) continue;
 		if (m_loops == n_loops) EXPAND(loops, m_loops);
 		tmp = *p;
 		tmp._.peak_density[0] = den_inner;
