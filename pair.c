@@ -431,7 +431,7 @@ struct hk_pair *hk_pair2loop(const struct hk_sdict *d, int32_t n_pairs, struct h
 	int32_t k, i, n_loops = 0, m_loops = 0;
 	struct cnt_aux *extra = 0;
 
-	assert(n_r >= 3 && n_r <= 16);
+	assert(n_r >= 3 && n_r <= HK_MAX_LOOP_RES);
 	if (n_r > 3) extra = CALLOC(struct cnt_aux, (size_t)n_pairs * (n_r - 3));
 
 	for (k = n_r - 1; k > 0; --k) {
@@ -456,7 +456,7 @@ struct hk_pair *hk_pair2loop(const struct hk_sdict *d, int32_t n_pairs, struct h
 		struct hk_pair tmp, *p = &pairs[i];
 		struct cnt_aux *q = &extra[(size_t)i * (n_r - 3)];
 		int j, d = hk_ppos2(p) - hk_ppos1(p), best_k, best_j;
-		double best_pv, area_all[16], area_cor[16];
+		double best_pv, area_all[HK_MAX_LOOP_RES], area_cor[HK_MAX_LOOP_RES];
 		if (hk_intra(p) && d < r[n_r - 2]) continue;
 		if (p->n_nei < 2) continue;
 		for (k = 0; k < n_r; ++k) {
@@ -471,16 +471,18 @@ struct hk_pair *hk_pair2loop(const struct hk_sdict *d, int32_t n_pairs, struct h
 		best_pv = 2.0, best_k = -1, best_j = -1;
 		for (k = 0; k < n_r - 2; ++k) {
 			int32_t n_all;
+			if (hk_intra(p) && d < r[k] * 2) continue;
 			n_all = get_nei_all(p, q, k);
+			if (k > 0 && n_all / area_all[k] >= get_nei_all(p, q, k - 1) / area_all[k-1]) continue;
 			for (j = k + 2; j < n_r; ++j) {
 				double pv;
-				pv =         kf_binomial_test_right(get_nei_all(p, q, j) + n_all, n_all, area_all[k] / (area_all[j] - area_all[j-1] + area_all[k]), 0.01, 20);
-				if (hk_ppos1(p) == 336118 && hk_ppos2(p) == 410018) fprintf(stderr, "[%d,%d] pv_all=%g n_all=%d donut=%d\n", r[k], r[j], pv, n_all, get_nei_all(p, q, j));
+				pv =         kf_binomial_test_right(get_nei_all(p, q, j) - get_nei_all(p, q, j-1) + n_all, n_all, area_all[k] / (area_all[j] - area_all[j-1] + area_all[k]), 0.01, 20);
+				//if (hk_ppos1(p) == 797873 && hk_ppos2(p) == 1191406) fprintf(stderr, "[%d,%d] pv_all=%g n_all=%d n_donut=%d\n", r[k], r[j], pv, n_all, get_nei_all(p, q, j) - get_nei_all(p, q, j-1));
 				if (pv > pv_thres) continue;
 				if (hk_intra(p) && d <= band_width) {
 					double pv_cor;
-					pv_cor = kf_binomial_test_right(get_nei_cor(p, q, j) + n_all, n_all, area_all[k] / (area_cor[j] - area_cor[j-1] + area_all[k]), 0.01, 20);
-					if (hk_ppos1(p) == 336118 && hk_ppos2(p) == 410018) fprintf(stderr, "[%d,%d] pv_cor=%g\n", r[k], r[j], pv_cor);
+					pv_cor = kf_binomial_test_right(get_nei_cor(p, q, j) - get_nei_cor(p, q, j-1) + n_all, n_all, area_all[k] / (area_cor[j] - area_cor[j-1] + area_all[k]), 0.01, 20);
+					//if (hk_ppos1(p) == 797873 && hk_ppos2(p) == 1191406) fprintf(stderr, "[%d,%d] pv_cor=%g\n", r[k], r[j], pv_cor);
 					if (pv_cor > pv_thres) continue;
 					if (pv_cor > pv) pv = pv_cor;
 				}
@@ -490,12 +492,14 @@ struct hk_pair *hk_pair2loop(const struct hk_sdict *d, int32_t n_pairs, struct h
 		if (best_pv > pv_thres) continue;
 		if (m_loops == n_loops) EXPAND(loops, m_loops);
 		tmp = *p;
-		tmp._.qloop = best_pv < 1e-100? 999.0 : -4.343 * log(best_pv);
-		if (tmp._.qloop > 999.0) tmp._.qloop = 999.0;
+		tmp._.loop.q = best_pv < 1e-100? 999.0 : -4.343 * log(best_pv);
+		if (tmp._.loop.q > 999.0) tmp._.loop.q = 999.0;
+		tmp._.loop.r = r[best_k];
+		tmp._.loop.n = get_nei_all(p, q, best_k);
 		loops[n_loops++] = tmp;
 	}
 	free(extra);
-	n_loops = hk_select_by_nei(n_loops, loops, r[n_r - 1], 1);
+	n_loops = hk_select_by_nei(n_loops, loops, r[n_r - 2], 0);
 	*n_loops_ = n_loops;
 	return loops;
 }

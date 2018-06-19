@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r267"
+#define HICKIT_VERSION "r269"
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -52,7 +52,7 @@ static inline int64_t hk_parse_num(const char *str)
 	return (int64_t)(x + .499);
 }
 
-#define clear_union_flags(flag) ((flag) &= ~(0x3c | 1<<8 | 1<<10 | 1<<11))
+#define clear_union_flags(flag) ((flag) &= ~(0x3c | 1<<8 | 1<<10 | 0x3800))
 
 int main(int argc, char *argv[])
 {
@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
 	// TAD calling parameters
 	float tad_area_weight = 15.0f, tad_min_cnt_weight = 0.1f;
 	// loop calling parameters
-	int n_loop_r = 5, loop_r[8] = { 2500, 5000, 10000, 20000, 50000, 0, 0, 0 };
+	int n_loop_r = 5, loop_r[HK_MAX_LOOP_RES] = { 2500, 5000, 10000, 25000, 55000, 0, 0, 0 };
 	float loop_p = 1e-6;
 	// imputation parameters
 	int imput_max_nei = 50, imput_min_radius = 50000;
@@ -125,7 +125,7 @@ int main(int argc, char *argv[])
 		} else if (c == 'E') {
 			hk_expected_count(m->n_pairs, m->pairs, radius);
 			clear_union_flags(m->cols);
-			m->cols |= 1<<11;
+			m->cols |= 1<<10;
 		} else if (c == 'u') {
 			hk_impute(m->n_pairs, m->pairs, radius, imput_min_radius, imput_max_nei, max_iter, imput_pseudo_cnt, 1);
 			m->cols |= 0x3c;
@@ -144,7 +144,7 @@ int main(int argc, char *argv[])
 			assert(m && m->pairs);
 			if (loops) free(loops);
 			loops = hk_pair2loop(m->d, m->n_pairs, m->pairs, n_loop_r, loop_r, loop_p, &n_loops);
-			m->cols |= 1<<6 | 1<<9 | 1<<10;
+			m->cols |= 0x3800;
 			fp = strcmp(optarg, "-") == 0? stdout : fopen(optarg, "w");
 			hk_print_pair(fp, m->cols, m->d, n_loops, loops);
 			if (fp != stdout) fclose(fp);
@@ -245,7 +245,7 @@ int main(int argc, char *argv[])
 				if (!optarg) {
 					assert(m && m->pairs);
 					loops = hk_pair2loop(m->d, m->n_pairs, m->pairs, n_loop_r, loop_r, loop_p, &n_loops);
-					m->cols |= 1<<6 | 1<<9 | 1<<10;
+					m->cols |= 0x3800;
 				}
 			} else if (long_idx == 12) { // --version
 				printf("%s\n", HICKIT_VERSION);

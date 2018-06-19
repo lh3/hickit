@@ -5,7 +5,8 @@
 #include <stdio.h>
 #include "krng.h"
 
-#define HK_SUB_DELIM '!'
+#define HK_SUB_DELIM    '!'
+#define HK_MAX_LOOP_RES 8
 
 #ifdef __cplusplus
 extern "C" {
@@ -44,7 +45,7 @@ struct hk_pair {      // a contact pair
 		float p4[4];
 		float phased_prob;
 		int32_t n_nei[2][2];
-		float qloop;
+		struct { float q; int32_t r, n; } loop;
 		struct { double e; int32_t n[2]; } ecnt;
 	} _;
 };

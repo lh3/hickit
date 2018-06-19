@@ -226,7 +226,7 @@ int32_t hk_select_by_nei(int32_t n_pairs, struct hk_pair *pairs, int radius, int
 				struct hk_pair *p = &pairs[st + i];
 				a[i].pos1 = hk_ppos1(p);
 				a[i].pos2 = hk_ppos2(p);
-				a[i].n = by_qloop? (int)(p->_.qloop * 100.0 + .499) : p->n_nei;
+				a[i].n = by_qloop? (int)(p->_.loop.q * 100.0 + .499) : p->n_nei;
 				a[i].i = i;
 			}
 			hk_select_by_nei_core(n, a, radius);
