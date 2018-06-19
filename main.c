@@ -36,10 +36,8 @@ static struct option long_options[] = {
 	{ "png-no-dim",     no_argument,       0, 0 },   // 15
 	{ "view",           no_argument,       0, 0 },   // 16
 	{ "loops",          optional_argument, 0, 0 },   // 17
-	{ "loop-inner",     required_argument, 0, 0 },   // 18
-	{ "loop-mid",       required_argument, 0, 0 },   // 19
-	{ "loop-outer",     required_argument, 0, 0 },   // 20
-	{ "loop-p",         required_argument, 0, 0 },   // 21
+	{ "loop-p",         required_argument, 0, 0 },   // 18
+	{ "loop-r",         required_argument, 0, 0 },   // 19
 	{ 0, 0, 0, 0}
 };
 
@@ -74,8 +72,8 @@ int main(int argc, char *argv[])
 	// TAD calling parameters
 	float tad_area_weight = 15.0f, tad_min_cnt_weight = 0.1f;
 	// loop calling parameters
-	int loop_radius[3] = { 5000, 25000, 55000 };
-	float loop_pv = 1e-5;
+	int n_loop_r = 5, loop_r[8] = { 2500, 5000, 10000, 20000, 50000, 0, 0, 0 };
+	float loop_p = 1e-6;
 	// imputation parameters
 	int imput_max_nei = 50, imput_min_radius = 50000;
 	float imput_val_frac = 0.1f, imput_pseudo_cnt = 0.4f;
@@ -145,7 +143,7 @@ int main(int argc, char *argv[])
 		} else if (c == 'L') {
 			assert(m && m->pairs);
 			if (loops) free(loops);
-			loops = hk_pair2loop(m->d, m->n_pairs, m->pairs, loop_radius, loop_pv, &n_loops);
+			loops = hk_pair2loop(m->d, m->n_pairs, m->pairs, n_loop_r, loop_r, loop_p, &n_loops);
 			m->cols |= 1<<6 | 1<<9 | 1<<10;
 			fp = strcmp(optarg, "-") == 0? stdout : fopen(optarg, "w");
 			hk_print_pair(fp, m->cols, m->d, n_loops, loops);
@@ -219,10 +217,7 @@ int main(int argc, char *argv[])
 			else if (long_idx == 10) imput_max_nei = atoi(optarg); // --imput-nei
 			else if (long_idx == 11) imput_val_frac = atof(optarg); // --val-frac
 			else if (long_idx == 15) png_no_dim = 1; // --png-no-dim
-			else if (long_idx == 18) loop_radius[0] = hk_parse_num(optarg); // --loop-inner
-			else if (long_idx == 19) loop_radius[1] = hk_parse_num(optarg); // --loop-mid
-			else if (long_idx == 20) loop_radius[2] = hk_parse_num(optarg); // --loop-outer
-			else if (long_idx == 21) loop_pv = atof(optarg); // --loop-p
+			else if (long_idx == 18) loop_p = atof(optarg); // --loop-p
 			else if (long_idx ==  4) { // --out-seg
 				assert(m && m->segs);
 				fp = strcmp(optarg, "-") == 0? stdout : fopen(optarg, "w");
@@ -249,7 +244,7 @@ int main(int argc, char *argv[])
 				if (loops) free(loops);
 				if (!optarg) {
 					assert(m && m->pairs);
-					loops = hk_pair2loop(m->d, m->n_pairs, m->pairs, loop_radius, loop_pv, &n_loops);
+					loops = hk_pair2loop(m->d, m->n_pairs, m->pairs, n_loop_r, loop_r, loop_p, &n_loops);
 					m->cols |= 1<<6 | 1<<9 | 1<<10;
 				}
 			} else if (long_idx == 12) { // --version
@@ -317,10 +312,7 @@ int main(int argc, char *argv[])
 		fprintf(fp, "    -a FLOAT            area weight (larger for smaller TADs) [%g]\n", tad_area_weight);
 		fprintf(fp, "    -z INT              min TAD count weight [%g]\n", tad_min_cnt_weight);
 		fprintf(fp, "  Loop calling:\n");
-		fprintf(fp, "    --loop-inner=NUM    peak radius [%d]\n", loop_radius[0]);
-		fprintf(fp, "    --loop-mid=NUM      gap radius [%d]\n", loop_radius[1]);
-		fprintf(fp, "    --loop-outer=NUM    outer radius [%d]\n", loop_radius[2]);
-		fprintf(fp, "    --loop-p=FLOAT      pseudo P-value threshold [%g]\n", loop_pv);
+		fprintf(fp, "    --loop-p=FLOAT      pseudo P-value threshold [%g]\n", loop_p);
 		fprintf(fp, "  Imputation:\n");
 		fprintf(fp, "    --imput-nei=INT     max neighbors [%d]\n", imput_max_nei);
 		fprintf(fp, "    --val-frac=FLOAT    fraction to hold out for validation [%g]\n", imput_val_frac);

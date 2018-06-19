@@ -406,77 +406,96 @@ double kf_binomial_test_right(int n, int k, double p, double rel_eps, int max_it
 	return s;
 }
 
-struct hk_pair *hk_pair2loop(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int radius[3], float pv_thres, int32_t *n_loops_)
+struct cnt_aux {
+	int32_t n_nei, n_nei_corner;
+};
+
+static inline int32_t get_nei_all(const struct hk_pair *p, const struct cnt_aux *q, int k)
+{
+	if (k == 0) return p->n_nei;
+	if (k == 1 || k == 2) return p->_.n_nei[k-1][0];
+	return q[k-3].n_nei;
+}
+
+static inline int32_t get_nei_cor(const struct hk_pair *p, const struct cnt_aux *q, int k)
+{
+	if (k == 0) return p->n_nei_corner;
+	if (k == 1 || k == 2) return p->_.n_nei[k-1][1];
+	return q[k-3].n_nei_corner;
+}
+
+struct hk_pair *hk_pair2loop(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int n_r, const int *r, float pv_thres, int32_t *n_loops_)
 {
 	const int band_width = 10000000;
 	struct hk_pair *loops = 0;
-	int32_t i, n_loops = 0, m_loops = 0;
+	int32_t k, i, n_loops = 0, m_loops = 0;
+	struct cnt_aux *extra = 0;
 
-	assert(radius[0] < radius[1] && radius[1] < radius[2]);
+	assert(n_r >= 3 && n_r <= 16);
+	if (n_r > 3) extra = CALLOC(struct cnt_aux, (size_t)n_pairs * (n_r - 3));
 
-	hk_pair_count_nei(n_pairs, pairs, radius[2], radius[2]);
-	for (i = 0; i < n_pairs; ++i) {
-		struct hk_pair *p = &pairs[i];
-		p->_.n_nei[1][0] = p->n_nei;
-		p->_.n_nei[1][1] = p->n_nei_corner;
+	for (k = n_r - 1; k > 0; --k) {
+		if (hk_verbose >= 3) fprintf(stderr, "[M::%s] counting neighbors within %dbp...\n", __func__, r[k]);
+		hk_pair_count_nei(n_pairs, pairs, r[k], r[k]);
+		for (i = 0; i < n_pairs; ++i) {
+			struct hk_pair *p = &pairs[i];
+			if (k == 1 || k == 2) {
+				p->_.n_nei[k-1][0] = p->n_nei;
+				p->_.n_nei[k-1][1] = p->n_nei_corner;
+			} else { // k >= 3, as k != 0
+				struct cnt_aux *q = &extra[(size_t)i * (n_r - 3)];
+				q[k-3].n_nei = p->n_nei;
+				q[k-3].n_nei_corner = p->n_nei_corner;
+			}
+		}
 	}
-	hk_pair_count_nei(n_pairs, pairs, radius[1], radius[1]);
-	for (i = 0; i < n_pairs; ++i) {
-		struct hk_pair *p = &pairs[i];
-		p->_.n_nei[0][0] = p->n_nei;
-		p->_.n_nei[0][1] = p->n_nei_corner;
-	}
-	hk_pair_count_nei(n_pairs, pairs, radius[0], radius[0]);
+	if (hk_verbose >= 3) fprintf(stderr, "[M::%s] counting neighbors within %dbp...\n", __func__, r[0]);
+	hk_pair_count_nei(n_pairs, pairs, r[0], r[0]);
 
 	for (i = 0; i < n_pairs; ++i) {
 		struct hk_pair tmp, *p = &pairs[i];
-		int j, d = hk_ppos2(p) - hk_ppos1(p);
-		double pv;
-		if (hk_intra(p) && d < radius[1]) continue;
+		struct cnt_aux *q = &extra[(size_t)i * (n_r - 3)];
+		int j, d = hk_ppos2(p) - hk_ppos1(p), best_k, best_j;
+		double best_pv, area_all[16], area_cor[16];
+		if (hk_intra(p) && d < r[n_r - 2]) continue;
 		if (p->n_nei < 2) continue;
-		if (!hk_intra(p) || d > band_width) {
-			double area[3], den_inner, den_outer, den_mid;
-			for (j = 0; j < 3; ++j)
-				area[j] = 4.0 * radius[j] * radius[j] - (d >= radius[j] * 2? 0.0 : .5 * (radius[j] * 2 - d) * (radius[j] * 2 - d));
-			den_inner = p->n_nei / area[0];
-			den_mid   = (p->_.n_nei[0][0] - p->n_nei) / (area[1] - area[0]);
-			den_outer = (p->_.n_nei[1][0] - p->_.n_nei[0][0]) / (area[2] - area[1]);
-			if (den_inner < den_outer || den_inner < den_mid) continue;
-			pv = kf_binomial_test_right(p->_.n_nei[1][0] - p->_.n_nei[0][0] + p->n_nei, p->n_nei, area[0] / (area[2] - area[1] + area[0]), 0.01, 20);
-		} else {
-			double area[3][2], den_inner, den_outer, den_mid, pv_corner;
-			for (j = 0; j < 3; ++j) {
-				area[j][0] = 4.0 * radius[j] * radius[j];
-				area[j][1] = (double)radius[j] * radius[j];
-				if (d < radius[j] * 2) {
-					double t = .5 * (radius[j] * 2 - d) * (radius[j] * 2 - d);
-					area[j][0] -= t;
-					area[j][1] = d < radius[j]? .5 * d * d : area[j][1] - t;
-				}
-			}
-			den_inner = p->n_nei / area[0][0];
-			den_mid   = (p->_.n_nei[0][0] - p->n_nei) / (area[1][0] - area[0][0]);
-			den_outer = (p->_.n_nei[1][0] - p->_.n_nei[0][0]) / (area[2][0] - area[1][0]);
-			if (den_inner < den_outer || den_inner < den_mid) continue;
-			pv = kf_binomial_test_right(p->_.n_nei[1][0] - p->_.n_nei[0][0] + p->n_nei, p->n_nei, area[0][0] / (area[2][0] - area[1][0] + area[0][0]), 0.01, 20);
-			if (area[2][1] - area[1][1] > area[0][0]) {
-				den_mid   = (p->_.n_nei[0][1] - p->n_nei_corner) / (area[1][1] - area[0][1]);
-				den_outer = (p->_.n_nei[1][1] - p->_.n_nei[0][1]) / (area[2][1] - area[1][1]);
-				if (den_inner < den_outer || den_inner < den_mid) continue;
-				pv_corner = kf_binomial_test_right(p->_.n_nei[1][1] - p->_.n_nei[0][1] + p->n_nei, p->n_nei, area[0][0] / (area[2][1] - area[1][1] + area[0][0]), 0.01, 20);
-				//if (hk_ppos1(p) == 335987 && hk_ppos2(p) == 412293) fprintf(stderr, "%d,%d; %g,%g\n", p->n_nei, p->_.n_nei[1][1] - p->_.n_nei[0][1], pv, pv_corner);
-				if (pv < pv_corner) pv = pv_corner;
+		for (k = 0; k < n_r; ++k) {
+			area_all[k] = 4.0 * r[k] * r[k];
+			area_cor[k] = (double)r[k] * r[k];
+			if (d < r[k] * 2) {
+				double t = .5 * (r[k] * 2 - d) * (r[k] * 2 - d);
+				area_all[k] -= t;
+				area_cor[k] = d < r[k]? .5 * d * d : area_cor[k] - t;
 			}
 		}
-		if (pv > pv_thres) continue;
+		best_pv = 2.0, best_k = -1, best_j = -1;
+		for (k = 0; k < n_r - 2; ++k) {
+			int32_t n_all;
+			n_all = get_nei_all(p, q, k);
+			for (j = k + 2; j < n_r; ++j) {
+				double pv;
+				pv =         kf_binomial_test_right(get_nei_all(p, q, j) + n_all, n_all, area_all[k] / (area_all[j] - area_all[j-1] + area_all[k]), 0.01, 20);
+				if (hk_ppos1(p) == 336118 && hk_ppos2(p) == 410018) fprintf(stderr, "[%d,%d] pv_all=%g n_all=%d donut=%d\n", r[k], r[j], pv, n_all, get_nei_all(p, q, j));
+				if (pv > pv_thres) continue;
+				if (hk_intra(p) && d <= band_width) {
+					double pv_cor;
+					pv_cor = kf_binomial_test_right(get_nei_cor(p, q, j) + n_all, n_all, area_all[k] / (area_cor[j] - area_cor[j-1] + area_all[k]), 0.01, 20);
+					if (hk_ppos1(p) == 336118 && hk_ppos2(p) == 410018) fprintf(stderr, "[%d,%d] pv_cor=%g\n", r[k], r[j], pv_cor);
+					if (pv_cor > pv_thres) continue;
+					if (pv_cor > pv) pv = pv_cor;
+				}
+				if (pv < best_pv) best_pv = pv, best_k = k, best_j = j;
+			}
+		}
+		if (best_pv > pv_thres) continue;
 		if (m_loops == n_loops) EXPAND(loops, m_loops);
 		tmp = *p;
-		tmp._.qloop = pv < 1e-100? 255.0 : -4.343 * log(pv);
-		if (tmp._.qloop > 255.0) tmp._.qloop = 255.0;
+		tmp._.qloop = best_pv < 1e-100? 999.0 : -4.343 * log(best_pv);
+		if (tmp._.qloop > 999.0) tmp._.qloop = 999.0;
 		loops[n_loops++] = tmp;
 	}
-
-	n_loops = hk_select_by_nei(n_loops, loops, radius[2], 1);
+	free(extra);
+	n_loops = hk_select_by_nei(n_loops, loops, r[n_r - 1], 1);
 	*n_loops_ = n_loops;
 	return loops;
 }
