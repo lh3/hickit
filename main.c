@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r266"
+#define HICKIT_VERSION "r267"
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -125,7 +125,7 @@ int main(int argc, char *argv[])
 			width = atoi(optarg);
 			assert(width > 0);
 		} else if (c == 'E') {
-			hk_expected_count(m->n_pairs, m->pairs, radius, radius);
+			hk_expected_count(m->n_pairs, m->pairs, radius);
 			clear_union_flags(m->cols);
 			m->cols |= 1<<11;
 		} else if (c == 'u') {
