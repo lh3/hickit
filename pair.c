@@ -388,13 +388,14 @@ double kf_lgamma(double z)
 	return log(x) - 5.58106146679532777 - z + (z-0.5) * log(z+6.5);
 }
 
-double kf_binomial_test_right(int n, int k, double p, double rel_eps, int max_iter)
+double kf_binomial_test_right(int n, int k, double p, double rel_eps, int max_iter, double thres)
 {
 	double pq, s, t, t_stop;
 	int i, top;
 	if (k < n * p) return 1.0;
 	pq = p / (1.0 - p);
 	s = t = exp(kf_lgamma(n + 1) - (kf_lgamma(k + 1) + kf_lgamma(n - k + 1)) + (k * log(p) + (n - k) * log(1.0 - p)));
+	if (s > thres) return s;
 	t_stop = t * rel_eps;
 	top = n < k + max_iter + 1? n : k + max_iter + 1;
 	for (i = k + 1; i < top; ++i) {
@@ -402,6 +403,7 @@ double kf_binomial_test_right(int n, int k, double p, double rel_eps, int max_it
 		if (s + t == s) return s;
 		s += t;
 		if (t < t_stop) break;
+		if (s > thres) break;
 	}
 	return s;
 }
@@ -479,12 +481,12 @@ struct hk_pair *hk_pair2loop(const struct hk_sdict *d, int32_t n_pairs, struct h
 			if (k > 0 && n_all / area_all[k] >= get_nei_all(p, q, k - 1) / area_all[k-1]) continue;
 			for (j = k + 2; j < n_r; ++j) {
 				double pv;
-				pv =         kf_binomial_test_right(get_nei_all(p, q, j) - get_nei_all(p, q, j-1) + n_all, n_all, area_all[k] / (area_all[j] - area_all[j-1] + area_all[k]), 0.01, 20);
+				pv =         kf_binomial_test_right(get_nei_all(p, q, j) - get_nei_all(p, q, j-1) + n_all, n_all, area_all[k] / (area_all[j] - area_all[j-1] + area_all[k]), 0.01, 20, pv_thres);
 				//if (hk_ppos1(p) == 797873 && hk_ppos2(p) == 1191406) fprintf(stderr, "[%d,%d] pv_all=%g n_all=%d n_donut=%d\n", r[k], r[j], pv, n_all, get_nei_all(p, q, j) - get_nei_all(p, q, j-1));
 				if (pv > pv_thres) continue;
 				if (hk_intra(p) && d <= band_width) {
 					double pv_cor;
-					pv_cor = kf_binomial_test_right(get_nei_cor(p, q, j) - get_nei_cor(p, q, j-1) + n_all, n_all, area_all[k] / (area_cor[j] - area_cor[j-1] + area_all[k]), 0.01, 20);
+					pv_cor = kf_binomial_test_right(get_nei_cor(p, q, j) - get_nei_cor(p, q, j-1) + n_all, n_all, area_all[k] / (area_cor[j] - area_cor[j-1] + area_all[k]), 0.01, 20, pv_thres);
 					//if (hk_ppos1(p) == 797873 && hk_ppos2(p) == 1191406) fprintf(stderr, "[%d,%d] pv_cor=%g\n", r[k], r[j], pv_cor);
 					if (pv_cor > pv_thres) continue;
 					if (pv_cor > pv) pv = pv_cor;
