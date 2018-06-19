@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r272"
+#define HICKIT_VERSION "r273"
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -41,14 +41,15 @@ static struct option long_options[] = {
 	{ 0, 0, 0, 0}
 };
 
-static inline int64_t hk_parse_num(const char *str)
+static inline int64_t hk_parse_num(const char *str, char **end)
 {
 	double x;
 	char *p;
-	x = strtod(optarg, &p);
-	if (*p == 'G' || *p == 'g') x *= 1e9;
-	else if (*p == 'M' || *p == 'm') x *= 1e6;
-	else if (*p == 'K' || *p == 'k') x *= 1e3;
+	x = strtod(str, &p);
+	if (*p == 'G' || *p == 'g') x *= 1e9, ++p;
+	else if (*p == 'M' || *p == 'm') x *= 1e6, ++p;
+	else if (*p == 'K' || *p == 'k') x *= 1e3, ++p;
+	if (end) *end = p;
 	return (int64_t)(x + .499);
 }
 
@@ -108,7 +109,7 @@ int main(int argc, char *argv[])
 			hk_print_pair(fp, m->cols, m->d, m->n_pairs, m->pairs);
 			if (fp != stdout) fclose(fp);
 		} else if (c == 'r') {
-			radius = hk_parse_num(optarg);
+			radius = hk_parse_num(optarg, 0);
 			assert(radius > 0);
 		} else if (c == 'n') {
 			max_iter = fdg_opt.n_iter = atoi(optarg);
@@ -144,6 +145,7 @@ int main(int argc, char *argv[])
 			assert(m && m->pairs);
 			if (loops) free(loops);
 			loops = hk_pair2loop(m->d, m->n_pairs, m->pairs, n_loop_r, loop_r, loop_min_q, &n_loops);
+			clear_union_flags(m->cols);
 			m->cols |= 0x3800;
 			fp = strcmp(optarg, "-") == 0? stdout : fopen(optarg, "w");
 			hk_print_pair(fp, m->cols, m->d, n_loops, loops);
@@ -186,7 +188,7 @@ int main(int argc, char *argv[])
 		} else if (c == 'b') {
 			int bin_size;
 			struct hk_bmap *b;
-			bin_size = hk_parse_num(optarg);
+			bin_size = hk_parse_num(optarg, 0);
 			assert(bin_size > 0);
 			if (!(m->cols & 1<<6)) hk_pair_count_nei(m->n_pairs, m->pairs, radius, radius);
 			b = hk_bmap_gen(m->d, m->n_pairs, m->pairs, bin_size);
@@ -207,13 +209,13 @@ int main(int argc, char *argv[])
 			seed = atol(optarg);
 			kr_srand_r(&rng, seed);
 		} else if (c == 0) {
-			if (long_idx == 0) min_leg_dist = hk_parse_num(optarg); // --min-leg-dist
+			if (long_idx == 0) min_leg_dist = hk_parse_num(optarg, 0); // --min-leg-dist
 			else if (long_idx ==  1) max_seg = atoi(optarg); // --max-seg
 			else if (long_idx ==  2) min_mapq = atoi(optarg); // --min-mapq
 			else if (long_idx ==  5) v3d_hl = optarg; // --highlight
 			else if (long_idx ==  7) v3d_opt.bead_radius = atof(optarg); // --bead-radius
 			else if (long_idx ==  8) v3d_opt.line_width = atof(optarg); // --line-width
-			else if (long_idx == 9)  dup_dist = hk_parse_num(optarg); // --dup-dist
+			else if (long_idx == 9)  dup_dist = hk_parse_num(optarg, 0); // --dup-dist
 			else if (long_idx == 10) imput_max_nei = atoi(optarg); // --imput-nei
 			else if (long_idx == 11) imput_val_frac = atof(optarg); // --val-frac
 			else if (long_idx == 15) png_no_dim = 1; // --png-no-dim
@@ -245,6 +247,7 @@ int main(int argc, char *argv[])
 				if (!optarg) {
 					assert(m && m->pairs);
 					loops = hk_pair2loop(m->d, m->n_pairs, m->pairs, n_loop_r, loop_r, loop_min_q, &n_loops);
+					clear_union_flags(m->cols);
 					m->cols |= 0x3800;
 				}
 			} else if (long_idx == 12) { // --version
@@ -253,9 +256,9 @@ int main(int argc, char *argv[])
 			} else if (long_idx == 19) { // --loop-r
 				char *p;
 				n_loop_r = 0;
-				loop_r[n_loop_r++] = strtol(optarg, &p, 10);
+				loop_r[n_loop_r++] = hk_parse_num(optarg, &p);
 				while (*p == ',') {
-					loop_r[n_loop_r++] = strtol(p, &p, 10);
+					loop_r[n_loop_r++] = hk_parse_num(p + 1, &p);
 					if (n_loop_r == HK_MAX_LOOP_RES) break;
 				}
 			} else if (long_idx == 13) { // --out-val
