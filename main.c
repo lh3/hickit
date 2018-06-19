@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r270"
+#define HICKIT_VERSION "r271"
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
 	float tad_area_weight = 15.0f, tad_min_cnt_weight = 0.1f;
 	// loop calling parameters
 	int n_loop_r = 5, loop_r[HK_MAX_LOOP_RES] = { 2500, 5000, 10000, 25000, 55000, 0, 0, 0 };
-	float loop_min_q = 60.0;
+	float loop_min_q = 70.0;
 	// imputation parameters
 	int imput_max_nei = 50, imput_min_radius = 50000;
 	float imput_val_frac = 0.1f, imput_pseudo_cnt = 0.4f;
