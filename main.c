@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r269"
+#define HICKIT_VERSION "r270"
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -36,7 +36,7 @@ static struct option long_options[] = {
 	{ "png-no-dim",     no_argument,       0, 0 },   // 15
 	{ "view",           no_argument,       0, 0 },   // 16
 	{ "loops",          optional_argument, 0, 0 },   // 17
-	{ "loop-p",         required_argument, 0, 0 },   // 18
+	{ "loop-q",         required_argument, 0, 0 },   // 18
 	{ "loop-r",         required_argument, 0, 0 },   // 19
 	{ 0, 0, 0, 0}
 };
@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
 	float tad_area_weight = 15.0f, tad_min_cnt_weight = 0.1f;
 	// loop calling parameters
 	int n_loop_r = 5, loop_r[HK_MAX_LOOP_RES] = { 2500, 5000, 10000, 25000, 55000, 0, 0, 0 };
-	float loop_p = 1e-6;
+	float loop_min_q = 60.0;
 	// imputation parameters
 	int imput_max_nei = 50, imput_min_radius = 50000;
 	float imput_val_frac = 0.1f, imput_pseudo_cnt = 0.4f;
@@ -143,7 +143,7 @@ int main(int argc, char *argv[])
 		} else if (c == 'L') {
 			assert(m && m->pairs);
 			if (loops) free(loops);
-			loops = hk_pair2loop(m->d, m->n_pairs, m->pairs, n_loop_r, loop_r, loop_p, &n_loops);
+			loops = hk_pair2loop(m->d, m->n_pairs, m->pairs, n_loop_r, loop_r, loop_min_q, &n_loops);
 			m->cols |= 0x3800;
 			fp = strcmp(optarg, "-") == 0? stdout : fopen(optarg, "w");
 			hk_print_pair(fp, m->cols, m->d, n_loops, loops);
@@ -217,7 +217,7 @@ int main(int argc, char *argv[])
 			else if (long_idx == 10) imput_max_nei = atoi(optarg); // --imput-nei
 			else if (long_idx == 11) imput_val_frac = atof(optarg); // --val-frac
 			else if (long_idx == 15) png_no_dim = 1; // --png-no-dim
-			else if (long_idx == 18) loop_p = atof(optarg); // --loop-p
+			else if (long_idx == 18) loop_min_q = atof(optarg); // --loop-q
 			else if (long_idx ==  4) { // --out-seg
 				assert(m && m->segs);
 				fp = strcmp(optarg, "-") == 0? stdout : fopen(optarg, "w");
@@ -244,12 +244,20 @@ int main(int argc, char *argv[])
 				if (loops) free(loops);
 				if (!optarg) {
 					assert(m && m->pairs);
-					loops = hk_pair2loop(m->d, m->n_pairs, m->pairs, n_loop_r, loop_r, loop_p, &n_loops);
+					loops = hk_pair2loop(m->d, m->n_pairs, m->pairs, n_loop_r, loop_r, loop_min_q, &n_loops);
 					m->cols |= 0x3800;
 				}
 			} else if (long_idx == 12) { // --version
 				printf("%s\n", HICKIT_VERSION);
 				exit(0);
+			} else if (long_idx == 19) { // --loop-r
+				char *p;
+				n_loop_r = 0;
+				loop_r[n_loop_r++] = strtol(optarg, &p, 10);
+				while (*p == ',') {
+					loop_r[n_loop_r++] = strtol(p, &p, 10);
+					if (n_loop_r == HK_MAX_LOOP_RES) break;
+				}
 			} else if (long_idx == 13) { // --out-val
 				fp = strcmp(optarg, "-") == 0? stdout : fopen(optarg, "w");
 				assert(fp);
@@ -312,7 +320,8 @@ int main(int argc, char *argv[])
 		fprintf(fp, "    -a FLOAT            area weight (larger for smaller TADs) [%g]\n", tad_area_weight);
 		fprintf(fp, "    -z INT              min TAD count weight [%g]\n", tad_min_cnt_weight);
 		fprintf(fp, "  Loop calling:\n");
-		fprintf(fp, "    --loop-p=FLOAT      pseudo P-value threshold [%g]\n", loop_p);
+		fprintf(fp, "    --loop-q=FLOAT      phred-scaled P-value threshold [%g]\n", loop_min_q);
+		fprintf(fp, "    --loop-r=NUM[,...]  list of radius (max 8) [2.5k,5k,10k,25k,55k]\n");
 		fprintf(fp, "  Imputation:\n");
 		fprintf(fp, "    --imput-nei=INT     max neighbors [%d]\n", imput_max_nei);
 		fprintf(fp, "    --val-frac=FLOAT    fraction to hold out for validation [%g]\n", imput_val_frac);

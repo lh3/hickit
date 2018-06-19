@@ -424,12 +424,13 @@ static inline int32_t get_nei_cor(const struct hk_pair *p, const struct cnt_aux 
 	return q[k-3].n_nei_corner;
 }
 
-struct hk_pair *hk_pair2loop(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int n_r, const int *r, float pv_thres, int32_t *n_loops_)
+struct hk_pair *hk_pair2loop(const struct hk_sdict *d, int32_t n_pairs, struct hk_pair *pairs, int n_r, const int *r, float min_loop_q, int32_t *n_loops_)
 {
 	const int band_width = 10000000;
 	struct hk_pair *loops = 0;
 	int32_t k, i, n_loops = 0, m_loops = 0;
 	struct cnt_aux *extra = 0;
+	float pv_thres;
 
 	assert(n_r >= 3 && n_r <= HK_MAX_LOOP_RES);
 	if (n_r > 3) extra = CALLOC(struct cnt_aux, (size_t)n_pairs * (n_r - 3));
@@ -452,6 +453,8 @@ struct hk_pair *hk_pair2loop(const struct hk_sdict *d, int32_t n_pairs, struct h
 	if (hk_verbose >= 3) fprintf(stderr, "[M::%s] counting neighbors within %dbp...\n", __func__, r[0]);
 	hk_pair_count_nei(n_pairs, pairs, r[0], r[0]);
 
+	if (hk_verbose >= 3) fprintf(stderr, "[M::%s] inferring loops...\n", __func__);
+	pv_thres = pow(10.0, -0.1 * min_loop_q);
 	for (i = 0; i < n_pairs; ++i) {
 		struct hk_pair tmp, *p = &pairs[i];
 		struct cnt_aux *q = &extra[(size_t)i * (n_r - 3)];
