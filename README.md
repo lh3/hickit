@@ -5,7 +5,7 @@ curl -L https:// | tar -jxf -
 cd hickit-0.1_x64-linux
 
 # Map Dip-C reads and extract contacts (skip if you use your own pipeline)
-./seqtk mergepe read1.fq.gz read2.fq.gz | ./pre-dip-c - | bwa mem -p hs37d5.fa - | gzip > aln.sam.gz
+./seqtk mergepe read1.fq.gz read2.fq.gz | ./pre-dip-c - | bwa mem -5SP -p hs37d5.fa - | gzip > aln.sam.gz
 ./k8 hickit.js vcf2tsv phased.vcf > phased_SNP.tsv   # extract phased SNPs from VCF
 ./k8 hickit.js sam2seg -v phased_SNP.tsv aln.sam.gz | ./k8 hickit.js chronly - | gzip > contacts.seg.gz
 ./hickit -i contacts.seg.gz -o - | bgzip > contacts.pairs.gz  # optional
