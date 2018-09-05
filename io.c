@@ -241,7 +241,7 @@ void hk_map_set_cols(struct hk_map *m, int n_extra_cols, int *extra_cols)
 		for (i = 0, t[0] = t[1] = 0; i < m->n_segs; ++i) {
 			if (m->segs[i].phase >= 0 && m->segs[i].phase <= 1)
 				t[m->segs[i].phase] = 1;
-			if (t[0] && t[1]) break;
+			if (t[0] || t[1]) break;
 		}
 		if (i < m->n_segs) m->cols |= 3;
 	} else if (m->pairs) {
@@ -253,7 +253,7 @@ void hk_map_set_cols(struct hk_map *m, int n_extra_cols, int *extra_cols)
 		for (i = 0, t[0] = t[1] = 0; i < m->n_pairs; ++i) {
 			if (m->pairs[i].phase[0] >= 0) t[0] = 1;
 			if (m->pairs[i].phase[1] >= 0) t[1] = 1;
-			if (t[0] && t[1]) break;
+			if (t[0] || t[1]) break;
 		}
 		if (i < m->n_pairs) m->cols |= 3;
 	}
