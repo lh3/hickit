@@ -167,8 +167,9 @@ static void parse_chr(struct hk_sdict *d, char *s)
 {
 	char *chr, *p, *q;
 	int64_t len;
-	int has_digit;
-	for (p = s + 12; isspace(*p) && *p != 0; ++p) {}
+	int has_digit, prelen;
+	prelen = strncmp(s, "#chromsize:", 11) == 0? 11 : 12;
+	for (p = s + prelen; isspace(*p) && *p != 0; ++p) {}
 	assert(*p);
 	for (q = p; *q != 0 && !isspace(*q); ++q) {}
 	assert(*q);
@@ -277,7 +278,7 @@ struct hk_map *hk_map_read(const char *fn)
 		int32_t k, n_segs = 0;
 		if (str.l && str.s[0] != '#') ++n_data_rows;
 		if (n_data_rows == 0) {
-			if (str.l >= 12 + 3 && strncmp(str.s, "#chromosome:", 12) == 0)
+			if (str.l >= 12 + 3 && (strncmp(str.s, "#chromosome:", 12) == 0 || strncmp(str.s, "#chromsize:", 11) == 0))
 				parse_chr(m->d, str.s);
 			else if (str.l >= 9 && strncmp(str.s, "#columns:", 9) == 0) {
 				extra_cols = parse_pair_cols(str.s, &n_extra_cols);

@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r273"
+#define HICKIT_VERSION "r276"
 
 #include <sys/resource.h>
 #include <sys/time.h>
