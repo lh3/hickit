@@ -117,13 +117,17 @@ struct hk_pair *hk_seg2pair(int32_t n_segs, const struct hk_seg *segs, int min_d
 	return pairs;
 }
 
+
+#define PHASE_NO_INFO -1
+#define PHASE_CONFLICT_INFO -2
+
 int32_t hk_pair_dedup(int n_pairs, struct hk_pair *pairs, int min_dist)
 {
-	int32_t i, j, n;
+	int32_t i, j, n, k;
 	for (i = n = 1; i < n_pairs; ++i) {
 		struct hk_pair *q = &pairs[i];
 		int32_t to_skip = 0;
-		for (j = i - 1; j >= 0; --j) {
+		for (j = n - 1; j >= 0; --j) {
 			struct hk_pair *p = &pairs[j];
 			int32_t d;
 			if (p->chr != q->chr || hk_ppos1(q) - hk_ppos1(p) >= min_dist)
@@ -131,6 +135,18 @@ int32_t hk_pair_dedup(int n_pairs, struct hk_pair *pairs, int min_dist)
 			d = hk_ppos2(q) - hk_ppos2(p);
 			if (d < min_dist && d > -min_dist && q->strand[0] == p->strand[0] && q->strand[1] == p->strand[1]) {
 				to_skip = 1;
+				// merge phase info of pair i (namely, q) into pair j (namely, p)
+				for (k = 0; k < 2; ++k) {
+					if (p->phase[k] == q->phase[k]) {
+						continue; // same phase
+					} else if (p->phase[k] == PHASE_NO_INFO) {
+						p->phase[k] = q->phase[k]; // adopt new phase info
+					} else if (q->phase[k] == PHASE_NO_INFO) {
+						continue; // no new phase info
+					} else {
+						p->phase[k] = PHASE_CONFLICT_INFO; // conflicting phases (namely, one is maternal, the other is paternal)
+					}
+				}
 				break;
 			}
 		}
