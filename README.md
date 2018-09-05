@@ -140,7 +140,7 @@ This is an intermediate format used by hickit to store raw contacts directly
 inferred from read alignment. It is generally adviced to convert this format to
 pairs with:
 ```sh
-./hickit -i contacts.seg.gz --keep-dup --min-leg-dist=0 -o contacts.pairs
+./hickit --dup-dist=0 --min-leg-dist=0 -i contacts.seg.gz -o contacts.pairs
 ```
 
 ### <a name="gen-pairs"></a>Generating contacts in the pairs format
