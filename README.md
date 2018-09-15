@@ -152,7 +152,7 @@ section.
 
 If have normal Hi-C reads, you can align directly with [bwa-mem][bwa]:
 ```sh
-bwa mem -p hs37d5.fa read1.fq.gz read2.fq.gz | gzip > aln.sam.gz
+bwa mem hs37d5.fa read1.fq.gz read2.fq.gz | gzip > aln.sam.gz
 ```
 Note that the hickit pipeline only works with bwa-mem or minimap2 because most
 other aligners do not produce chimeric alignments.
