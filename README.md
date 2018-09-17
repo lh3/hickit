@@ -7,7 +7,8 @@ cd hickit-0.1_x64-linux
 # Map Dip-C reads and extract contacts (skip if you use your own pipeline)
 ./seqtk mergepe read1.fq.gz read2.fq.gz | ./pre-dip-c - | bwa mem -5SP -p hs37d5.fa - | gzip > aln.sam.gz
 ./k8 hickit.js vcf2tsv phased.vcf > phased_SNP.tsv   # extract phased SNPs from VCF
-./k8 hickit.js sam2seg -v phased_SNP.tsv aln.sam.gz | ./k8 hickit.js chronly - | gzip > contacts.seg.gz
+./k8 hickit.js sam2seg -v phased_SNP.tsv aln.sam.gz | ./k8 hickit.js chronly - | gzip > contacts.seg.gz # for male
+#./k8 hickit.js sam2seg -v phased_SNP.tsv aln.sam.gz | ./k8 hickit.js chronly -y - | gzip > contacts.seg.gz # for female
 ./hickit -i contacts.seg.gz -o - | bgzip > contacts.pairs.gz  # optional
 
 # Impute phases (-i also works with contacts.seg.gz)
@@ -183,6 +184,7 @@ chr1    1010717 C       T
 chr1    1011531 T       C
 chr1    1013136 C       G
 ```
+Note that the above is for **male** samples. For **female** samples, the part `hickit.js chronly -` should be replaced by `hickit.js chronly -y -` to remove the Y chromosome.
 
 ### <a name="impute"></a>Imputing missing phases (diploid single-cell Hi-C only)
 
