@@ -186,6 +186,14 @@ chr1    1013136 C       G
 ```
 Note that the above is for **male** samples. For **female** samples, the part `hickit.js chronly -` should be replaced by `hickit.js chronly -y -` to remove the Y chromosome.
 
+Contacts can be viewed interactively by first running [Juicer Tools Pre][juicer-pre]
+```sh
+java -Xmx2g -jar juicer_tools.jar pre -n contacts.pairs.gz contacts.hic hg19
+```
+and then loading the output in [Juicebox][juicebox] (the error message about the lack of normalization can be ignored). Below is an example screenshot:
+
+<img src="doc/gm12878_06.contacts.juicebox.png" width="500">
+
 ### <a name="impute"></a>Imputing missing phases (diploid single-cell Hi-C only)
 
 Because SNPs are sparse, only a tiny fraction of contacts are fully phased. To
@@ -257,3 +265,5 @@ Hi-C and have troubles. I will really appreciate.
 [pairs-fmt]: https://github.com/4dn-dcic/pairix/blob/master/pairs_format_specification.md
 [nuc-dyn]: https://github.com/tjs23/nuc_dynamics
 [dip-c-repo]: https://github.com/tanlongzhi/dip-c
+[juicer-pre]: https://github.com/theaidenlab/juicer/wiki/Pre
+[juicebox]: http://www.aidenlab.org/juicebox/
