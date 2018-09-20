@@ -215,6 +215,15 @@ intra-chromosome contacts close to the diagonal, accuracy of such contacts,
 sensitivity of off-diagonal contacts, accuracy of such contacts, sensitivity of
 all contacts and accuracy of all contacts.
 
+Imputation result can be visually assessed with
+```sh
+hickit -i impute.pairs.gz --out-png impute.png
+```
+Below is an example image, where colored patches indicate successful imputation:
+
+<img src="doc/gm12878_06.impute.png" width="500">
+
+
 Haplotype-resolved contacts can be viewed interactively by first running [Juicer Tools Pre][juicer-pre] after some preprocessing
 ```sh
 gunzip -c impute.pairs.gz | grep -v "^#" | awk -v OFS='\t' '{p=0.75;if($10>=p){$2=$2"a";$4=$4"a"}else if($11>=p){$2=$2"a";$4=$4"b"}else if($12>=p){$2=$2"b";$4=$4"a"}else if($13>=p){$2=$2"b";$4=$4"b"}else{next};if($2>$4){t=$2;$2=$4;$4=t;t=$3;$3=$5;$5=t};print 0,$2,$3,0,0,$4,$5,1}' | sort -k2,2 -k6,6 | gzip > impute.txt.gz
