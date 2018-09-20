@@ -215,6 +215,16 @@ intra-chromosome contacts close to the diagonal, accuracy of such contacts,
 sensitivity of off-diagonal contacts, accuracy of such contacts, sensitivity of
 all contacts and accuracy of all contacts.
 
+Haplotype-resolved contacts can be viewed interactively by first running [Juicer Tools Pre][juicer-pre] after some preprocessing
+```sh
+gunzip -c impute.pairs.gz | grep -v "^#" | awk -v OFS='\t' '{p=0.75;if($10>=p){$2=$2"a";$4=$4"a"}else if($11>=p){$2=$2"a";$4=$4"b"}else if($12>=p){$2=$2"b";$4=$4"a"}else if($13>=p){$2=$2"b";$4=$4"b"}else{next};if($2>$4){t=$2;$2=$4;$4=t;t=$3;$3=$5;$5=t};print 0,$2,$3,0,0,$4,$5,1}' | sort -k2,2 -k6,6 | gzip > impute.txt.gz
+java -Xmx2g -jar juicer_tools.jar pre -n impute.txt.gz impute.hic <(gunzip -c impute.pairs.gz | grep "^#chrom" | awk -v OFS='\t' '{print $2"a",$3;print $2"b",$3}')
+```
+where `p=0.75` sets the threshold on the
+pseudo-probability, and then loading the output in [Juicebox][juicebox] (the error message about the lack of normalization can be ignored). Below is an example screenshot:
+
+<img src="doc/gm12878_06.impute.juicebox.png" width="500">
+
 ### <a name="infer-3d"></a>Inferring 3D structures (single-cell only)
 
 The following command line is used to infer the 3D structures of data published
