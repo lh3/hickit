@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r276"
+#define HICKIT_VERSION "r290"
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -38,6 +38,7 @@ static struct option long_options[] = {
 	{ "loops",          optional_argument, 0, 0 },   // 17
 	{ "loop-q",         required_argument, 0, 0 },   // 18
 	{ "loop-r",         required_argument, 0, 0 },   // 19
+	{ "val-radius",     required_argument, 0, 0 },   // 20
 	{ 0, 0, 0, 0}
 };
 
@@ -76,7 +77,7 @@ int main(int argc, char *argv[])
 	int n_loop_r = 5, loop_r[HK_MAX_LOOP_RES] = { 2500, 5000, 10000, 25000, 55000, 0, 0, 0 };
 	float loop_min_q = 70.0;
 	// imputation parameters
-	int imput_max_nei = 50, imput_min_radius = 50000;
+	int imput_max_nei = 50, imput_min_radius = 50000, imput_val_radius = 0;
 	float imput_val_frac = 0.1f, imput_pseudo_cnt = 0.4f;
 	// PNG generation
 	int png_no_dim = 0;
@@ -220,6 +221,7 @@ int main(int argc, char *argv[])
 			else if (long_idx == 11) imput_val_frac = atof(optarg); // --val-frac
 			else if (long_idx == 15) png_no_dim = 1; // --png-no-dim
 			else if (long_idx == 18) loop_min_q = atof(optarg); // --loop-q
+			else if (long_idx == 20) imput_val_radius = hk_parse_num(optarg, 0); // --val-radius
 			else if (long_idx ==  4) { // --out-seg
 				assert(m && m->segs);
 				fp = strcmp(optarg, "-") == 0? stdout : fopen(optarg, "w");
@@ -264,9 +266,13 @@ int main(int argc, char *argv[])
 			} else if (long_idx == 13) { // --out-val
 				fp = strcmp(optarg, "-") == 0? stdout : fopen(optarg, "w");
 				assert(fp);
-				if (tads == 0) tads = hk_pair2tad(m->d, m->n_pairs, m->pairs, tad_min_cnt_weight, tad_area_weight, &n_tads);
-				m->cols |= 1<<7;
-				hk_mark_by_tad(n_tads, tads, m->n_pairs, m->pairs);
+				if (imput_val_radius > 0) {
+					hk_pair_mark_close(m->n_pairs, m->pairs, imput_val_radius);
+				} else {
+					if (tads == 0) tads = hk_pair2tad(m->d, m->n_pairs, m->pairs, tad_min_cnt_weight, tad_area_weight, &n_tads);
+					m->cols |= 1<<7;
+					hk_mark_by_tad(n_tads, tads, m->n_pairs, m->pairs);
+				}
 				hk_validate_holdback(&rng, imput_val_frac, m->n_pairs, m->pairs);
 				hk_impute(m->n_pairs, m->pairs, radius, imput_min_radius, imput_max_nei, max_iter, imput_pseudo_cnt, 1);
 				hk_validate_roc(fp, m->n_pairs, m->pairs);
@@ -328,6 +334,7 @@ int main(int argc, char *argv[])
 		fprintf(fp, "  Imputation:\n");
 		fprintf(fp, "    --imput-nei=INT     max neighbors [%d]\n", imput_max_nei);
 		fprintf(fp, "    --val-frac=FLOAT    fraction to hold out for validation [%g]\n", imput_val_frac);
+		fprintf(fp, "    --val-radius=NUM    radius to flag close contacts (use TADs if 0) [0]\n");
 		fprintf(fp, "  3D modeling:\n");
 		fprintf(fp, "    -e FLOAT            step size [%g]\n", fdg_opt.step);
 		fprintf(fp, "    -k FLOAT            relative repulsive stiffness [%g]\n", fdg_opt.k_rel_rep);

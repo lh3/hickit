@@ -270,6 +270,15 @@ int32_t hk_pair_filter_close_legs(int32_t n_pairs, struct hk_pair *pairs, int mi
 	return k;
 }
 
+void hk_pair_mark_close(int32_t n_pairs, struct hk_pair *pairs, int radius)
+{
+	int32_t i;
+	for (i = 0; i < n_pairs; ++i) {
+		struct hk_pair *p = &pairs[i];
+		p->tad_marked = (hk_intra(p) && hk_ppos2(p) - hk_ppos1(p) < radius);
+	}
+}
+
 /***************
  * TAD calling *
  ***************/
