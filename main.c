@@ -84,6 +84,7 @@ int main(int argc, char *argv[])
 	int png_no_dim = 0;
 	// 3D modeling
 	struct hk_fdg_conf fdg_opt;
+	int bmap_skip_merge_flag = 0; // default: do not skip merging beads that have no contacts (hk_bmap_merge_beads)
 	// 3D viewing
 	struct hk_v3d_opt v3d_opt;
 	char *v3d_hl = 0;
@@ -92,7 +93,7 @@ int main(int argc, char *argv[])
 	hk_fdg_conf_init(&fdg_opt);
 	hk_v3d_opt_init(&v3d_opt);
 
-	while ((c = getopt_long(argc, argv, "i:o:r:c:T:P:n:w:p:b:e:k:R:a:s:I:O:D:Suz:L:E", long_options, &long_idx)) >= 0) {
+	while ((c = getopt_long(argc, argv, "i:o:r:c:T:P:n:w:p:b:e:k:R:a:s:I:O:D:Suz:L:EM", long_options, &long_idx)) >= 0) {
 		has_options = 1;
 		if (c == 'i') {
 			if (m) hk_map_destroy(m);
@@ -193,7 +194,7 @@ int main(int argc, char *argv[])
 			bin_size = hk_parse_num(optarg, 0);
 			assert(bin_size > 0);
 			if (!(m->cols & 1<<6)) hk_pair_count_nei(m->n_pairs, m->pairs, radius, radius);
-			b = hk_bmap_gen(m->d, m->n_pairs, m->pairs, bin_size);
+			b = hk_bmap_gen(m->d, m->n_pairs, m->pairs, bin_size, bmap_skip_merge_flag);
 			hk_fdg(&fdg_opt, b, d3, &rng);
 			if (d3) hk_bmap_destroy(d3);
 			d3 = hk_bmap_bead_dup(b);
@@ -210,6 +211,8 @@ int main(int argc, char *argv[])
 		} else if (c == 's') {
 			seed = atol(optarg);
 			kr_srand_r(&rng, seed);
+		} else if (c == 'M') {
+			bmap_skip_merge_flag = 1;
 		} else if (c == 0) {
 			if (long_idx == 0) min_leg_dist = hk_parse_num(optarg, 0); // --min-leg-dist
 			else if (long_idx ==  1) max_seg = atoi(optarg); // --max-seg
@@ -341,6 +344,7 @@ int main(int argc, char *argv[])
 		fprintf(fp, "    -e FLOAT            step size [%g]\n", fdg_opt.step);
 		fprintf(fp, "    -k FLOAT            relative repulsive stiffness [%g]\n", fdg_opt.k_rel_rep);
 		fprintf(fp, "    -R FLOAT            relative repulsive radius [%g]\n", fdg_opt.d_r);
+		fprintf(fp, "    -M                  do not merge beads that have no contacts\n");
 #ifdef HAVE_GL
 		fprintf(fp, "  3D viewing:\n");
 		fprintf(fp, "    --line-width=FLOAT  line width [%g]\n", v3d_opt.line_width);
