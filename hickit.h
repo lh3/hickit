@@ -8,6 +8,8 @@
 #define HK_SUB_DELIM    '!'
 #define HK_MAX_LOOP_RES 8
 
+#define HK_DBG_VAL   1
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -102,7 +104,7 @@ struct hk_v3d_opt {
 	float bead_radius;
 };
 
-extern int hk_verbose;
+extern int hk_verbose, hk_dbg_flag;
 
 void hk_popt_init(struct hk_popt *opt);
 

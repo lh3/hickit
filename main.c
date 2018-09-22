@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "hickit.h"
 
-#define HICKIT_VERSION "r290"
+#define HICKIT_VERSION "r291"
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -39,6 +39,7 @@ static struct option long_options[] = {
 	{ "loop-q",         required_argument, 0, 0 },   // 18
 	{ "loop-r",         required_argument, 0, 0 },   // 19
 	{ "val-radius",     required_argument, 0, 0 },   // 20
+	{ "dbg-val",        no_argument,       0, 0 },   // 21
 	{ 0, 0, 0, 0}
 };
 
@@ -222,6 +223,7 @@ int main(int argc, char *argv[])
 			else if (long_idx == 15) png_no_dim = 1; // --png-no-dim
 			else if (long_idx == 18) loop_min_q = atof(optarg); // --loop-q
 			else if (long_idx == 20) imput_val_radius = hk_parse_num(optarg, 0); // --val-radius
+			else if (long_idx == 21) hk_dbg_flag |= HK_DBG_VAL; // --dbg-val
 			else if (long_idx ==  4) { // --out-seg
 				assert(m && m->segs);
 				fp = strcmp(optarg, "-") == 0? stdout : fopen(optarg, "w");

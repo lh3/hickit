@@ -6,7 +6,7 @@
 #define pair_lt(a, b) ((a).chr < (b).chr || ((a).chr == (b).chr && (a).pos < (b).pos))
 KSORT_INIT(pair, struct hk_pair, pair_lt)
 
-int hk_verbose = 3;
+int hk_verbose = 3, hk_dbg_flag = 0;
 
 void hk_popt_init(struct hk_popt *c)
 {

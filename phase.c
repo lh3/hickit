@@ -266,7 +266,7 @@ void hk_validate_holdback(krng_t *r, float ratio, int32_t n_pairs, struct hk_pai
 		if (p->phase[0] >= 0 || p->phase[1] >= 0) {
 			if (kr_drand_r(r) < ratio) {
 				if (p->phase[0] >= 0) p->phase[0] = -10 + p->phase[0];
-				if (p->phase[1] >= 0) p->phase[1] = -10 + p->phase[0];
+				if (p->phase[1] >= 0) p->phase[1] = -10 + p->phase[1];
 			}
 		}
 	}
@@ -292,7 +292,7 @@ void hk_validate_roc(FILE *fp, int32_t n_pairs, struct hk_pair *pairs)
 	for (i = 0; i < n_pairs; ++i) {
 		struct hk_pair *p = &pairs[i];
 		float max = -1.0f;
-		int32_t w, max_j = -1, off_diag;
+		int32_t w, max_j = -1, off_diag, is_wrong = 0;
 		if (p->chr>>32 != (int32_t)p->chr) off_diag = 1;
 		else off_diag = !p->tad_marked;
 		for (j = 0; j < 4; ++j)
@@ -305,13 +305,18 @@ void hk_validate_roc(FILE *fp, int32_t n_pairs, struct hk_pair *pairs)
 		if (p->phase[0] == -10 || p->phase[0] == -9) {
 			int32_t phase = p->phase[0] + 10;
 			int32_t u = (max_j>>1 == phase);
+			if (u == 0) is_wrong = 1;
 			++cnt[off_diag][u][w];
 		}
 		if (p->phase[1] == -10 || p->phase[1] == -9) {
 			int32_t phase = p->phase[1] + 10;
 			int32_t u = ((max_j&1) == phase);
+			if (u == 0) is_wrong = 1;
 			++cnt[off_diag][u][w];
 		}
+		if ((hk_dbg_flag&HK_DBG_VAL) && is_wrong)
+			fprintf(fp, "E\t%d\t%d\t%d\t%d\t%d\t%d\t%.3f\t%.3f\t%.3f\t%.3f\n", (int)(p->chr>>32), hk_ppos1(p), (int)p->chr, hk_ppos2(p), p->phase[0], p->phase[1],
+					p->_.p4[0], p->_.p4[1], p->_.p4[2], p->_.p4[3]);
 	}
 	for (i = 0, tot[0] = tot[1] = 0; i < 100; ++i)
 		tot[0] += all[0][i], tot[1] += all[1][i];
