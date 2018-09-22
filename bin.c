@@ -137,7 +137,7 @@ void hk_bmap_merge_beads(struct hk_bmap *m, int32_t n_pairs, const struct hk_pai
 	hk_bmap_set_offcnt(m);
 }
 
-struct hk_bmap *hk_bmap_gen(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int size)
+struct hk_bmap *hk_bmap_gen(const struct hk_sdict *d, int32_t n_pairs, const struct hk_pair *pairs, int size, int bmap_skip_merge_flag)
 {
 	int32_t n_del, m_pairs = 0;
 	khash_t(bin_cnt) *h;
@@ -150,8 +150,10 @@ struct hk_bmap *hk_bmap_gen(const struct hk_sdict *d, int32_t n_pairs, const str
 	hk_bmap_gen_beads_uniform(m, size);
 	if (hk_verbose >= 3)
 		fprintf(stderr, "[M::%s] generated %d beads\n", __func__, m->n_beads);
-	hk_bmap_merge_beads(m, n_pairs, pairs);
-	hk_bmap_merge_beads(m, n_pairs, pairs);
+	if (bmap_skip_merge_flag == 0) {
+		hk_bmap_merge_beads(m, n_pairs, pairs);
+		hk_bmap_merge_beads(m, n_pairs, pairs);
+	}
 
 	h = hash_count(m, n_pairs, pairs);
 	for (k = 0, n_del = 0; k < kh_end(h); ++k) {
