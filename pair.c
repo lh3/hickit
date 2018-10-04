@@ -74,7 +74,7 @@ int hk_pair_is_sorted(int32_t n_pairs, const struct hk_pair *pairs)
 	return (i == n_pairs);
 }
 
-struct hk_pair *hk_seg2pair(int32_t n_segs, const struct hk_seg *segs, int min_dist, int max_seg, int min_mapq, int32_t *n_pairs_)
+struct hk_pair *hk_seg2pair(int32_t n_segs, const struct hk_seg *segs, int min_dist, int max_seg, int min_mapq, int32_t *n_pairs_, int all_close_leg)
 {
 	int32_t m_pairs = 0, n_pairs = 0, i, j, st;
 	struct hk_pair *pairs = 0;
@@ -101,7 +101,7 @@ struct hk_pair *hk_seg2pair(int32_t n_segs, const struct hk_seg *segs, int min_d
 						p->phase[0]  = s->phase,  p->phase[1]  = t->phase;
 						p->strand[0] = s->strand, p->strand[1] = t->strand;
 					}
-					if (p->strand[0] * p->strand[1] >= 0 && t->chr == s->chr && (int32_t)p->pos - (int32_t)(p->pos>>32) < min_dist) {
+					if ((p->strand[0] * p->strand[1] >= 0 || all_close_leg) && t->chr == s->chr && (int32_t)p->pos - (int32_t)(p->pos>>32) < min_dist) {
 						--n_pairs;
 						continue;
 					}
@@ -257,12 +257,12 @@ int32_t hk_pair_filter_isolated(int32_t n_pairs, struct hk_pair *pairs, int32_t 
 	return k;
 }
 
-int32_t hk_pair_filter_close_legs(int32_t n_pairs, struct hk_pair *pairs, int min_dist)
+int32_t hk_pair_filter_close_legs(int32_t n_pairs, struct hk_pair *pairs, int min_dist, int all_close_leg)
 {
 	int32_t i, k;
 	for (i = k = 0; i < n_pairs; ++i) {
 		struct hk_pair *p = &pairs[i];
-		if (!hk_intra(p) || hk_ppos2(p) - hk_ppos1(p) >= min_dist || p->strand[0] * p->strand[1] < 0)
+		if (!hk_intra(p) || hk_ppos2(p) - hk_ppos1(p) >= min_dist || (p->strand[0] * p->strand[1] < 0 && !all_close_leg) )
 			pairs[k++] = *p;
 	}
 	if (hk_verbose >= 3)
