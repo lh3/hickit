@@ -40,6 +40,7 @@ static struct option long_options[] = {
 	{ "loop-r",         required_argument, 0, 0 },   // 19
 	{ "val-radius",     required_argument, 0, 0 },   // 20
 	{ "dbg-val",        no_argument,       0, 0 },   // 21
+	{ "all-close-leg",  no_argument,       0, 0 },   // 22
 	{ 0, 0, 0, 0}
 };
 
@@ -72,6 +73,7 @@ int main(int argc, char *argv[])
 	float phase_thres = 0.75f;
 	// immediate input filters
 	int max_seg = 3, min_mapq = 20, min_leg_dist = 1000, dup_dist = 100;
+	int all_close_leg = 0; // default: use strand info when removing close-legged contacts (hk_seg2pair and hk_pair_filter_close_legs)
 	// TAD calling parameters
 	float tad_area_weight = 15.0f, tad_min_cnt_weight = 0.1f;
 	// loop calling parameters
@@ -101,9 +103,9 @@ int main(int argc, char *argv[])
 			assert(m);
 			if (ploidy == 2) hk_map_phase_male_XY(m);
 			if (m->pairs == 0 && m->segs)
-				m->pairs = hk_seg2pair(m->n_segs, m->segs, min_leg_dist, max_seg, min_mapq, &m->n_pairs);
+				m->pairs = hk_seg2pair(m->n_segs, m->segs, min_leg_dist, max_seg, min_mapq, &m->n_pairs, all_close_leg);
 			else if (m->pairs && min_leg_dist > 0)
-				m->n_pairs = hk_pair_filter_close_legs(m->n_pairs, m->pairs, min_leg_dist);
+				m->n_pairs = hk_pair_filter_close_legs(m->n_pairs, m->pairs, min_leg_dist, all_close_leg);
 			if (dup_dist)
 				m->n_pairs = hk_pair_dedup(m->n_pairs, m->pairs, dup_dist);
 		} else if (c == 'o') {
@@ -227,6 +229,7 @@ int main(int argc, char *argv[])
 			else if (long_idx == 18) loop_min_q = atof(optarg); // --loop-q
 			else if (long_idx == 20) imput_val_radius = hk_parse_num(optarg, 0); // --val-radius
 			else if (long_idx == 21) hk_dbg_flag |= HK_DBG_VAL; // --dbg-val
+			else if (long_idx == 22) all_close_leg = 1; // --dbg-val
 			else if (long_idx ==  4) { // --out-seg
 				assert(m && m->segs);
 				fp = strcmp(optarg, "-") == 0? stdout : fopen(optarg, "w");
@@ -329,6 +332,7 @@ int main(int argc, char *argv[])
 		fprintf(fp, "    --max-seg=NUM       ignore fragments with >INT segments (.seg only) [%d]\n", max_seg);
 		fprintf(fp, "    --min-mapq=NUM      min mapping quality (.seg only) [%d]\n", min_mapq);
 		fprintf(fp, "    --min-leg-dist=NUM  min base-pair distance between the two legs [%d]\n", min_leg_dist);
+		fprintf(fp, "    --all-close-leg     remove all close-legged contacts regardless of strand info\n");
 		fprintf(fp, "    --dup-dist=NUM      remove contacts within NUM-bp (dedup; 0 to disable) [%d]\n", dup_dist);
 		fprintf(fp, "  TAD calling:\n");
 		fprintf(fp, "    -a FLOAT            area weight (larger for smaller TADs) [%g]\n", tad_area_weight);
