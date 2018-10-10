@@ -240,7 +240,7 @@ static double hk_fdg1(const struct hk_fdg_conf *opt, struct hk_bmap *m, khash_t(
 	// compute the radius of each bead
 	for (i = 0; i < m->n_beads; ++i) {
 		struct hk_bead *p = &m->beads[i];
-		p->sr = 0.5 * pow((double)(p->en - p->st) / mid_bead_gsize, a_third); // min_bead_gsize: the median genomic length of beads
+		p->sr = pow((double)(p->en - p->st) / mid_bead_gsize, a_third); // min_bead_gsize: the median genomic length of beads
 	}
 
 	// apply attractive forces
