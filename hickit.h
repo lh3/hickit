@@ -69,6 +69,7 @@ struct hk_bpair {
 
 struct hk_bead {
 	int32_t chr, st, en;
+	float sr; // relative radius of the bead; mostly 1.0 for a fixed bin size
 };
 
 typedef float fvec3_t[3];
@@ -91,7 +92,7 @@ struct hk_fdg_conf {
 	float max_f;
 
 	float k_rel_rep;
-	float d_r;
+	float sr_max;
 	float d_b1, d_b2;
 	float d_c1, d_c2, d_c3;
 

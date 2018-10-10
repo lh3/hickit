@@ -95,7 +95,7 @@ int main(int argc, char *argv[])
 	hk_fdg_conf_init(&fdg_opt);
 	hk_v3d_opt_init(&v3d_opt);
 
-	while ((c = getopt_long(argc, argv, "i:o:r:c:T:P:n:w:p:b:e:k:R:a:s:I:O:D:Suz:L:EM", long_options, &long_idx)) >= 0) {
+	while ((c = getopt_long(argc, argv, "i:o:r:c:T:P:n:w:p:b:e:k:R:a:s:I:O:D:Suz:L:EMU:", long_options, &long_idx)) >= 0) {
 		has_options = 1;
 		if (c == 'i') {
 			if (m) hk_map_destroy(m);
@@ -207,9 +207,9 @@ int main(int argc, char *argv[])
 		} else if (c == 'k') {
 			fdg_opt.k_rel_rep = atof(optarg);
 			assert(fdg_opt.k_rel_rep > 0.0f);
-		} else if (c == 'R') {
-			fdg_opt.d_r = atof(optarg);
-			assert(fdg_opt.d_r > 0.0f);
+		} else if (c == 'U') {
+			fdg_opt.sr_max = atof(optarg);
+			assert(fdg_opt.sr_max >= 1.0f);
 		} else if (c == 's') {
 			seed = atol(optarg);
 			kr_srand_r(&rng, seed);
@@ -347,7 +347,7 @@ int main(int argc, char *argv[])
 		fprintf(fp, "  3D modeling:\n");
 		fprintf(fp, "    -e FLOAT            step size [%g]\n", fdg_opt.step);
 		fprintf(fp, "    -k FLOAT            relative repulsive stiffness [%g]\n", fdg_opt.k_rel_rep);
-		fprintf(fp, "    -R FLOAT            relative repulsive radius [%g]\n", fdg_opt.d_r);
+		fprintf(fp, "    -U FLOAT            max relative repulsive radius [%g]\n", fdg_opt.sr_max);
 		fprintf(fp, "    -M                  do not merge beads that have no contacts\n");
 #ifdef HAVE_GL
 		fprintf(fp, "  3D viewing:\n");

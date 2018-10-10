@@ -90,8 +90,8 @@ void hk_fdg_conf_init(struct hk_fdg_conf *opt)
 	opt->coef_moment = 0.9f;
 	opt->max_f = 50.0f;
 
-	opt->k_rel_rep = 0.05f;
-	opt->d_r = 2.0f;
+	opt->k_rel_rep = 0.1f;
+	opt->sr_max = 1.0f;
 	opt->d_b1 = 0.1f, opt->d_b2 = 1.1f;
 	opt->d_c1 = 0.5f, opt->d_c2 = 1.5f, opt->d_c3 = 2.0f;
 	hk_fdg_cal_c(opt);
@@ -133,13 +133,13 @@ double hk_fdg_bond_dist(const struct hk_bmap *m)
 
 int32_t hk_fdg_bead_size(const struct hk_bmap *m)
 {
-	int32_t mid_dist, i, *tmp;
+	int32_t mid_bead_gsize, i, *tmp;
 	tmp = CALLOC(int32_t, m->n_beads);
 	for (i = 0; i < m->n_beads; ++i)
 		tmp[i] = m->beads[i].en - m->beads[i].st;
-	mid_dist = ks_ksmall_int32_t(m->n_beads, tmp, (int)(m->n_beads * 0.5));
+	mid_bead_gsize = ks_ksmall_int32_t(m->n_beads, tmp, (int)(m->n_beads * 0.5));
 	free(tmp);
-	return mid_dist;
+	return mid_bead_gsize;
 }
 
 double hk_fdg_copy_x(struct hk_bmap *dst, const struct hk_bmap *src, krng_t *rng)
@@ -186,8 +186,8 @@ static inline float update_force(const struct hk_fdg_conf *conf, fvec3_t *x, int
 	r = *dist / d_scale;
 	assert(r > 0.0f);
 	if (force_type == FORCE_REPEL) {
-		if (r >= conf->d_r) return 0.0f;
-		t = conf->d_r - r;
+		if (r >= 1.0f) return 0.0f;
+		t = 1.0f - r;
 		energy = k * t * t;
 		force  = 2.0f * k * t;
 	} else if (force_type == FORCE_BACKBONE) {
@@ -225,17 +225,23 @@ static inline float update_force(const struct hk_fdg_conf *conf, fvec3_t *x, int
 	return energy;
 }
 
-static double hk_fdg1(const struct hk_fdg_conf *opt, struct hk_bmap *m, khash_t(set64) *h, float unit, int max_nei, int mid_dist, float rel_rep_k, int iter, fvec3_t *x0)
+static double hk_fdg1(const struct hk_fdg_conf *opt, struct hk_bmap *m, khash_t(set64) *h, float unit, int max_nei, int mid_bead_gsize, float rel_rep_k, int iter, fvec3_t *x0)
 {
 	const double a_third = 1.0 / 3.0;
 	int32_t i, j, n_y, left, n_bb = 0, n_rep = 0, n_con = 0;
 	struct avl_coor *y, *root = 0;
 	fvec3_t *f, *x = m->x;
 	double sum = 0.0, e_bb = 0.0, e_con = 0.0, e_rep = 0.0, d_bb = 0.0, d_con = 0.0, d_rep = 0.0;
-	float step, rep_radius, dist;
+	float step, max_rep_radius, dist;
 
 	step = opt->step * unit * pow(m->n_beads / 1500.0, a_third);
 	f = CALLOC(fvec3_t, m->n_beads);
+
+	// compute the radius of each bead
+	for (i = 0; i < m->n_beads; ++i) {
+		struct hk_bead *p = &m->beads[i];
+		p->sr = 0.5 * pow((double)(p->en - p->st) / mid_bead_gsize, a_third); // min_bead_gsize: the median genomic length of beads
+	}
 
 	// apply attractive forces
 	for (i = 0; i < m->d->n; ++i) { // backbone
@@ -243,9 +249,7 @@ static double hk_fdg1(const struct hk_fdg_conf *opt, struct hk_bmap *m, khash_t(
 		int32_t cnt = (int32_t)m->offcnt[i];
 		for (j = 1; j < cnt; ++j) {
 			int32_t bid = off + j;
-			int32_t d = ((m->beads[bid-1].en - m->beads[bid-1].st) + (m->beads[bid].en - m->beads[bid].st)) / 2;
-			float d_opt;
-			d_opt = pow((double)d / mid_dist, a_third);
+			float d_opt = m->beads[bid-1].sr + m->beads[bid].sr;
 			e_bb += update_force(opt, x, bid - 1, bid, 1.0f, unit, d_opt, FORCE_BACKBONE, f, &dist);
 			d_bb += dist / d_opt;
 			++n_bb;
@@ -271,14 +275,19 @@ static double hk_fdg1(const struct hk_fdg_conf *opt, struct hk_bmap *m, khash_t(
 	ks_introsort(cx, n_y, y);
 
 	// apply repulsive forces
-	rep_radius = unit * opt->d_r;
+	max_rep_radius = 2.0 * unit * opt->sr_max;
 	kavl_insert(cy, &root, &y[0], 0);
 	for (i = 1, left = 0; i < n_y; ++i) {
 		struct avl_coor t, *q = &y[i];
 		const struct avl_coor *p;
 		kavl_itr_t(cy) itr;
-		// update _left_
-		float x0 = q->x[0] - rep_radius;
+		float sr_q, search_radius;
+		// figure out the size of the current bead
+		sr_q = m->beads[q->i].sr < opt->sr_max? m->beads[q->i].sr : opt->sr_max;
+		if (sr_q < 1.0f) sr_q = 1.0f;
+		search_radius = unit * (sr_q + opt->sr_max);
+		// update _left_: discard beads out of range on the X axis
+		float x0 = q->x[0] - max_rep_radius; // NB: has to use rep_radius here
 		for (j = left; j < i; ++j) {
 			if (y[j].x[0] >= x0) break;
 			kavl_erase(cy, &root, &y[j], 0);
@@ -286,17 +295,22 @@ static double hk_fdg1(const struct hk_fdg_conf *opt, struct hk_bmap *m, khash_t(
 		left = j;
 		assert(kavl_size(head, root) == i - left);
 		// traverse neighbors in 3D
-		t.i = 0, t.x[0] = x0, t.x[1] = q->x[1] - rep_radius, t.x[2] = q->x[2] - rep_radius;
+		t.i = 0, t.x[0] = x0, t.x[1] = q->x[1] - search_radius, t.x[2] = q->x[2] - search_radius;
 		kavl_itr_find(cy, root, &t, &itr);
-		while ((p = kavl_at(&itr)) != 0) {
-			float dz, f2;
-			if (p->x[1] - q->x[1] > rep_radius) break; // out of range on the Y-axis
+		while ((p = kavl_at(&itr)) != 0) { // NB: for a small bead, repulsive forces are applied twice; for a large one, only once
+			float dx, dy, dz, f2, max_d, sr_p;
+			dy = p->x[1] - q->x[1];
+			if (dy > search_radius) break; // out of range on the Y-axis
+			sr_p = m->beads[p->i].sr < opt->sr_max? m->beads[p->i].sr : opt->sr_max;
+			if (sr_p < 1.0f) sr_p = 1.0f;
+			max_d = unit * (sr_p + sr_q);
+			dx = p->x[0] - q->x[0];
 			dz = p->x[2] - q->x[2];
-			if (dz >= -rep_radius && dz <= rep_radius) {
+			if (dx >= -max_d && dx <= max_d && dy <= max_d && dz >= -max_d && dz <= max_d) {
 				khint_t k;
 				k = kh_get(set64, h, (uint64_t)q->i << 32 | p->i);
 				if (k == kh_end(h)) {
-					f2 = update_force(opt, x, q->i, p->i, opt->k_rel_rep * rel_rep_k, unit, 1.0f, FORCE_REPEL, f, &dist);
+					f2 = update_force(opt, x, q->i, p->i, opt->k_rel_rep * rel_rep_k, unit, sr_p + sr_q, FORCE_REPEL, f, &dist);
 					if (f2 > 0.0f) {
 						e_rep += f2;
 						d_rep += dist;
@@ -342,7 +356,7 @@ static double hk_fdg1(const struct hk_fdg_conf *opt, struct hk_bmap *m, khash_t(
 void hk_fdg(const struct hk_fdg_conf *opt, struct hk_bmap *m, const struct hk_bmap *src, krng_t *rng)
 {
 	const float alpha = 10.0f, turning = 0.333f;
-	int32_t iter, i, j, absent, max_nei, *tmp, mid_dist;
+	int32_t iter, i, j, absent, max_nei, *tmp, mid_bead_gsize;
 	khash_t(set64) *h;
 	fvec3_t *best_x, *x0;
 	double best = 1e30;
@@ -371,8 +385,8 @@ void hk_fdg(const struct hk_fdg_conf *opt, struct hk_bmap *m, const struct hk_bm
 	max_nei = ks_ksmall_int32_t(m->n_pairs, tmp, (int)(m->n_pairs * 0.5));
 	free(tmp);
 
-	mid_dist = hk_fdg_bead_size(m);
-	if (hk_verbose >= 3) fprintf(stderr, "[M::%s] mid_dist:%d max_nei:%d\n", __func__, mid_dist, max_nei);
+	mid_bead_gsize = hk_fdg_bead_size(m);
+	if (hk_verbose >= 3) fprintf(stderr, "[M::%s] mid_bead_gsize:%d max_nei:%d\n", __func__, mid_bead_gsize, max_nei);
 
 	// initialize
 	if (src) {
@@ -393,7 +407,7 @@ void hk_fdg(const struct hk_fdg_conf *opt, struct hk_bmap *m, const struct hk_bm
 		rel_rep_k = (double)(iter + 1) / opt->n_iter;
 		rel_rep_k = 1.0 / (1.0 + exp(-alpha * (rel_rep_k - turning)));
 		//rel_rep_k = 1.0;
-		s = hk_fdg1(opt, m, h, unit, max_nei, mid_dist, rel_rep_k, iter, x0);
+		s = hk_fdg1(opt, m, h, unit, max_nei, mid_bead_gsize, rel_rep_k, iter, x0);
 		if (s < best) {
 			memcpy(best_x, m->x, sizeof(fvec3_t) * m->n_beads);
 			best = s;
