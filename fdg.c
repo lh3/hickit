@@ -397,6 +397,7 @@ void hk_fdg(const struct hk_fdg_conf *opt, struct hk_bmap *m, const struct hk_bm
 		m->x = hk_fdg_init(rng, m->n_beads, opt->target_radius);
 		unit = fdg_optimal_dist(opt->target_radius, m->n_beads);
 	}
+	m->unit = unit;
 
 	// FDG
 	best_x = CALLOC(fvec3_t, m->n_beads);

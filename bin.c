@@ -178,6 +178,7 @@ struct hk_bmap *hk_bmap_bead_dup(const struct hk_bmap *m0)
 {
 	struct hk_bmap *m;
 	m = CALLOC(struct hk_bmap, 1);
+	m->unit = m0->unit;
 	m->d = hk_sd_dup(m0->d);
 	m->n_beads = m0->n_beads;
 	m->beads = CALLOC(struct hk_bead, m->n_beads);
