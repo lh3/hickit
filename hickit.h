@@ -75,6 +75,7 @@ typedef float fvec3_t[3];
 
 struct hk_bmap {
 	int32_t n_beads, n_pairs;
+	float unit;
 	struct hk_sdict *d;
 	struct hk_bead *beads;
 	uint64_t *offcnt; // index into beads
