@@ -726,6 +726,71 @@ function hic_gfeat(args)
 	buf.destroy();
 }
 
+function hic_errstat(args)
+{
+	var c, min_cnt = 2000, min_dist = 1000;
+	while ((c = getopt(args, "c:d:")) != null) {
+		if (c == 'c') min_cnt = parseInt(getopt.arg);
+		else if (c == 'd') min_dist = parseInt(getopt.arg);
+	}
+	if (getopt.ind == args.length) {
+		print("Usage: hickit.js errstat [-c minCnt=" + min_cnt + "] [-d minDist=" + min_dist + "] <in.seg>");
+		return;
+	}
+	var buf = new Bytes();
+	var file = new File(args[getopt.ind]);
+	var a = [], xchr = [0, 0], in_chr = 0;
+	while (file.readline(buf) >= 0) {
+		var line = buf.toString();
+		if (line[0] == '#') continue;
+		var t = line.split("\t");
+		var seg = [];
+		for (var i = 1; i < t.length; ++i) {
+			var s = t[i].split("!");
+			if (s[4] == '0' || s[4] == '1')
+				seg.push(s);
+		}
+		if (seg.length < 2) continue;
+		for (var i = 0; i < seg.length - 1; ++i) {
+			var trans = seg[i][4] == seg[i+1][4]? 0 : 1;
+			if (seg[i][0] != seg[i+1][0]) { // cross-chr
+				++xchr[trans];
+			} else {
+				++in_chr;
+				var dist = parseInt(seg[i][1]) - parseInt(seg[i+1][1]);
+				if (dist < 0) dist = -dist;
+				if (dist == 0) dist = 1;
+				if (dist >= min_dist) a.push([dist, trans]);
+			}
+		}
+	}
+	warn("# cross-chr links in cis: " + xchr[0]);
+	warn("# cross-chr links in trans: " + xchr[1]);
+	warn("# within-chr links: " + in_chr);
+	warn("# within-chr links >=" + min_dist + "bp: " + a.length);
+	file.close();
+	buf.destroy();
+
+	a = a.sort(function(x,y) {return x[0]-y[0]});
+	var k = 0, finished = false;
+	while (k < a.length && !finished) {
+		var l;
+		if (k + min_cnt + min_cnt > a.length)
+			l = k + ((a.length - k) >> 1), finished = true;
+		else if (k + min_cnt > a.length)
+			l = a.length;
+		else l = k + min_cnt;
+		var j;
+		for (j = l + 1; j < a.length; ++j)
+			if (a[j][0] != a[l][0]) break;
+		var n = [0, 0];
+		for (var i = k; i < j; ++i) ++n[a[i][1]];
+		var dist = a[k + ((j - k) >> 1)][0];
+		print(dist, j - k, (n[1] / (n[0] + n[1])).toFixed(6));
+		k = j;
+	}
+}
+
 function main(args)
 {
 	if (args.length == 0) {
@@ -738,6 +803,7 @@ function main(args)
 		print("  chronly        filter out non-chromosomal segments/pairs");
 		print("  bedflt         filter out segments overlapping a BED");
 		print("  gfeat          compute genomic features");
+		print("  errstat        Hi-C trans error rate as a function of distance");
 		exit(1);
 	}
 
@@ -749,6 +815,7 @@ function main(args)
 	else if (cmd == 'gfeat') hic_gfeat(args);
 	else if (cmd == 'con2pair') hic_con2pair(args);
 	else if (cmd == 'pair2ncc') hic_pair2ncc(args);
+	else if (cmd == 'errstat') hic_errstat(args);
 	else throw Error("unrecognized command: " + cmd);
 }
 
