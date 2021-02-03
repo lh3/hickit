@@ -252,7 +252,7 @@ function _hic_resolve_frag(opt, a)
 					++n[phases[k]];
 				if (n[0] > 0 && n[1] == 0) phase = 0;
 				else if (n[0] == 0 && n[1] > 0) phase = 1;
-				else if (n[0] > 0 && n[1] > 0 && opt.verbose >= 2)
+				else if (n[0] > 0 && n[1] > 0 && opt.verbose >= 2) // one segment shouldn't have two phases
 					warn('WARNING: conflicting phase at a segment of read ' + qname);
 			}
 		}
@@ -308,22 +308,44 @@ function _hic_resolve_frag(opt, a)
 		for (var i = 0; i < segs.length - 1; ++i)
 			print(qname, segs[i][0], segs[i][2], segs[i+1][0], segs[i+1][1], segs[i][3], segs[i+1][3]);
 	} else {
-		var out = [];
+		var n_phased = 0;
 		for (var i = 0; i < segs.length; ++i)
-			out.push(segs[i].join(hic_sub_delim));
-		print(qname, out.join("\t"));
+			if (segs[i][4] != '.') ++n_phased;
+		if (opt.phased_dist) {
+			if (n_phased >= 2) {
+				var ss = [];
+				for (var i = 0; i < segs.length; ++i)
+					if (segs[i][4] != '.') ss.push(segs[i]);
+				for (var i = 0; i < ss.length - 1; ++i) {
+					var dist, trans = ss[i][4] == ss[i+1][4]? 0 : 1;
+					if (ss[i][0] == ss[i+1][0]) {
+						dist = ss[i][1] - ss[i+1][1];
+						if (dist < 0) dist = -dist;
+						if (dist == 0) dist = 1;
+					} else dist = 0;
+					print(dist, trans);
+				}
+			}
+		} else if (!opt.phased_only || n_phased >= 2) {
+			var out = [];
+			for (var i = 0; i < segs.length; ++i)
+				out.push(segs[i].join(hic_sub_delim));
+			print(qname, out.join("\t"));
+		}
 	}
 }
 
 function hic_sam2seg(args)
 {
-	var c, opt = { min_mapq:20, min_baseq:20, min_dist:500, fmt_pairs:false, no_qname:false, verbose:3, fn_var:null };
-	while ((c = getopt(args, "q:V:d:pNv:")) != null) {
+	var c, opt = { min_mapq:20, min_baseq:20, min_dist:500, fmt_pairs:false, no_qname:false, phased_only:false, phased_dist:false, verbose:3, fn_var:null };
+	while ((c = getopt(args, "q:V:d:pNv:DP")) != null) {
 		if (c == 'q') opt.min_mapq = parseInt(getopt.arg);
 		else if (c == 'V') opt.verbose = parseInt(getopt.arg);
 		else if (c == 'd') opt.min_dist = parseInt(getopt.arg);
 		else if (c == 'p') opt.fmt_pairs = true;
 		else if (c == 'N') opt.no_qname = true;
+		else if (c == 'D') opt.phased_only = opt.phased_dist = true;
+		else if (c == 'P') opt.phased_only = true;
 		else if (c == 'v') opt.fn_var = getopt.arg;
 	}
 
@@ -335,6 +357,7 @@ function hic_sam2seg(args)
 		print("  -p         output .pairs format (segments by default)");
 		print("  -N         don't print fragment name");
 		print("  -v FILE    phased SNPs (typically vcf2tsv output)");
+		print("  -P         only output phase-informative segments (require -v)");
 		return 1;
 	}
 
@@ -374,7 +397,8 @@ function hic_sam2seg(args)
 				}
 				if (sn == null || ln == null)
 					throw Error("missing SN or LN at an @SQ line");
-				print("#chromosome: " + sn + " " + ln);
+				if (!opt.phased_dist)
+					print("#chromosome: " + sn + " " + ln);
 			}
 			continue;
 		}
