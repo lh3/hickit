@@ -728,13 +728,13 @@ function hic_gfeat(args)
 
 function hic_errstat(args)
 {
-	var c, min_cnt = 2000, min_dist = 1000;
-	while ((c = getopt(args, "c:d:")) != null) {
-		if (c == 'c') min_cnt = parseInt(getopt.arg);
+	var c, n_bins = 250, min_dist = 1000;
+	while ((c = getopt(args, "b:d:")) != null) {
+		if (c == 'b') n_bins = parseInt(getopt.arg);
 		else if (c == 'd') min_dist = parseInt(getopt.arg);
 	}
 	if (getopt.ind == args.length) {
-		print("Usage: hickit.js errstat [-c minCnt=" + min_cnt + "] [-d minDist=" + min_dist + "] <in.seg>");
+		print("Usage: hickit.js errstat [-b nBin=" + n_bins + "] [-d minDist=" + min_dist + "] <in.seg>");
 		return;
 	}
 	var buf = new Bytes();
@@ -770,24 +770,22 @@ function hic_errstat(args)
 	warn("# within-chr links >=" + min_dist + "bp: " + a.length);
 	file.close();
 	buf.destroy();
+	if (a.length < n_bins * 2) throw Error("Too few data points per bin");
 
 	a = a.sort(function(x,y) {return x[0]-y[0]});
-	var k = 0, finished = false;
-	while (k < a.length && !finished) {
-		var l;
-		if (k + min_cnt + min_cnt > a.length)
-			l = k + ((a.length - k) >> 1), finished = true;
-		else if (k + min_cnt > a.length)
-			l = a.length;
-		else l = k + min_cnt;
-		var j;
+	var k = 0, rest = n_bins;
+	while (k < a.length) {
+		var j, l;
+		if (rest == 1) l = a.length;
+		else l = k + (Math.floor((a.length - k) / rest) + 1);
 		for (j = l + 1; j < a.length; ++j)
 			if (a[j][0] != a[l][0]) break;
+		if (j > a.length) j = a.length;
 		var n = [0, 0];
 		for (var i = k; i < j; ++i) ++n[a[i][1]];
 		var dist = a[k + ((j - k) >> 1)][0];
 		print(dist, j - k, (n[1] / (n[0] + n[1])).toFixed(6));
-		k = j;
+		k = j, --rest;
 	}
 }
 
